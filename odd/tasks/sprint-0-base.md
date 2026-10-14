@@ -16,7 +16,7 @@ In: plan Tasks 1–7. Out: business modules (auth, requests, workflow), which be
 ## Tasks
 - [x] T1 — Repository base (mise, line endings, ignores, editorconfig, README) — route: inline (mechanical files). Evidence: `mise exec -- java -version` → 25.0.4.1 LTS; node v24.21.0; `git check-ignore infra/.env` → `infra/.env`.
 - [x] T2 — Backend skeleton with MySQL 8.4 and Flyway baseline — route: delegated writer, TDD. Evidence: RED `appliesBaselineMigration` expected 1 but was 0; GREEN `-Dtest=FlywayBaselineTests` exit 0; `./mvnw -q verify` exit 0 (2 tests); orchestrator spot check re-run exit 0. Scaffold step done by orchestrator (network).
-- [ ] T3 — API conventions (system info, problem details, OpenAPI) and architecture rules — route: delegated writer, TDD
+- [x] T3 — API conventions (system info, problem details, OpenAPI) and architecture rules — route: delegated writer, TDD. Evidence: RED A expected 200 but was 404; RED B archunit package missing; GREEN ApiConventionsTests 3, ArchitectureTest 2 rules; verify 7 tests; spot check exit 0; pom adds only springdoc 3.1.1 and archunit-junit5 1.5.1.
 - [ ] T4 — Frontend skeleton with API client and system status — route: delegated writer, TDD
 - [ ] T5 — Container images and Docker Compose stack — route: delegated writer; independent verification
 - [ ] T6 — CI pipeline — route: delegated writer; independent verification
@@ -39,3 +39,4 @@ Strategy: ask-on-risk. Work-unit commit per task on `feature/sprint-0-base`; mer
 
 ## Progress
 - 2026-10-14: plan committed (0572fa6). T1 committed (8882a2f); native review (lineage review-d14a71287dcae653, medium, slice budget) approved and acknowledged. Advisories fixed in plan and README: mvnw exec bit (git update-index --chmod=+x), public TestcontainersConfiguration, README cd chain. Next: T2.
+- 2026-10-14: T2 committed (114cb2e, mvnw mode 100755). Native review high risk, 4 lenses (lineage review-7716b3994c8016a5) approved and acknowledged. Follow-up suggestions (non-blocking): wrapper checksum, pom metadata, redundant `spring.flyway.enabled`, assert actuator probes, `contextLoads` without assertion. Next: T3.
