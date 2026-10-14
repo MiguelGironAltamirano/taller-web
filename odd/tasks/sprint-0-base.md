@@ -15,7 +15,7 @@ In: plan Tasks 1–7. Out: business modules (auth, requests, workflow), which be
 
 ## Tasks
 - [x] T1 — Repository base (mise, line endings, ignores, editorconfig, README) — route: inline (mechanical files). Evidence: `mise exec -- java -version` → 25.0.4.1 LTS; node v24.21.0; `git check-ignore infra/.env` → `infra/.env`.
-- [ ] T2 — Backend skeleton with MySQL 8.4 and Flyway baseline — route: delegated writer, TDD
+- [x] T2 — Backend skeleton with MySQL 8.4 and Flyway baseline — route: delegated writer, TDD. Evidence: RED `appliesBaselineMigration` expected 1 but was 0; GREEN `-Dtest=FlywayBaselineTests` exit 0; `./mvnw -q verify` exit 0 (2 tests); orchestrator spot check re-run exit 0. Scaffold step done by orchestrator (network).
 - [ ] T3 — API conventions (system info, problem details, OpenAPI) and architecture rules — route: delegated writer, TDD
 - [ ] T4 — Frontend skeleton with API client and system status — route: delegated writer, TDD
 - [ ] T5 — Container images and Docker Compose stack — route: delegated writer; independent verification
