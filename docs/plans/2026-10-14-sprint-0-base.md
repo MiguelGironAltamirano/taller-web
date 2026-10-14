@@ -128,8 +128,8 @@ Monorepo del proyecto del curso Taller de Construcción de Software Web (UNMSM).
 
 ```bash
 mise install
-cd backend && ./mvnw spring-boot:test-run   # backend con MySQL en Testcontainers
-cd frontend && pnpm install && pnpm dev      # frontend en http://localhost:5173
+(cd backend && ./mvnw spring-boot:test-run)   # backend con MySQL en Testcontainers
+(cd frontend && pnpm install && pnpm dev)    # frontend en http://localhost:5173
 ```
 
 ## Ramas
@@ -197,7 +197,7 @@ import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
 	@Bean
 	@ServiceConnection
@@ -285,6 +285,7 @@ Expected: BUILD SUCCESS (incluye `ServiciosApplicationTests.contextLoads`).
 
 ```bash
 git add backend
+git update-index --chmod=+x backend/mvnw
 git commit -m "feat(backend): add Spring Boot skeleton with MySQL and Flyway baseline"
 ```
 

@@ -38,4 +38,4 @@ On for T2–T4 (JUnit + Testcontainers, Vitest + MSW). T1, T5, T6: structural or
 Strategy: ask-on-risk. Work-unit commit per task on `feature/sprint-0-base`; merge to `dev` in T7. Review boundary starts at `dev` (5794e96).
 
 ## Progress
-- 2026-10-14: plan committed (0572fa6). Next: T1.
+- 2026-10-14: plan committed (0572fa6). T1 committed (8882a2f); native review (lineage review-d14a71287dcae653, medium, slice budget) approved and acknowledged. Advisories fixed in plan and README: mvnw exec bit (git update-index --chmod=+x), public TestcontainersConfiguration, README cd chain. Next: T2.

@@ -19,8 +19,8 @@ Monorepo del proyecto del curso Taller de Construcción de Software Web (UNMSM).
 
 ```bash
 mise install
-cd backend && ./mvnw spring-boot:test-run   # backend con MySQL en Testcontainers
-cd frontend && pnpm install && pnpm dev      # frontend en http://localhost:5173
+(cd backend && ./mvnw spring-boot:test-run)   # backend con MySQL en Testcontainers
+(cd frontend && pnpm install && pnpm dev)    # frontend en http://localhost:5173
 ```
 
 ## Ramas
