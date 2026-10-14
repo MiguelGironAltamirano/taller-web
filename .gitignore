@@ -1,0 +1,16 @@
+# Build
+backend/target/
+frontend/dist/
+frontend/node_modules/
+frontend/coverage/
+
+# Environment
+.env
+infra/.env
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
