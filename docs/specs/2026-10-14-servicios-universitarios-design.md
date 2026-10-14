@@ -2,7 +2,7 @@
 
 - **Fecha:** 2026-10-14
 - **Estado:** borrador para revisión
-- **Fuente:** `Proyecto - Taller de construccion de software web.md` (enunciado del curso)
+- **Fuente:** `docs/enunciado/Proyecto - Taller de construccion de software web.md` (enunciado del curso; original en PDF en la misma carpeta)
 
 ## 1. Objetivo
 
