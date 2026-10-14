@@ -17,7 +17,7 @@ In: plan Tasks 1–7. Out: business modules (auth, requests, workflow), which be
 - [x] T1 — Repository base (mise, line endings, ignores, editorconfig, README) — route: inline (mechanical files). Evidence: `mise exec -- java -version` → 25.0.4.1 LTS; node v24.21.0; `git check-ignore infra/.env` → `infra/.env`.
 - [x] T2 — Backend skeleton with MySQL 8.4 and Flyway baseline — route: delegated writer, TDD. Evidence: RED `appliesBaselineMigration` expected 1 but was 0; GREEN `-Dtest=FlywayBaselineTests` exit 0; `./mvnw -q verify` exit 0 (2 tests); orchestrator spot check re-run exit 0. Scaffold step done by orchestrator (network).
 - [x] T3 — API conventions (system info, problem details, OpenAPI) and architecture rules — route: delegated writer, TDD. Evidence: RED A expected 200 but was 404; RED B archunit package missing; GREEN ApiConventionsTests 3, ArchitectureTest 2 rules; verify 7 tests; spot check exit 0; pom adds only springdoc 3.1.1 and archunit-junit5 1.5.1.
-- [ ] T4 — Frontend skeleton with API client and system status — route: delegated writer, TDD
+- [x] T4 — Frontend skeleton with API client and system status — route: delegated writer, TDD. Evidence: RED A cannot resolve ./client, RED B cannot resolve ./App; GREEN 5 tests; lint (oxlint), typecheck, build pass; spot check 5/5. Scaffold + installs done by orchestrator (network). Deviation: MSW 3 uses `onUnhandledFrame` instead of `onUnhandledRequest`; template lint is oxlint.
 - [ ] T5 — Container images and Docker Compose stack — route: delegated writer; independent verification
 - [ ] T6 — CI pipeline — route: delegated writer; independent verification
 - [ ] T7 — Remote repository and Dokploy staging — route: owner + orchestrator; blocked by D1/D2
