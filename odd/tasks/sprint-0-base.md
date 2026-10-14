@@ -19,7 +19,7 @@ In: plan Tasks 1–7. Out: business modules (auth, requests, workflow), which be
 - [x] T3 — API conventions (system info, problem details, OpenAPI) and architecture rules — route: delegated writer, TDD. Evidence: RED A expected 200 but was 404; RED B archunit package missing; GREEN ApiConventionsTests 3, ArchitectureTest 2 rules; verify 7 tests; spot check exit 0; pom adds only springdoc 3.1.1 and archunit-junit5 1.5.1.
 - [x] T4 — Frontend skeleton with API client and system status — route: delegated writer, TDD. Evidence: RED A cannot resolve ./client, RED B cannot resolve ./App; GREEN 5 tests; lint (oxlint), typecheck, build pass; spot check 5/5. Scaffold + installs done by orchestrator (network). Deviation: MSW 3 uses `onUnhandledFrame` instead of `onUnhandledRequest`; template lint is oxlint.
 - [x] T5 — Container images and Docker Compose stack — route: delegated writer; verification by writer (RDD on) + orchestrator file check. Evidence: compose up --build exit 0; /api/v1/system/info via nginx → {"name":"servicios","version":"0.0.1-SNAPSHOT"}; /solicitudes → 200; mvnw i/lf; down -v exit 0; infra/.env ignored.
-- [ ] T6 — CI pipeline — route: delegated writer; independent verification
+- [x] T6 — CI pipeline — route: delegated writer; verification by writer (RDD on) + orchestrator diff check. Evidence: local CI-equivalent commands all pass (mvnw verify 7 tests; pnpm install --frozen-lockfile, lint, typecheck, test 5, build). Real GitHub Actions run pending (triggers on pull_request and push to dev/main).
 - [ ] T7 — Remote repository and Dokploy staging — route: owner + orchestrator; blocked by D1/D2
 
 ## Acceptance criteria
