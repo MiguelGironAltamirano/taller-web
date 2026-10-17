@@ -260,10 +260,39 @@ export const requestHandlers = [
         return problem(400, 'Datos no válidos', 'El comentario debe tener entre 1 y 1000 caracteres.', { text: 'Escribe un comentario (máx. 1000 caracteres).' })
       }
       const db = getDb()
-      r.comments.push({ id: ++db.nextId, authorId: user.id, authorName: user.fullName, text, createdAt: Date.now() })
-      const others = [r.requesterId, r.technicianId].filter((id): id is number => id !== null && id !== user.id)
+      const id = ++db.nextId
+      r.comments.push({ id, authorId: user.id, authorName: user.fullName, text, createdAt: Date.now() })
+      const others = [r.requesterId, r.technicianId].filter((uid): uid is number => uid !== null && uid !== user.id)
       notify(others, `Se agregó un comentario en ${codeOf(r)}.`, codeOf(r))
-      return HttpResponse.json(detailOf(r, user), { status: 201 })
+      // Devuelve solo el CommentDto creado (contrato v2, 2026-10-17).
+      return HttpResponse.json(
+        { id, authorName: user.fullName, text, createdAt: new Date().toISOString() },
+        { status: 201 },
+      )
+    }),
+  ),
+
+  http.get(
+    '*/api/v1/requests/:code/comments',
+    secured(null, ({ params, user }) => {
+      const r = findByCode(String(params.code))
+      if (!r || !inScope(r, user)) return notFound()
+      const items = r.comments.map((c) => ({
+        id: c.id,
+        authorName: c.authorName,
+        text: c.text,
+        createdAt: new Date(c.createdAt).toISOString(),
+      }))
+      return HttpResponse.json(items)
+    }),
+  ),
+
+  http.get(
+    '*/api/v1/requests/:code/evidences',
+    secured(null, ({ params, user }) => {
+      const r = findByCode(String(params.code))
+      if (!r || !inScope(r, user)) return notFound()
+      return HttpResponse.json(r.evidences)
     }),
   ),
 

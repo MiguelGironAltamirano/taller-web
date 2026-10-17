@@ -102,3 +102,30 @@ export const apiPost = <T>(path: string, body?: unknown) => request<T>('POST', p
 export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', path, body ?? {})
 export const apiPatch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body ?? {})
 export const apiDelete = <T = void>(path: string) => request<T>('DELETE', path)
+
+export async function apiUploadFile<T>(path: string, file: File): Promise<T> {
+  const form = new FormData()
+  form.append('file', file)
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  const session = sessionStore.get()
+  if (session) headers.Authorization = `Bearer ${session.accessToken}`
+
+  let response = await fetch(toUrl(path), {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: form,
+  })
+  if (response.status === 401 && (await refreshSession())) {
+    const refreshed = sessionStore.get()
+    if (refreshed) headers.Authorization = `Bearer ${refreshed.accessToken}`
+    response = await fetch(toUrl(path), {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: form,
+    })
+  }
+  if (!response.ok) throw await toError(response)
+  return (await response.json()) as T
+}

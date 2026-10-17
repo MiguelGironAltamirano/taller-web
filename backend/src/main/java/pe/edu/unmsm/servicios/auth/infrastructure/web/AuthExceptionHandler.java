@@ -53,6 +53,15 @@ class AuthExceptionHandler {
 		return problem;
 	}
 
+	@ExceptionHandler(pe.edu.unmsm.servicios.auth.domain.InvalidCurrentPasswordException.class)
+	ProblemDetail invalidCurrentPassword() {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+				"La contraseña actual no es correcta");
+		problem.setTitle("Bad Request");
+		problem.setProperty("errors", Map.of("currentPassword", "La contraseña actual no es correcta."));
+		return problem;
+	}
+
 	@ExceptionHandler(TooManyLoginAttemptsException.class)
 	ResponseEntity<ProblemDetail> tooManyAttempts(TooManyLoginAttemptsException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,

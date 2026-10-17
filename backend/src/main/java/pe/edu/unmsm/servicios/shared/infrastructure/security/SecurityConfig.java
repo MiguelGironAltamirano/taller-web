@@ -49,7 +49,10 @@ class SecurityConfig {
 						.referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
 						.frameOptions(frame -> frame.deny()))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authorizeHttpRequests(auth -> auth.requestMatchers(PUBLIC_PATHS).permitAll().anyRequest().authenticated())
+				.authorizeHttpRequests(auth -> auth
+						.requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/auth/password").authenticated()
+						.requestMatchers(PUBLIC_PATHS).permitAll()
+						.anyRequest().authenticated())
 				.oauth2ResourceServer(oauth -> oauth
 						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
 						.authenticationEntryPoint(problems)

@@ -25,6 +25,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
       APP_FLYWAY_LOCATIONS: ${APP_FLYWAY_LOCATIONS:-classpath:db/migration}
       APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_EVIDENCES_STORAGE_PATH: ${APP_EVIDENCES_STORAGE_PATH:-/app/evidences}
+    volumes:
+      - evidences_data:/app/evidences
     depends_on:
       mysql:
         condition: service_healthy
@@ -39,3 +42,4 @@ services:
 
 volumes:
   mysql-data:
+  evidences_data:

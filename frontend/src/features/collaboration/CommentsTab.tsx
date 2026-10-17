@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { ApiError } from '../../shared/api/client'
-import type { RequestDetailView } from '../../shared/domain'
+import type { CommentItem, RequestDetailView } from '../../shared/domain'
 import { dateLong } from '../../shared/lib/format'
 import { Avatar, Icon, Input, useToast } from '../../shared/ui'
-import { useAddComment } from './api'
+import { useAddComment, useComments } from './api'
 
 type Props = { request: RequestDetailView; currentUserName: string }
 
@@ -13,7 +13,17 @@ const MAX_LENGTH = 1000
 export function CommentsTab({ request, currentUserName }: Props) {
   const toast = useToast()
   const add = useAddComment(request.code)
+  const { data: remoteComments } = useComments(request.code)
   const [text, setText] = useState('')
+
+  const comments: CommentItem[] = remoteComments
+    ? remoteComments.map((c) => ({
+        id: c.id,
+        author: c.authorName,
+        text: c.text,
+        at: Date.parse(c.createdAt),
+      }))
+    : request.comments
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,8 +39,8 @@ export function CommentsTab({ request, currentUserName }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      {request.comments.length === 0 && <div className="text-muted">Aún no hay comentarios.</div>}
-      {request.comments.map((c) => (
+      {comments.length === 0 && <div className="text-muted">Aún no hay comentarios.</div>}
+      {comments.map((c) => (
         <div key={c.id} className="flex gap-2.5">
           <Avatar name={c.author} size="md" tone={c.author === currentUserName ? 'primary' : 'neutral'} />
           <div className="min-w-0 flex-1">

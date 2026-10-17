@@ -240,4 +240,99 @@ class AuthApiTests {
 		assertThat(post("/api/v1/auth/logout", null, null).statusCode()).isEqualTo(204);
 	}
 
+	private HttpResponse<String> put(String path, String json, String accessToken) throws Exception {
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+				.header("Content-Type", "application/json")
+				.PUT(json == null ? BodyPublishers.noBody() : BodyPublishers.ofString(json));
+		if (accessToken != null) {
+			builder.header("Authorization", "Bearer " + accessToken);
+		}
+		return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	@Test
+	void changePasswordWithCorrectCurrentPasswordReturns204AndRevokesRefreshTokens() throws Exception {
+		HttpResponse<String> loginRes = loginDemo();
+		String accessToken = accessTokenOf(loginRes);
+		String refreshToken = refreshCookieOf(loginRes);
+
+		String body = """
+				{
+					"currentPassword": "%s",
+					"newPassword": "NewPassword123!"
+				}
+				""".formatted(DEMO_PASSWORD);
+
+		HttpResponse<String> response = put("/api/v1/auth/password", body, accessToken);
+		assertThat(response.statusCode()).isEqualTo(204);
+
+		assertThat(post("/api/v1/auth/refresh", null, refreshToken).statusCode()).isEqualTo(401);
+
+		String oldLoginBody = """
+				{
+					"email": "%s",
+					"password": "%s"
+				}
+				""".formatted(DEMO_EMAIL, DEMO_PASSWORD);
+		assertThat(post("/api/v1/auth/login", oldLoginBody, null).statusCode()).isEqualTo(401);
+
+		String newLoginBody = """
+				{
+					"email": "%s",
+					"password": "NewPassword123!"
+				}
+				""".formatted(DEMO_EMAIL);
+		HttpResponse<String> newLoginRes = post("/api/v1/auth/login", newLoginBody, null);
+		assertThat(newLoginRes.statusCode()).isEqualTo(200);
+
+		String newAccessToken = accessTokenOf(newLoginRes);
+		String restoreBody = """
+				{
+					"currentPassword": "NewPassword123!",
+					"newPassword": "%s"
+				}
+				""".formatted(DEMO_PASSWORD);
+		assertThat(put("/api/v1/auth/password", restoreBody, newAccessToken).statusCode()).isEqualTo(204);
+	}
+
+	@Test
+	void changePasswordWithWrongCurrentPasswordReturns400() throws Exception {
+		String accessToken = accessTokenOf(loginDemo());
+		String body = """
+				{
+					"currentPassword": "WrongPassword123!",
+					"newPassword": "NewPassword123!"
+				}
+				""";
+		HttpResponse<String> response = put("/api/v1/auth/password", body, accessToken);
+		assertThat(response.statusCode()).isEqualTo(400);
+		assertThat(response.body()).contains("currentPassword");
+	}
+
+	@Test
+	void changePasswordWithInvalidNewPasswordReturns400() throws Exception {
+		String accessToken = accessTokenOf(loginDemo());
+		String body = """
+				{
+					"currentPassword": "%s",
+					"newPassword": "short"
+				}
+				""".formatted(DEMO_PASSWORD);
+		HttpResponse<String> response = put("/api/v1/auth/password", body, accessToken);
+		assertThat(response.statusCode()).isEqualTo(400);
+		assertThat(response.body()).contains("newPassword");
+	}
+
+	@Test
+	void changePasswordWithoutTokenReturns401() throws Exception {
+		String body = """
+				{
+					"currentPassword": "%s",
+					"newPassword": "NewPassword123!"
+				}
+				""".formatted(DEMO_PASSWORD);
+		HttpResponse<String> response = put("/api/v1/auth/password", body, null);
+		assertThat(response.statusCode()).isEqualTo(401);
+	}
+
 }

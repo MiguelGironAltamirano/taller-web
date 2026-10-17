@@ -18,4 +18,7 @@ public interface UserRepository {
 	/** Persists a new user; throws EmailAlreadyRegisteredException when the email is taken. */
 	User register(User user);
 
+	/** Updates the password hash of the user with the given id. */
+	void updatePassword(long id, String newPasswordHash);
+
 }
