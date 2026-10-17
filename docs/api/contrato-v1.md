@@ -76,6 +76,29 @@ Desactivar una cuenta (`active: false`) no la borra: el login responde `401` (mi
 
 `PUT` no modifica `active` ni la contraseña.
 
+## Administración: catálogos
+
+Acceso: solo rol `ADMINISTRADOR` (`403` otro rol, `401` sin token). Los cambios se ven en `GET /catalogs`, que solo lista áreas y categorías activas.
+
+| Método y ruta | Cuerpo | Respuesta |
+|---|---|---|
+| `POST /admin/areas` | `{ name }` | `201` `{ id, name }` · `400` · `409` ya existe un área activa con ese nombre |
+| `DELETE /admin/areas/{id}` | — | `204` (se desactiva) · `404` no existe o ya está inactiva · `409` tiene categorías activas o técnicos/supervisores activos |
+| `POST /admin/categories` | `{ name, areaId }` | `201` `{ id, name, areaId }` · `400` (`areaId` inexistente o inactiva) · `409` ya existe una categoría activa con ese nombre |
+| `DELETE /admin/categories/{id}` | — | `204` (se desactiva) · `404` no existe o ya está inactiva |
+| `PUT /admin/priorities/{id}` | `{ slaHours }` | `200` `{ id, name, slaHours }` · `400` · `404` |
+| `POST /admin/locations` | `{ faculty, pavilion, room }` | `201` `{ id, name, kind: 'AMBIENTE', parentId }` · `400` · `409` el ambiente ya existe en ese pabellón |
+| `DELETE /admin/locations/{id}` | — | `204` · `404` · `409` no es un ambiente o tiene solicitudes |
+
+Reglas:
+
+- Nombres sin espacios sobrantes: área y categoría de 1 a 100 caracteres; facultad, pabellón y ambiente de 1 a 150. La comparación de nombres no distingue mayúsculas ni tildes (colación de MySQL).
+- **Áreas y categorías no se borran, se desactivan**: las solicitudes y usuarios que las referencian las conservan. Crear un área o categoría con el nombre de una inactiva la reactiva (la categoría, con el `areaId` enviado) y responde `201` con su `id` original.
+- Una categoría se puede desactivar aunque tenga solicitudes: deja de ofrecerse al registrar, y las solicitudes existentes la mantienen.
+- `slaHours`: entero de 1 a 8760. El cambio aplica a las solicitudes que se registren después; **no recalcula el vencimiento de las ya registradas**.
+- `POST /admin/locations` reutiliza la facultad y el pabellón si ya existen con ese nombre y crea los niveles que falten.
+- Solo se eliminan ambientes sin solicitudes; si su pabellón y su facultad quedan sin hijos ni solicitudes, también se eliminan.
+
 ## Reglas de acceso reutilizables
 
 Usar siempre estas reglas en lugar de reimplementar las comprobaciones en cada módulo. Están en `pe.edu.unmsm.servicios.shared.domain` (Java puro, sin dependencias de Spring).

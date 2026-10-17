@@ -39,7 +39,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 
 ### Administración (`ADMINISTRADOR`)
 
-> Usuarios (`/admin/users*`) y estados (`/admin/states`) ya están acordados en [`contrato-v1.md`](contrato-v1.md#administración-usuarios-y-estados), con la contraseña temporal en el `POST`; las filas de abajo para esas rutas quedan como referencia histórica.
+> Usuarios (`/admin/users*`), estados (`/admin/states`) y catálogos (`/admin/areas`, `/admin/categories`, `/admin/priorities`, `/admin/locations`) ya están acordados e implementados según [`contrato-v1.md`](contrato-v1.md#administración-usuarios-y-estados) (usuarios con contraseña temporal; áreas y categorías se desactivan en lugar de borrarse). Las filas de abajo para esas rutas quedan como referencia histórica.
 
 | Método y ruta | Cuerpo | Notas |
 |---|---|---|
