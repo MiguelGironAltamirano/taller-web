@@ -34,6 +34,14 @@ export const ROLE_LABELS: Record<Role, string> = {
   administrador: 'Administrador',
 }
 
+/** Título de la bandeja principal de cada rol. */
+export const LIST_TITLES: Record<Role, string> = {
+  solicitante: 'Mis solicitudes',
+  tecnico: 'Mi bandeja',
+  supervisor: 'Bandeja del área',
+  administrador: 'Todas las solicitudes',
+}
+
 export const REQUESTER_TYPES = ['Estudiante', 'Docente', 'Administrativo'] as const
 export type RequesterType = (typeof REQUESTER_TYPES)[number]
 
@@ -79,6 +87,7 @@ export type CommentItem = { id: number; author: string; text: string; at: number
 export type EvidenceItem = { id: number; name: string; kind: 'IMG' | 'PDF'; sizeKb: number }
 
 export type RequestDetailView = RequestRow & {
+  areaId: number
   requesterId: number
   technicianId: number | null
   history: HistoryItem[]

@@ -81,6 +81,7 @@ export function toRequestRow(s: RequestSummary): RequestRow {
 export function toRequestDetail(d: RequestDetail): RequestDetailView {
   return {
     ...toRequestRow(d),
+    areaId: d.area.id,
     requesterId: d.requester.id,
     technicianId: d.technician?.id ?? null,
     history: d.history.map((h) => ({
