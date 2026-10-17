@@ -24,9 +24,11 @@ public class Login {
 	private final AccessTokenGenerator accessTokens;
 	private final Clock clock;
 	private final Duration refreshTtl;
+	private final LoginAttemptLimiter limiter;
 
 	public Login(UserRepository users, RefreshTokenRepository refreshTokens, PasswordHasher hasher,
-			RefreshTokenCodec codec, AccessTokenGenerator accessTokens, Clock clock, Duration refreshTtl) {
+			RefreshTokenCodec codec, AccessTokenGenerator accessTokens, Clock clock, Duration refreshTtl,
+			LoginAttemptLimiter limiter) {
 		this.users = users;
 		this.refreshTokens = refreshTokens;
 		this.hasher = hasher;
@@ -34,15 +36,19 @@ public class Login {
 		this.accessTokens = accessTokens;
 		this.clock = clock;
 		this.refreshTtl = refreshTtl;
+		this.limiter = limiter;
 	}
 
 	@Transactional
 	public AuthSession execute(String email, String password) {
+		limiter.checkAllowed(email);
 		Optional<User> found = users.findByEmail(email.trim().toLowerCase(Locale.ROOT));
 		boolean passwordMatches = hasher.matches(password, found.map(User::passwordHash).orElse(DUMMY_HASH));
 		if (found.isEmpty() || !passwordMatches || !found.get().active()) {
+			limiter.recordFailure(email);
 			throw new InvalidCredentialsException();
 		}
+		limiter.recordSuccess(email);
 		User user = found.get();
 		String refreshToken = codec.generate();
 		Instant now = clock.instant();

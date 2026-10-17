@@ -7,7 +7,7 @@ Base: `/api/v1`. JSON en UTF-8. Fechas ISO-8601 en UTC. Errores: `application/pr
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
 | `POST /auth/register` | Público | `{ fullName, email, password, requesterType }` | `201` `UserSummary` · `400` validación · `409` correo ya registrado |
-| `POST /auth/login` | Público | `{ email, password }` | `200` `TokenResponse` + cookie `refresh_token` · `401` credenciales inválidas |
+| `POST /auth/login` | Público | `{ email, password }` | `200` `TokenResponse` + cookie `refresh_token` · `401` credenciales inválidas · `429` tras 5 intentos fallidos en 15 minutos, con cabecera `Retry-After` (segundos) |
 | `POST /auth/refresh` | Cookie `refresh_token` | — | `200` `TokenResponse` + cookie rotada · `401` |
 | `POST /auth/logout` | Cookie `refresh_token` | — | `204`, cookie eliminada y token revocado |
 | `GET /me` | Token | — | `200` `{ id, email, fullName, role, areaId }` |

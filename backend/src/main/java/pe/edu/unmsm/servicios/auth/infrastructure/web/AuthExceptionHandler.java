@@ -5,8 +5,11 @@ import java.util.Map;
 
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pe.edu.unmsm.servicios.auth.domain.EmailAlreadyRegisteredException;
 import pe.edu.unmsm.servicios.auth.domain.InvalidCredentialsException;
 import pe.edu.unmsm.servicios.auth.domain.InvalidRefreshTokenException;
+import pe.edu.unmsm.servicios.auth.domain.TooManyLoginAttemptsException;
 
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -47,6 +51,17 @@ class AuthExceptionHandler {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Credenciales inválidas");
 		problem.setTitle("Unauthorized");
 		return problem;
+	}
+
+	@ExceptionHandler(TooManyLoginAttemptsException.class)
+	ResponseEntity<ProblemDetail> tooManyAttempts(TooManyLoginAttemptsException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+				"Demasiados intentos fallidos. Intenta de nuevo más tarde");
+		problem.setTitle("Too Many Requests");
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+				.header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
+				.contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.body(problem);
 	}
 
 	@ExceptionHandler(InvalidRefreshTokenException.class)

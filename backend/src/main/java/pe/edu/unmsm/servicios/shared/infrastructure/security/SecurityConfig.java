@@ -2,14 +2,18 @@ package pe.edu.unmsm.servicios.shared.infrastructure.security;
 
 import java.nio.charset.StandardCharsets;
 
+import java.util.List;
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -23,6 +27,10 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableMethodSecurity
@@ -36,6 +44,10 @@ class SecurityConfig {
 	SecurityFilterChain apiSecurity(HttpSecurity http, ProblemDetailsSecurityHandler problems) throws Exception {
 		return http
 				.csrf(csrf -> csrf.disable())
+				.cors(Customizer.withDefaults())
+				.headers(headers -> headers
+						.referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
+						.frameOptions(frame -> frame.deny()))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth.requestMatchers(PUBLIC_PATHS).permitAll().anyRequest().authenticated())
 				.oauth2ResourceServer(oauth -> oauth
@@ -44,6 +56,23 @@ class SecurityConfig {
 						.accessDeniedHandler(problems))
 				.exceptionHandling(errors -> errors.authenticationEntryPoint(problems).accessDeniedHandler(problems))
 				.build();
+	}
+
+	/** Cross-origin access is denied unless {@code app.cors.allowed-origins} lists the allowed origins. */
+	@Bean
+	CorsConfigurationSource corsConfigurationSource(
+			@Value("${app.cors.allowed-origins:}") List<String> allowedOrigins) {
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		List<String> origins = allowedOrigins.stream().map(String::trim).filter(origin -> !origin.isEmpty()).toList();
+		if (!origins.isEmpty()) {
+			CorsConfiguration cors = new CorsConfiguration();
+			cors.setAllowedOrigins(origins);
+			cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+			cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+			cors.setAllowCredentials(true);
+			source.registerCorsConfiguration("/**", cors);
+		}
+		return source;
 	}
 
 	@Bean
