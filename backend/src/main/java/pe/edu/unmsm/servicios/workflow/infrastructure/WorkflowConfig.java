@@ -13,12 +13,15 @@ import pe.edu.unmsm.servicios.workflow.application.TechnicianDirectory;
 import pe.edu.unmsm.servicios.workflow.application.TransitionRequest;
 import pe.edu.unmsm.servicios.workflow.application.WorkflowAllowedTransitions;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 @Configuration
 class WorkflowConfig {
 
 	@Bean
-	TransitionRequest transitionRequest(RequestStateStore requests, TechnicianDirectory technicians, Clock clock) {
-		return new TransitionRequest(requests, technicians, clock);
+	TransitionRequest transitionRequest(RequestStateStore requests, TechnicianDirectory technicians, Clock clock,
+			ApplicationEventPublisher eventPublisher) {
+		return new TransitionRequest(requests, technicians, clock, eventPublisher);
 	}
 
 	@Bean
