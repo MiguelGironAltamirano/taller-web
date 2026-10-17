@@ -1,6 +1,7 @@
 package pe.edu.unmsm.servicios.auth.infrastructure;
 
 import java.time.Clock;
+import java.time.Duration;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -8,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 import pe.edu.unmsm.servicios.auth.application.AccessTokenGenerator;
 import pe.edu.unmsm.servicios.auth.application.Login;
+import pe.edu.unmsm.servicios.auth.application.LoginAttemptLimiter;
 import pe.edu.unmsm.servicios.auth.application.Logout;
 import pe.edu.unmsm.servicios.auth.application.PasswordHasher;
 import pe.edu.unmsm.servicios.auth.application.RefreshSession;
@@ -32,9 +34,15 @@ class AuthConfig {
 	}
 
 	@Bean
+	LoginAttemptLimiter loginAttemptLimiter(Clock clock) {
+		return new LoginAttemptLimiter(clock, 5, Duration.ofMinutes(15));
+	}
+
+	@Bean
 	Login login(UserRepository users, RefreshTokenRepository refreshTokens, PasswordHasher hasher,
-			RefreshTokenCodec codec, AccessTokenGenerator accessTokens, Clock clock, JwtProperties jwt) {
-		return new Login(users, refreshTokens, hasher, codec, accessTokens, clock, jwt.refreshTokenTtl());
+			RefreshTokenCodec codec, AccessTokenGenerator accessTokens, Clock clock, JwtProperties jwt,
+			LoginAttemptLimiter limiter) {
+		return new Login(users, refreshTokens, hasher, codec, accessTokens, clock, jwt.refreshTokenTtl(), limiter);
 	}
 
 	@Bean

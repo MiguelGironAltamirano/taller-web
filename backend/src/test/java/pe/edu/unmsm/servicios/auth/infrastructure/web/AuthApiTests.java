@@ -157,6 +157,16 @@ class AuthApiTests {
 	}
 
 	@Test
+	void supervisorLoginCarriesTheAreaInTheUserAndInMe() throws Exception {
+		HttpResponse<String> response = post("/api/v1/auth/login",
+				loginBody("supervisor.mantenimiento@unmsm.edu.pe", DEMO_PASSWORD), null);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"areaId\":1");
+		assertThat(get("/api/v1/me", accessTokenOf(response)).body()).contains("\"areaId\":1");
+	}
+
+	@Test
 	void wrongPasswordAndUnknownEmailReturnTheSameProblem() throws Exception {
 		HttpResponse<String> wrongPassword = post("/api/v1/auth/login", loginBody(DEMO_EMAIL, "Incorrecta1"), null);
 		HttpResponse<String> unknownEmail = post("/api/v1/auth/login", loginBody("nadie@unmsm.edu.pe", "Incorrecta1"), null);

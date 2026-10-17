@@ -14,10 +14,12 @@ class MeController {
 	@GetMapping("/api/v1/me")
 	AuthenticatedUserResponse me(@AuthenticationPrincipal Jwt jwt) {
 		AuthenticatedUser user = CurrentUser.from(jwt);
-		return new AuthenticatedUserResponse(user.id(), user.email(), user.fullName(), user.role());
+		return new AuthenticatedUserResponse(user.id(), user.email(), user.fullName(), user.role(),
+				user.areaId());
 	}
 
-	record AuthenticatedUserResponse(long id, String email, String fullName, String role) {
+	record AuthenticatedUserResponse(long id, String email, String fullName, String role,
+			Long areaId) {
 	}
 
 }

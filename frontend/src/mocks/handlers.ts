@@ -108,7 +108,7 @@ export const handlers = [
   http.get(`${api}/me`, ({ request }) => {
     const user = userFromToken(request.headers.get('Authorization'))
     if (!user) return problem(401, 'Unauthorized', 'Authentication is required')
-    return HttpResponse.json({ id: user.id, email: user.email, fullName: user.fullName, role: user.role })
+    return HttpResponse.json({ id: user.id, email: user.email, fullName: user.fullName, role: user.role, areaId: user.areaId })
   }),
 
   http.get(`${api}/catalogs`, ({ request }) => {
