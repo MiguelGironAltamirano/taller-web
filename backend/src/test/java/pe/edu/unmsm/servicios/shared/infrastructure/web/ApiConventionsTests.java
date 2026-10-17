@@ -36,9 +36,24 @@ class ApiConventionsTests {
 		assertThat(response.body()).contains("\"name\":\"servicios\"").contains("\"version\":\"0.0.1-SNAPSHOT\"");
 	}
 
+	@org.springframework.beans.factory.annotation.Autowired
+	pe.edu.unmsm.servicios.shared.infrastructure.security.AccessTokenIssuer issuer;
+
 	@Test
-	void unknownApiRouteReturnsProblemDetails() throws Exception {
+	void unknownApiRouteWithoutTokenReturnsUnauthorizedProblem() throws Exception {
 		HttpResponse<String> response = get("/api/v1/does-not-exist");
+		assertThat(response.statusCode()).isEqualTo(401);
+		assertThat(response.headers().firstValue("Content-Type")).hasValueSatisfying(
+				type -> assertThat(type).startsWith("application/problem+json"));
+	}
+
+	@Test
+	void unknownApiRouteWithTokenReturnsNotFoundProblem() throws Exception {
+		String token = issuer.issue(new pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser(
+				1, "admin@unmsm.edu.pe", "Admin", "ADMINISTRADOR")).value();
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/does-not-exist"))
+				.header("Authorization", "Bearer " + token).GET().build();
+		HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
 		assertThat(response.statusCode()).isEqualTo(404);
 		assertThat(response.headers().firstValue("Content-Type")).hasValueSatisfying(
 				type -> assertThat(type).startsWith("application/problem+json"));
