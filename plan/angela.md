@@ -90,3 +90,31 @@ Pantallas: bandeja del supervisor, bandeja del técnico y los botones de transic
 ## 8. Definición de terminado
 
 Ver la [definición de terminado general](README.md#5-definición-de-terminado). Además: cada historia de usuario tiene al menos un escenario BDD que coincide con una prueba automatizada.
+
+## 9. Estado de avance (17 de octubre de 2026)
+
+Resumen: **el backend de `workflow` y su conexión con el frontend están hechos y en `dev` (PR #9)**; faltan las pruebas de interfaz, la verificación manual con el backend real y la documentación de Fase I.
+
+### Backend (`workflow`)
+
+- [x] Máquina de estados como dominio puro con la tabla de la sección 3 (orden de validación `409` → `403` → `400`)
+- [x] `POST /api/v1/requests/{codigo}/transitions`: bloqueo pesimista de la fila, versión optimista e historial por transición; devuelve el detalle actualizado
+- [x] Asignación y reasignación (reasignar exige motivo y un técnico distinto; el técnico debe ser activo y del área)
+- [x] `GET /api/v1/users/technicians?areaId=`: solo supervisor, de su propia área, con `activeRequests`
+- [x] Transiciones permitidas por usuario en el detalle (`allowedTransitions`)
+- [x] Pruebas: dominio (50), casos de uso (13) y de integración con MySQL real (20, `WorkflowApiTests`)
+- [ ] Cierre automático a las 72 h (tarea programada): sin implementar
+
+### Frontend (`features/workflow`, `features/satisfaction`)
+
+- [x] Los botones del detalle salen de `allowedTransitions` (`actionsFromTransitions`)
+- [x] Un `409` muestra "Transición no permitida" y refresca el detalle
+- [x] Confirmar la solución cierra la solicitud; la calificación es opcional y se guarda después; rechazar exige motivo
+- [x] Mocks alineados con el backend real
+- [ ] Pruebas de interfaz de los flujos de supervisor, técnico y solicitante
+- [ ] Verificación manual de punta a punta con el backend real en el navegador
+
+### Documentación
+
+- [x] Semántica de las transiciones en `docs/api/ui-extensions.md`
+- [ ] Fase I en `docs/fase-1/`
