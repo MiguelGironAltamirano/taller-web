@@ -40,6 +40,8 @@ describe('catálogos', () => {
     expect(prioritySchema.safeParse({ slaHours: '1.5' }).success).toBe(false)
     expect(prioritySchema.safeParse({ slaHours: 'abc' }).success).toBe(false)
     expect(prioritySchema.safeParse({ slaHours: '48' }).success).toBe(true)
+    expect(prioritySchema.safeParse({ slaHours: '8760' }).success).toBe(true)
+    expect(prioritySchema.safeParse({ slaHours: '8761' }).success).toBe(false)
   })
   it('ubicación: exige facultad, pabellón y ambiente', () => {
     expect(locationSchema.safeParse({ faculty: 'F', pavilion: 'P', room: '' }).success).toBe(false)

@@ -131,7 +131,13 @@ export const catalogHandlers = [
     '*/api/v1/catalogs',
     secured(null, () => {
       const { areas, categories, priorities, locations } = getDb()
-      const body: Catalogs = { areas, categories, priorities, locations }
+      // Como el backend: solo áreas y categorías activas.
+      const body: Catalogs = {
+        areas: areas.filter((a) => a.active !== false).map(({ id, name }) => ({ id, name })),
+        categories: categories.filter((c) => c.active !== false).map(({ id, name, areaId }) => ({ id, name, areaId })),
+        priorities,
+        locations,
+      }
       return HttpResponse.json(body)
     }),
   ),

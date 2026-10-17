@@ -57,9 +57,12 @@ function validateUser(body: AdminUserBody): Record<string, string> {
   if (!INSTITUTIONAL.test(body.email?.trim() ?? '')) errors.email = 'El correo debe terminar en @unmsm.edu.pe'
   if (belongsToArea(body.role) && !body.areaId) errors.areaId = 'El área es obligatoria para este rol'
   else if (!belongsToArea(body.role) && body.areaId) errors.areaId = 'Este rol no pertenece a un área'
-  else if (body.areaId && !getDb().areas.some((a) => a.id === body.areaId)) errors.areaId = 'El área no existe o está inactiva'
+  else if (body.areaId && !activeArea(body.areaId)) errors.areaId = 'El área no existe o está inactiva'
   return errors
 }
+
+const activeArea = (id: number) => getDb().areas.find((a) => a.id === id && a.active !== false)
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 const emailTaken = (email: string, ignoreId?: number) =>
   getDb().users.some((u) => u.email === email.trim().toLowerCase() && u.id !== ignoreId)
@@ -162,8 +165,13 @@ export const adminHandlers = [
       const { name } = (await request.json()) as { name: string }
       const clean = name?.trim() ?? ''
       if (!clean) return problem(400, 'Datos no válidos', 'Ingresa el nombre.', { name: 'Ingresa el nombre.' })
-      if (db.areas.some((a) => a.name.toLowerCase() === clean.toLowerCase())) {
-        return problem(400, 'Datos no válidos', 'Esa área ya existe.', { name: 'Esa área ya existe.' })
+      const existing = db.areas.find((a) => sameName(a.name, clean))
+      if (existing?.active === false) {
+        existing.active = true
+        return HttpResponse.json({ id: existing.id, name: existing.name }, { status: 201 })
+      }
+      if (existing) {
+        return problem(409, 'Conflict', 'Ya existe un área con ese nombre', { name: 'Ya existe un área con ese nombre' })
       }
       const area = { id: ++db.nextId, name: clean }
       db.areas.push(area)
@@ -176,10 +184,15 @@ export const adminHandlers = [
     secured(ADMIN, ({ params }) => {
       const db = getDb()
       const id = Number(params.id)
-      if (db.categories.some((c) => c.areaId === id)) {
-        return problem(409, 'No se puede eliminar', 'No se puede eliminar: tiene categorías asociadas.')
+      const area = activeArea(id)
+      if (!area) return notFound('El área no existe')
+      if (db.categories.some((c) => c.areaId === id && c.active !== false)) {
+        return problem(409, 'Conflict', 'No se puede eliminar: el área tiene categorías activas')
       }
-      db.areas = db.areas.filter((a) => a.id !== id)
+      if (db.users.some((u) => u.areaId === id && u.active && belongsToArea(u.role))) {
+        return problem(409, 'Conflict', 'No se puede eliminar: el área tiene técnicos o supervisores activos')
+      }
+      area.active = false
       return new HttpResponse(null, { status: 204 })
     }),
   ),
@@ -192,9 +205,16 @@ export const adminHandlers = [
       const errors: Record<string, string> = {}
       const name = body.name?.trim() ?? ''
       if (!name) errors.name = 'Ingresa el nombre.'
-      else if (db.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) errors.name = 'Esa categoría ya existe.'
-      if (!db.areas.some((a) => a.id === body.areaId)) errors.areaId = 'Selecciona el área.'
+      if (!activeArea(body.areaId)) errors.areaId = 'El área no existe o está inactiva'
       if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
+      const existing = db.categories.find((c) => sameName(c.name, name))
+      if (existing?.active === false) {
+        Object.assign(existing, { active: true, areaId: body.areaId })
+        return HttpResponse.json({ id: existing.id, name: existing.name, areaId: existing.areaId }, { status: 201 })
+      }
+      if (existing) {
+        return problem(409, 'Conflict', 'Ya existe una categoría con ese nombre', { name: 'Ya existe una categoría con ese nombre' })
+      }
       const category = { id: ++db.nextId, name, areaId: body.areaId }
       db.categories.push(category)
       return HttpResponse.json(category, { status: 201 })
@@ -206,10 +226,10 @@ export const adminHandlers = [
     secured(ADMIN, ({ params }) => {
       const db = getDb()
       const id = Number(params.id)
-      if (db.requests.some((r) => r.categoryId === id)) {
-        return problem(409, 'No se puede eliminar', 'No se puede eliminar: hay solicitudes con esta categoría.')
-      }
-      db.categories = db.categories.filter((c) => c.id !== id)
+      const category = db.categories.find((c) => c.id === id && c.active !== false)
+      if (!category) return notFound('La categoría no existe')
+      // Se desactiva aunque tenga solicitudes: estas la conservan y deja de ofrecerse al registrar.
+      category.active = false
       return new HttpResponse(null, { status: 204 })
     }),
   ),
@@ -220,8 +240,10 @@ export const adminHandlers = [
       const priority = getDb().priorities.find((p) => p.id === Number(params.id))
       if (!priority) return notFound()
       const { slaHours } = (await request.json()) as { slaHours: number }
-      if (!Number.isInteger(slaHours) || slaHours <= 0) {
-        return problem(400, 'Datos no válidos', 'Ingresa horas mayores a 0.', { slaHours: 'Ingresa horas mayores a 0.' })
+      if (!Number.isInteger(slaHours) || slaHours <= 0 || slaHours > 8760) {
+        return problem(400, 'Datos no válidos', 'Las horas de SLA deben estar entre 1 y 8760', {
+          slaHours: 'Las horas de SLA deben estar entre 1 y 8760',
+        })
       }
       priority.slaHours = slaHours
       return HttpResponse.json(priority)
@@ -248,7 +270,13 @@ export const adminHandlers = [
       }
       const faculty = ensure(body.faculty.trim(), 'FACULTAD', null)
       const pavilion = ensure(body.pavilion.trim(), 'PABELLON', faculty.id)
-      const room = ensure(body.room.trim(), 'AMBIENTE', pavilion.id)
+      const roomName = body.room.trim()
+      const sameRoom = (l: { kind: string; parentId: number | null; name: string }) =>
+        l.kind === 'AMBIENTE' && l.parentId === pavilion.id && l.name.toLowerCase() === roomName.toLowerCase()
+      if (db.locations.some(sameRoom)) {
+        return problem(409, 'Conflict', 'El ambiente ya existe en ese pabellón', { room: 'El ambiente ya existe en ese pabellón' })
+      }
+      const room = ensure(roomName, 'AMBIENTE', pavilion.id)
       return HttpResponse.json(room, { status: 201 })
     }),
   ),
@@ -258,13 +286,15 @@ export const adminHandlers = [
     secured(ADMIN, ({ params }) => {
       const db = getDb()
       const id = Number(params.id)
-      if (db.requests.some((r) => r.locationId === id)) {
-        return problem(409, 'No se puede eliminar', 'No se puede eliminar: hay solicitudes en este ambiente.')
-      }
       const room = db.locations.find((l) => l.id === id)
+      if (!room) return notFound('La ubicación no existe')
+      if (room.kind !== 'AMBIENTE') return problem(409, 'Conflict', 'Solo se pueden eliminar ambientes')
+      if (db.requests.some((r) => r.locationId === id)) {
+        return problem(409, 'Conflict', 'No se puede eliminar: hay solicitudes en este ambiente')
+      }
       db.locations = db.locations.filter((l) => l.id !== id)
       // Limpia pabellones y facultades que quedaron vacíos.
-      if (room?.parentId) {
+      if (room.parentId) {
         const prune = (parentId: number | null) => {
           if (parentId === null) return
           if (!db.locations.some((l) => l.parentId === parentId)) {
