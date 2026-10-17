@@ -39,4 +39,9 @@ class JpaRefreshTokenRepository implements RefreshTokenRepository {
 		return repository.revokeIfActive(tokenHash, at) > 0;
 	}
 
+	@Override
+	public int revokeAllForUser(long userId, Instant at) {
+		return repository.revokeAllActiveOfUser(userId, at);
+	}
+
 }
