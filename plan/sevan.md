@@ -108,20 +108,21 @@ Prioridad sugerida: **S** = Release Candidate (semana 12), **C** = opcional si h
 
 ## 10. Estado de avance (17 de octubre de 2026)
 
-Resumen: **el frontend de tu módulo está hecho contra la API simulada; el backend (`catalog` y `requests`) todavía no existe.** El PR #7 (`feature/ui-design-system`) ya está en `dev`, con los checks de CI en verde y sin revisión de otro integrante.
+Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; faltan los filtros avanzados del servidor y la documentación para el manual. El frontend (PR #7, `feature/ui-design-system`) ya está en `dev`; el backend (`catalog` y `requests`) está en la rama `feature/requests-backend`, pendiente de PR.
 
 ### Backend (`catalog`, `requests`)
 
 - [x] Esquema y semillas de catálogos en `dev` (`V2__initial_schema.sql`, `V3__catalog_seed.sql`, de Miguel).
-- [ ] `GET /api/v1/catalogs`
-- [ ] `POST /api/v1/requests` con código `SOL-AAAA-NNNNNN` correlativo por año, validación de 20–2000 caracteres, área derivada de la categoría y vencimiento = registro + SLA
-- [ ] `GET /api/v1/requests` filtrado por rol y por estado, con paginación
-- [ ] `GET /api/v1/requests/{codigo}` con `404` si no es visible
-- [ ] Marca de vencidas calculada en el servidor
+- [x] `GET /api/v1/catalogs`: solo áreas y categorías activas, prioridades con su SLA y el árbol de ubicaciones
+- [x] `POST /api/v1/requests` con código `SOL-AAAA-NNNNNN` correlativo por año (año de Lima), validación de 20–2000 caracteres, área derivada de la categoría y vencimiento = registro + SLA; solo el rol `SOLICITANTE`
+- [x] `GET /api/v1/requests` filtrado por rol y por estado, con paginación (máximo 500 por página)
+- [x] `GET /api/v1/requests/{codigo}` con `404` si no es visible
+- [x] Marca de vencidas calculada en el servidor
+- [x] Pruebas de integración con MySQL real de la lista de la sección 5, incluida la de diez creaciones concurrentes (`RequestsApiTests`, `CatalogApiTests`)
 - [ ] Filtros avanzados del listado (fechas, área, vencidas): definirlos antes en `docs/api/`
-- [ ] Pruebas de integración con MySQL real de la lista de la sección 5 (la prueba de diez creaciones concurrentes incluida)
+- [ ] `allowedTransitions` del detalle: hoy es siempre `[]`; lo calculará el módulo de workflow (Angela) implementando `AllowedTransitions`
 
-Los escenarios de la sección 5 ya están cubiertos **contra los mocks** (`frontend/src/mocks/handlers.test.ts`); sirven de guía, pero no sustituyen las pruebas del backend.
+El detalle del backend todavía no incluye comentarios, evidencias, solución ni calificación: son de los módulos de AngelCarrasco y Lita, y el frontend ya tolera su ausencia.
 
 ### Frontend (`features/requests`)
 
@@ -132,7 +133,8 @@ Los escenarios de la sección 5 ya están cubiertos **contra los mocks** (`front
 - [x] Marca de "Vencida" en lista, kanban, detalle y calendario
 - [x] Prueba obligatoria: crear una solicitud muestra el código y aparece en la lista; el formulario no se envía con la descripción fuera de rango (`frontend/src/features/requests/new-request.test.tsx`)
 - [ ] Filtros avanzados por **rango de fechas y área**: hoy se filtra en el cliente por estado, categoría, prioridad, técnico, texto y "vencidas"
-- [ ] Conectar con el backend real cuando existan los endpoints (apagar los mocks y revisar las diferencias de datos; ver la nota siguiente)
+- [x] Conectado con el backend real y verificado a mano en el navegador: inicio de sesión, catálogos, crear una solicitud (código consecutivo, vencimiento a 24 h para prioridad Alta), listado y detalle
+- [ ] Las demás pantallas (notificaciones, dashboard, administración, triage) siguen necesitando los mocks hasta que existan sus endpoints
 
 ### Documentación
 
@@ -142,5 +144,6 @@ Los escenarios de la sección 5 ya están cubiertos **contra los mocks** (`front
 
 ### Avisos
 
-- **Los datos de los mocks no son los de la semilla real:** los mocks usan los datos del diseño (3 áreas, 8 categorías, 6 facultades) y la semilla del backend define 4 áreas, 7 categorías y 8 ubicaciones. Al conectar con el backend la interfaz funcionará igual, pero las listas serán otras.
+- **Los datos de los mocks no son los de la semilla real:** los mocks usan los datos del diseño (3 áreas, 8 categorías, 6 facultades) y la semilla del backend define 4 áreas, 7 categorías y 8 ubicaciones. Con el backend real la interfaz funciona igual, pero las listas son las de la semilla.
+- **Campos que el backend ya devuelve además del contrato v1:** `description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName` y `roomName` en cada solicitud (ver `docs/api/ui-extensions.md`).
 - **Pruebas de aceptación y revisión de otro integrante:** pendientes (semanas 13–14).
