@@ -1,15 +1,32 @@
 import { useMemo, useState } from 'react'
 import { useCatalogs } from '../../shared/api/catalogs'
+import { ApiError } from '../../shared/api/client'
 import type { AdminUser, Role } from '../../shared/api/types'
 import { roleFromApi } from '../../shared/api/mappers'
 import { ROLE_LABELS, ROLES } from '../../shared/domain'
 import { normalizeText } from '../../shared/lib/format'
-import { Avatar, Button, Card, EmptyState, GridRow, GridTable, PageHeader, Select, SkeletonRows, ToneBadge, useToast } from '../../shared/ui'
+import {
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  GridRow,
+  GridTable,
+  Modal,
+  ModalActions,
+  PageHeader,
+  Select,
+  SkeletonRows,
+  ToneBadge,
+  useToast,
+} from '../../shared/ui'
 import { useAdminUsers, useSaveUser, useSetUserActive } from './api'
 import { EntityDrawer } from './components/EntityDrawer'
 import { userSchema, type UserFormValues } from './schemas/forms'
 
 const COLUMNS = '1.4fr 1.6fr 110px 1.4fr 90px 170px'
+
+const belongsToArea = (role: string) => role === 'TECNICO' || role === 'SUPERVISOR'
 
 /** Gestión de usuarios (spec §5: admin, prioridad S). */
 export function UsersPage() {
@@ -21,6 +38,7 @@ export function UsersPage() {
   const [q, setQ] = useState('')
   const [role, setRole] = useState('')
   const [editing, setEditing] = useState<AdminUser | 'new' | null>(null)
+  const [created, setCreated] = useState<AdminUser | null>(null)
 
   const visible = useMemo(
     () =>
@@ -87,7 +105,11 @@ export function UsersPage() {
                     onClick={() =>
                       setActive.mutate(
                         { id: u.id, active: !u.active },
-                        { onSuccess: () => toast(u.active ? 'Usuario desactivado' : 'Usuario activado') },
+                        {
+                          onSuccess: () => toast(u.active ? 'Usuario desactivado' : 'Usuario activado'),
+                          onError: (e) =>
+                            toast(e instanceof ApiError ? e.detail || e.title : 'No pudimos cambiar el estado.', { bad: true }),
+                        },
                       )
                     }
                   >
@@ -128,19 +150,36 @@ export function UsersPage() {
             },
           ]}
           onSubmit={async (v) => {
-            await save.mutateAsync({
+            const saved = await save.mutateAsync({
               id: editedUser?.id ?? null,
               body: {
                 fullName: v.fullName,
                 email: v.email,
                 role: v.role as Role,
-                areaId: v.areaId ? Number(v.areaId) : null,
+                // Solo técnicos y supervisores pertenecen a un área; el servidor rechaza el área en los demás roles.
+                areaId: belongsToArea(v.role) && v.areaId ? Number(v.areaId) : null,
               },
             })
-            toast(editedUser ? 'Usuario actualizado' : 'Usuario creado')
+            if (editedUser) toast('Usuario actualizado')
+            else setCreated(saved)
           }}
           onClose={() => setEditing(null)}
         />
+      )}
+
+      {created && (
+        <Modal open onClose={() => setCreated(null)} title="Usuario creado" subtitle={created.email}>
+          <p className="m-0">Comparte esta contraseña temporal con {created.fullName}. Podrá cambiarla después de ingresar.</p>
+          <code data-testid="temporary-password" className="select-all rounded-lg bg-surface2 px-3 py-2 text-center text-lg tracking-wider">
+            {created.temporaryPassword}
+          </code>
+          <p className="m-0 text-muted">Cópiala ahora: por seguridad no se volverá a mostrar.</p>
+          <ModalActions>
+            <Button variant="primary" onClick={() => setCreated(null)}>
+              Entendido
+            </Button>
+          </ModalActions>
+        </Modal>
       )}
     </>
   )

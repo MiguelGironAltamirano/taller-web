@@ -6,7 +6,7 @@ const institutional = new RegExp(`^[^\\s@]+@${INSTITUTIONAL_DOMAIN.replace('.', 
 /** Usuario: el área es obligatoria para técnico y supervisor (spec §4). */
 export const userSchema = z
   .object({
-    fullName: z.string().trim().min(1, 'Ingresa el nombre.'),
+    fullName: z.string().trim().min(1, 'Ingresa el nombre.').min(3, 'El nombre debe tener entre 3 y 150 caracteres.').max(150, 'El nombre debe tener entre 3 y 150 caracteres.'),
     email: z.string().trim().refine((v) => institutional.test(v), 'Usa un correo @unmsm.edu.pe.'),
     role: z.enum(['SOLICITANTE', 'TECNICO', 'SUPERVISOR', 'ADMINISTRADOR']),
     areaId: z.string(),

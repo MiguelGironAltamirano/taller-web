@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ApiError, apiGet, apiPatch, apiPost } from '../shared/api/client'
+import { ApiError, apiGet, apiPatch, apiPost, apiPut } from '../shared/api/client'
 import type {
+  AdminUser,
   Catalogs,
   CreateRequestBody,
   Page,
@@ -265,12 +266,47 @@ describe('administración', () => {
     expect(await status(apiGet('/admin/users'))).toBe(200)
   })
 
-  it('exige área para técnicos y supervisores y correo institucional único', async () => {
+  it('exige área para técnicos y supervisores y correo institucional único (409 si se repite)', async () => {
     await loginAs(ADMIN)
     const base = { fullName: 'Nuevo Técnico', email: 'ntecnico@unmsm.edu.pe', role: 'TECNICO', areaId: null }
     expect(await status(apiPost('/admin/users', base))).toBe(400)
     expect(await status(apiPost('/admin/users', { ...base, areaId: 1 }))).toBe(200)
-    expect(await status(apiPost('/admin/users', { ...base, areaId: 1 }))).toBe(400)
+    expect(await status(apiPost('/admin/users', { ...base, areaId: 1 }))).toBe(409)
+  })
+
+  it('rechaza un área para solicitantes y administradores', async () => {
+    await loginAs(ADMIN)
+    const body = { fullName: 'Ana Pérez', email: 'aperez@unmsm.edu.pe', role: 'SOLICITANTE', areaId: 1 }
+    expect(await status(apiPost('/admin/users', body))).toBe(400)
+  })
+
+  it('devuelve una contraseña temporal solo al crear y sirve para iniciar sesión', async () => {
+    await loginAs(ADMIN)
+    const created = await apiPost<AdminUser>('/admin/users', {
+      fullName: 'Nuevo Técnico',
+      email: 'ntecnico@unmsm.edu.pe',
+      role: 'TECNICO',
+      areaId: 1,
+    })
+    expect(created.temporaryPassword).toMatch(/^[A-Za-z0-9]{12}$/)
+    const listed = await apiGet<AdminUser[]>('/admin/users')
+    expect(listed.every((u) => u.temporaryPassword === undefined)).toBe(true)
+
+    sessionStore.clear()
+    const session = await apiPost<TokenResponse>('/auth/login', {
+      email: 'ntecnico@unmsm.edu.pe',
+      password: created.temporaryPassword,
+    })
+    expect(session.user.role).toBe('TECNICO')
+  })
+
+  it('el administrador no puede desactivarse ni cambiar su propio rol', async () => {
+    const { user } = await loginAs(ADMIN)
+    expect(await status(apiPatch(`/admin/users/${user.id}/active`, { active: false }))).toBe(409)
+    expect(
+      await status(apiPut(`/admin/users/${user.id}`, { fullName: user.fullName, email: ADMIN, role: 'SOLICITANTE', areaId: null })),
+    ).toBe(409)
+    expect(await status(apiGet('/admin/users'))).toBe(200)
   })
 
   it('el dashboard calcula los indicadores del área del supervisor', async () => {
