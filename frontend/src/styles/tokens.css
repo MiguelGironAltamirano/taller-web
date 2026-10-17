@@ -1,0 +1,153 @@
+/*
+ * Tokens del diseño "Servicios Universitarios UNMSM".
+ * Los componentes usan solo estas variables (vía utilidades de Tailwind),
+ * nunca colores sueltos. El modo oscuro redefine las variables bajo `.dark`.
+ */
+:root {
+  --bg: #f6f6f7;
+  --surface: #ffffff;
+  --surface2: #f1f2f4;
+  --border: #e2e4e8;
+  --text: #1f2328;
+  --muted: #5b6270;
+  --primary: #8b1a1a;
+  --on-primary: #ffffff;
+  --primary-soft: #f8ebeb;
+  --primary-text: #8b1a1a;
+  --err-bg: #fee2e2;
+  --err-fg: #b42318;
+  --err-solid: #b42318;
+  --ok-bg: #d1fae5;
+  --ok-fg: #065f46;
+  --info-bg: #dbeafe;
+  --info-fg: #1e40af;
+  --warn: #d97706;
+  --good: #16a34a;
+  --bad: #dc2626;
+  --chart-blue: #2563eb;
+
+  /* Estados de la solicitud (fondo / texto) */
+  --st-0-bg: #e5e7eb;
+  --st-0-fg: #374151;
+  --st-1-bg: #dbeafe;
+  --st-1-fg: #1e40af;
+  --st-2-bg: #ede9fe;
+  --st-2-fg: #5b21b6;
+  --st-3-bg: #fef3c7;
+  --st-3-fg: #92400e;
+  --st-4-bg: #d1fae5;
+  --st-4-fg: #065f46;
+  --st-5-bg: #374151;
+  --st-5-fg: #ffffff;
+
+  /* Prioridades (fondo / texto) */
+  --pr-critica-bg: #fee2e2;
+  --pr-critica-fg: #991b1b;
+  --pr-alta-bg: #ffedd5;
+  --pr-alta-fg: #9a3412;
+  --pr-media-bg: #fef9c3;
+  --pr-media-fg: #854d0e;
+  --pr-baja-bg: #dcfce7;
+  --pr-baja-fg: #166534;
+
+  --venc-bg: #dc2626;
+  --venc-fg: #ffffff;
+
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.2);
+  --shadow-modal: 0 16px 48px rgb(0 0 0 / 0.3);
+}
+
+.dark {
+  --bg: #121315;
+  --surface: #1b1c1f;
+  --surface2: #25272b;
+  --border: #34363b;
+  --text: #ecedef;
+  --muted: #a0a5af;
+  --primary: #b8383c;
+  --primary-soft: #3a1c1e;
+  --primary-text: #f2a5a5;
+  --err-bg: #4a1d1d;
+  --err-fg: #fca5a5;
+  --err-solid: #c0352b;
+  --ok-bg: #064e3b;
+  --ok-fg: #a7f3d0;
+  --info-bg: #1e3a8a;
+  --info-fg: #bfdbfe;
+  --good: #34d399;
+
+  --st-0-bg: #374151;
+  --st-0-fg: #e5e7eb;
+  --st-1-bg: #1e3a8a;
+  --st-1-fg: #bfdbfe;
+  --st-2-bg: #4c1d95;
+  --st-2-fg: #ddd6fe;
+  --st-3-bg: #78350f;
+  --st-3-fg: #fde68a;
+  --st-4-bg: #064e3b;
+  --st-4-fg: #a7f3d0;
+  --st-5-bg: #9ca3af;
+  --st-5-fg: #111827;
+
+  --pr-critica-bg: #7f1d1d;
+  --pr-critica-fg: #fecaca;
+  --pr-alta-bg: #7c2d12;
+  --pr-alta-fg: #fed7aa;
+  --pr-media-bg: #713f12;
+  --pr-media-fg: #fef08a;
+  --pr-baja-bg: #14532d;
+  --pr-baja-fg: #bbf7d0;
+
+  --venc-bg: #7f1d1d;
+}
+
+@theme inline {
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-line: var(--border);
+  --color-fg: var(--text);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-fg: var(--primary-text);
+  --color-err-bg: var(--err-bg);
+  --color-err-fg: var(--err-fg);
+  --color-err-solid: var(--err-solid);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-fg: var(--ok-fg);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
+  --color-warn: var(--warn);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-chart-blue: var(--chart-blue);
+
+  --shadow-pop: var(--shadow-pop);
+  --shadow-modal: var(--shadow-modal);
+
+  --animate-pop: pop 0.15s ease-out;
+  --animate-pulse-soft: pulse-soft 1.2s infinite;
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
