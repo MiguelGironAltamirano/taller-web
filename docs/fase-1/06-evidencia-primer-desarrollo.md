@@ -14,7 +14,8 @@ Estado a **17 de octubre de 2026** (semana 8). Se actualiza antes de la presenta
 | Solicitudes: registro con código y SLA, listado por rol, detalle con historial | Hecho | `backend/.../requests` |
 | Flujo de atención: máquina de estados, asignación y reasignación, rechazo de solución, historial, técnicos del área | Hecho | `backend/.../workflow` |
 | Interfaz completa de los cuatro roles (login, solicitudes, bandejas, detalle con acciones, dashboard, administración) | Hecho, contra la API simulada; conectada al backend real en los módulos anteriores | `frontend/` |
-| Comentarios, evidencias, notificaciones, triage, calificación, dashboard y administración en el backend | Pendiente (release candidate, semanas 10–12) | — |
+| Administración: usuarios (con contraseña temporal y desactivación), catálogos (áreas, categorías, SLA de prioridades, ubicaciones) y consulta de estados | Hecho, conectado al frontend | `backend/.../admin` |
+| Comentarios, evidencias, notificaciones, triage, calificación, dashboard y auditoría en el backend | Pendiente (release candidate, semanas 10–12); triage y dashboard ya tienen contrato en `docs/api/contrato-v1.md` | — |
 
 ### Flujo de punta a punta que ya funciona
 
@@ -31,6 +32,9 @@ Login → registrar solicitud → guardar en MySQL → consultar la solicitud �
 | #7 | Interfaz completa con API simulada (`feature/ui-design-system`) |
 | #8 | Backend de catálogos y solicitudes |
 | #9 | Backend del flujo de atención y su conexión con el frontend |
+| #10 | Administración de usuarios y consulta de estados |
+| #11 | Documento de especificación de la Fase I |
+| Este PR | Administración de catálogos y contrato de triage e indicadores |
 
 Cada integración pasó por el CI de GitHub Actions (backend y frontend). El historial completo de commits sigue Conventional Commits en español.
 
@@ -38,8 +42,8 @@ Cada integración pasó por el CI de GitHub Actions (backend y frontend). El his
 
 | Conjunto | Cantidad | Qué cubre |
 |---|---|---|
-| Backend (`./mvnw verify`) | 199 | Dominio sin Spring (máquina de estados, SLA, código de solicitud, política de acceso), casos de uso con dobles, endpoints con MySQL real en Testcontainers y reglas de arquitectura con ArchUnit |
-| Frontend (`pnpm test`) | 152 | Lógica pura (SLA, transiciones, triage, filtros, reportes, esquemas), componentes y la API simulada |
+| Backend (`./mvnw verify`) | 311 | Dominio sin Spring (máquina de estados, SLA, código de solicitud, política de acceso), casos de uso con dobles, endpoints con MySQL real en Testcontainers y reglas de arquitectura con ArchUnit |
+| Frontend (`pnpm test`) | 161 | Lógica pura (SLA, transiciones, triage, filtros, reportes, esquemas), componentes y la API simulada |
 
 El CI ejecuta además lint, verificación de tipos y build del frontend. La trazabilidad entre escenarios BDD y pruebas está en [03](03-epicas-y-historias.md); los escenarios sin prueba están marcados **Por escribir**.
 

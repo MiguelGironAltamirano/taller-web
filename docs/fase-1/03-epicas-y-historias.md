@@ -26,7 +26,7 @@ Cada historia indica su prioridad (**M** MVP, **S** release candidate), los requ
 | E5. Indicadores | HU-25 | `dashboard` |
 | E6. Administración | HU-26, HU-27 | `admin` |
 
-Estado de las historias a 17 de octubre de 2026: **HU-01 a HU-09, HU-12 a HU-20 están construidas y probadas en el backend y en el frontend**; HU-05, HU-10, HU-11, HU-21 a HU-27 tienen la interfaz hecha contra la API simulada y su backend está pendiente (release candidate).
+Estado de las historias a 17 de octubre de 2026: **HU-01 a HU-09, HU-12 a HU-20 están construidas y probadas en el backend y en el frontend**; de **HU-26** están construidos y probados en el backend la gestión de usuarios, la de catálogos y la consulta de estados (falta la auditoría); HU-05, HU-10, HU-11, HU-21 a HU-25 y HU-27 tienen la interfaz hecha contra la API simulada y su backend está pendiente (release candidate).
 
 ---
 
@@ -386,8 +386,13 @@ Como administrador, quiero crear y desactivar usuarios, áreas, categorías, pri
 
 | Escenario | Prueba |
 |---|---|
-| **Crear un usuario con rol.** Dado un administrador, cuando crea un técnico con su área, entonces el usuario existe y puede iniciar sesión | **Por escribir** (backend pendiente) |
-| **Solo el administrador.** Dado cualquier otro rol, cuando llama a `/admin/*`, entonces recibe `403` | **Por escribir** |
+| **Crear un usuario con rol.** Dado un administrador, cuando crea un técnico con su área, entonces el usuario existe y puede iniciar sesión con la contraseña temporal que se le muestra una sola vez | `AdminUsersApi.createdTechnicianCanLogInWithTheTemporaryPassword` · `FE features/admin/users.test.tsx` |
+| **Solo el administrador.** Dado cualquier otro rol, cuando llama a `/admin/*`, entonces recibe `403` | `AdminUsersApi.onlyAdministratorsCanUseTheAdminUserEndpoints` · `AdminCatalogsApi.onlyAdministratorsCanChangeCatalogs` |
+| **Área según el rol.** Dado un técnico o supervisor sin área, o un correo repetido, cuando el administrador lo registra, entonces se rechaza (`400` / `409`) | `AdminUsersApi.creationValidatesAreaAndEmail` · `AdminUsersApi.repeatedEmailIsAConflict` |
+| **Desactivar una cuenta.** Dado un usuario activo, cuando el administrador lo desactiva, entonces ya no puede iniciar sesión ni renovar su sesión hasta que se reactive; el administrador no puede desactivarse a sí mismo | `AdminUsersApi.deactivationBlocksLoginAndEndsSessionsUntilReactivated` · `AdminUsersApi.administratorCannotDeactivateThemselvesOrChangeTheirOwnRole` |
+| **Cambiar el SLA.** Dada una prioridad, cuando el administrador cambia sus horas, entonces las solicitudes nuevas usan el nuevo plazo y las ya registradas conservan su vencimiento | `AdminCatalogsApi.changingTheSlaHoursOnlyAffectsRequestsRegisteredAfterwards` |
+| **Catálogo en uso.** Dada un área con categorías o personal activos, o un ambiente con solicitudes, cuando el administrador intenta eliminarlo, entonces se rechaza con `409` | `AdminCatalogsApi.anAreaInUseCannotBeDeactivated` · `AdminCatalogsApi.onlyRoomsWithoutRequestsCanBeDeleted` |
+| **Consultar los estados.** Dado un administrador, cuando consulta los estados, entonces ve los seis en el orden del flujo | `AdminUsersApi.statesAreListedInWorkflowOrder` |
 | **Validación del formulario.** Dado el formulario de usuario o catálogo, cuando falta un dato, entonces se muestra el error | `FE features/admin/schemas/forms.test.ts` |
 
 ### HU-27 — Gestionar las reglas de triage (S)
@@ -408,6 +413,6 @@ Como administrador, quiero crear y activar reglas de palabras clave para ajustar
 | | Historias | Con escenario y prueba automatizada | Con pruebas por escribir |
 |---|---|---|---|
 | Prioridad M | HU-01 a HU-04, HU-06 a HU-09, HU-12 a HU-19 | 16 de 16 | La prueba de interfaz del `409` de HU-19 |
-| Prioridad S | HU-05, HU-10, HU-11, HU-20 a HU-27 | HU-20 (parcial), HU-23 y HU-24 (en la API simulada), validaciones de formularios | El backend de las demás |
+| Prioridad S | HU-05, HU-10, HU-11, HU-20 a HU-27 | HU-20 (parcial), HU-26 (usuarios, catálogos y estados), HU-23 y HU-24 (en la API simulada), validaciones de formularios | El backend de las demás y la auditoría de HU-26 |
 
 Las pruebas por escribir son parte de los sprints 2 y 3; Lita las incorpora al informe de pruebas a medida que se construyen.
