@@ -16,7 +16,7 @@ In: A1, A2, B1 (without catalogs, owned by Sevan), A3, B2. Out: requests, workfl
 - [x] B1 — Register, login, refresh, logout API — delegated writer (backend), TDD. Evidence: AuthApiTests 12/12 (RED 12 failing before implementation). Refresh tokens stored as SHA-256, rotation with conditional update, constant-time-ish login for unknown emails. `app.auth.refresh-cookie-secure` configurable (default true).
 - [x] A3 — API contract, frontend types, mock API — delegated writer (frontend), TDD. Evidence: handlers tests 5/5.
 - [x] B2 — Frontend shell, routing by role, login/register, session — delegated writer (frontend), TDD. Evidence: 24 frontend tests; lint, typecheck, build pass. Session in memory store, single in-flight refresh, MSW worker with `VITE_USE_MOCKS=true`.
-- [ ] D — Integration: PR to dev, CI, native review, merge — orchestrator.
+- [x] D — Integration: PR #4 to dev, CI, merge — orchestrator. Native review could not start (lens_context_budget_exceeded: 78 files, ~3.5k lines incl. lockfile and generated MSW worker); the owner chose to merge without native review, relying on 52 automated tests, the Docker smoke test and CI.
 
 ## Integration evidence (2026-10-17, branch feature/auth-platform)
 - Agent commits cherry-picked with neutral messages; contract renamed to `docs/api/contrato-v1.md`, migration to `V2__initial_schema.sql`.
