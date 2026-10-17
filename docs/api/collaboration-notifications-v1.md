@@ -88,9 +88,20 @@ Lista vacía si no hay comentarios. Ordenada por `createdAt` ascendente.
 **Reglas de validación:**
 - `text`: 1–1000 caracteres (sin contar espacios sobrantes al inicio y al final). Vacío o solo espacios ⇒ `400` con `errors: { text: "El comentario no puede estar vacío." }`. Más de 1000 ⇒ `400` con `errors: { text: "El comentario no puede superar los 1000 caracteres." }`.
 
-**Respuesta `201`:** el `RequestDetail` actualizado (igual que `GET /requests/{code}`), con `comments` ya incluyendo el nuevo comentario.
+**Respuesta `201`:** el `CommentDto` del comentario recién creado:
 
-> **Decisión de diseño (discrepancia resuelta):** el frontend actual consume `POST /comments` y espera un `RequestDetail` como respuesta (ver `collaboration/api.ts`). Para no tocar el módulo de Sevan (`requests`), el backend de colaboración devuelve la misma forma de `RequestDetail` leyendo la solicitud tras el commit. El campo `comments` se embebe en `RequestDetail` como campo opcional (ya es `comments?: CommentDto[]` en `types.ts`). Los endpoints de listado (`GET /comments`) también existen independientemente para acceso programático.
+```json
+{
+  "id": 5,
+  "authorName": "Ana García",
+  "text": "El problema persiste en el tercer piso.",
+  "createdAt": "2026-10-17T14:30:00Z"
+}
+```
+
+> **Decisión de diseño (v2 — 2026-10-17):** `POST /comments` devuelve solo el `CommentDto` creado. El frontend actualiza la lista llamando a `GET /comments` (o invalidando la query `['requests','detail',code]` si la respuesta incluye comentarios embebidos; ver abajo) en `onSuccess`. Esto desacopla los módulos: colaboración no necesita leer ni devolver un `RequestDetail` completo, y no hay riesgo de invadir el módulo de Sevan.
+>
+> **Cómo ve el frontend los comentarios y evidencias:** se usan los endpoints de listado por separado (`GET /comments`, `GET /evidences`). Las claves de TanStack Query `commentsKey(code)` y `evidencesKey(code)` se agregan en `shared/api/keys.ts`. El campo `comments?` y `evidences?` que hoy existe en `RequestDetail` permanece en el tipo TypeScript como opcional, para mantener la compatibilidad con los mocks actuales, pero el backend **no lo embebe** en `GET /requests/{code}`; el frontend los carga con queries separadas.
 
 **Notificación generada:** al crear un comentario, se notifica a los **demás participantes visibles** de la solicitud (excluyendo al autor del comentario):
 - Solicitante dueño (si el autor no es el solicitante).
@@ -100,6 +111,7 @@ Lista vacía si no hay comentarios. Ordenada por `createdAt` ascendente.
 Texto de la notificación (en español): `"<Nombre del autor> comentó en la solicitud <SOL-AAAA-NNNNNN>."`.
 
 **Errores:** `400` validación, `401` sin token, `404` solicitud no visible.
+
 
 ---
 
@@ -216,7 +228,7 @@ Lista vacía si no hay evidencias.
 
 ### Tipos de evento y destinatarios
 
-> **Decisión documentada:** una falla al generar notificaciones es **no bloqueante** (el cambio de estado se confirma aunque la notificación falle). Se implementa con `@TransactionalEventListener(phase = AFTER_COMMIT)` para que el evento de notificación se procese fuera de la transacción de negocio.
+> **Decisión documentada:** una falla al generar notificaciones es **no bloqueante** (el cambio de estado se confirma aunque la notificación falle). Se implementa con `@TransactionalEventListener(phase = AFTER_COMMIT)` en el listener, y con `@Transactional(propagation = REQUIRES_NEW)` en el método del listener para que cada ejecución corra en su propia transacción aislada. Si el listener lanza una excepción, se loguea el error (nivel `ERROR`) pero no se relanza ni afecta a la transacción de negocio ya confirmada. Una prueba de integración (`NotificationsApiTests.transitionNotifiesParticipantsExcludingActor`) verifica que la notificación queda persistida en la base de datos tras la transición.
 
 | Evento | Quién notificar | Excluir |
 |---|---|---|
@@ -294,7 +306,7 @@ export type CreateEvidenceResponse = EvidenceDto  // 201 de POST /evidences
 | Módulo | Qué necesita `collaboration`/`notifications` | Cómo |
 |---|---|---|
 | `requests` (Sevan) | Visibilidad de la solicitud (requesterId, areaId, technicianId, code) | Puerto `RequestAccess` en `collaboration.application`; adaptador en `collaboration.infrastructure` que usa `requests.application` |
-| `workflow` (Angela) | Evento de transición para generar notificaciones | `RequestTransitionedEvent` publicado con `ApplicationEventPublisher` dentro de `TransitionRequest.execute`; consumido por `notifications` con `@TransactionalEventListener(AFTER_COMMIT)` |
+| `workflow` (Angela) | Evento de transición para generar notificaciones | `RequestTransitionedEvent` publicado con `ApplicationEventPublisher` dentro de `TransitionRequest.execute`; consumido por `notifications` con `@TransactionalEventListener(AFTER_COMMIT)` + `@Transactional(REQUIRES_NEW)` |
 | `auth` (Miguel) | `PasswordHasher`, `UserRepository.findById`, `RefreshTokenRepository.revokeAllForUser` | Inyectados en el caso de uso `ChangePassword` de `auth.application` |
 
 ---

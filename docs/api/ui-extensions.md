@@ -27,7 +27,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
 | `PATCH /requests/{code}/priority` | `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `409` si ya está resuelta o cerrada |
-| `POST /requests/{code}/comments` | Token, con visibilidad | `{ text }` (1–1000) | `201` `RequestDetail`; notifica a la otra parte |
+| `POST /requests/{code}/comments` | Token, con visibilidad | `{ text }` (1–1000) | `201` `CommentDto` (el comentario creado); el frontend recarga la lista con `GET /comments`. Notifica a la otra parte. Ver [`collaboration-notifications-v1.md §3`](collaboration-notifications-v1.md#3-comentarios) |
 | `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con la calificación (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6) · `409` si no está `CERRADA` por confirmación o ya fue calificada |
 | `PUT /auth/password` | Token | `{ currentPassword, newPassword }` | `204` · `400` con `errors` |
 | `GET /notifications` | Token | — | `200` `[ { id, text, createdAt, read, requestCode } ]` |

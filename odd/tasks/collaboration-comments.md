@@ -70,7 +70,7 @@ Implementar comentarios en las solicitudes: `GET` y `POST /api/v1/requests/{code
 *(se completa al terminar la fase C)*
 
 ## Desviaciones
-- `POST /comments` devuelve `RequestDetail` completo (para mantener compatibilidad con el frontend actual), no solo `CommentDto`. Se lee la solicitud actualizada tras el commit dentro de la misma transacción.
+- `POST /comments` devuelve solo `CommentDto` (201). El frontend consulta `GET /comments` por separado. Se mantiene `comments?` en `RequestDetail` del frontend como opcional para retrocompatibilidad con los mocks, pero el backend desacopla totalmente los endpoints de colaboración de los de `requests`.
 
 ## Puntos a acordar en el PR
 1. **Sevan:** el adaptador `RequestAccessAdapter` usa internamente `requests.application`; se acuerda si Sevan prefiere exponer un puerto explícito o si el acceso directo a su capa de aplicación es aceptable en este monolito.

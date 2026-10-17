@@ -14,7 +14,7 @@ Implementar notificaciones dentro de la aplicación: generación automática al 
 **Fuera:** notificaciones por correo (Fase G).
 
 ## Política de fallos
-Una falla al generar notificaciones es **no bloqueante**: el cambio de estado/comentario se confirma aunque la notificación falle. Se implementa con `@TransactionalEventListener(phase = AFTER_COMMIT)`. Si el listener falla, se loguea el error pero no se relanza.
+Una falla al generar notificaciones es **no bloqueante**: el cambio de estado/comentario se confirma aunque la notificación falle. Se implementa con `@TransactionalEventListener(phase = AFTER_COMMIT)` y `@Transactional(propagation = Propagation.REQUIRES_NEW)` en el listener para que se ejecute en su propia transacción aislada. Si el listener falla, se loguea el error pero no se relanza. La prueba de integración `NotificationsApiTests.transitionNotifiesParticipantsExcludingActor` verifica que la notificación queda guardada en base de datos tras la transición.
 
 ## Tareas
 
@@ -49,7 +49,7 @@ Una falla al generar notificaciones es **no bloqueante**: el cambio de estado/co
 - [ ] 7 - `NotificationService.notify(List<Long> recipientIds, String text, long requestId)` en `notifications.application`: puerto que puede invocar Lita (cierre automático) y `collaboration` (comentarios).
 
 ### Casos de uso
-- [ ] 8 - `CreateNotificationsForTransition`: listener `@TransactionalEventListener(AFTER_COMMIT)` sobre `RequestTransitionedEvent`; calcula destinatarios, persiste en BD.
+- [ ] 8 - `CreateNotificationsForTransition`: listener `@TransactionalEventListener(AFTER_COMMIT)` con `@Transactional(propagation = REQUIRES_NEW)` sobre `RequestTransitionedEvent`; calcula destinatarios, persiste en BD en su propia transacción.
 - [ ] 9 - `CreateNotificationsForComment`: invocado desde `CreateComment`; calcula destinatarios excluyendo al autor.
 - [ ] 10 - `ListNotifications(AuthenticatedUser): List<Notification>`.
 - [ ] 11 - `MarkNotificationRead(AuthenticatedUser, long id)` — lanza `NotificationNotFoundException` si no existe o no es del usuario.
