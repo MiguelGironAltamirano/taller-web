@@ -1,14 +1,26 @@
-import type { RequestDetailView } from '../../shared/domain'
+import type { EvidenceItem, RequestDetailView } from '../../shared/domain'
 import { Icon, useToast } from '../../shared/ui'
+import { useEvidences } from './api'
 
 /** Pestaña "Evidencias": archivos adjuntos con su descarga (solo para usuarios con acceso a la solicitud). */
 export function EvidenceTab({ request }: { request: RequestDetailView }) {
   const toast = useToast()
-  if (request.evidences.length === 0) return <div className="py-3 text-muted">Esta solicitud no tiene evidencias.</div>
+  const { data: remoteEvidences } = useEvidences(request.code)
+
+  const evidences: EvidenceItem[] = remoteEvidences
+    ? remoteEvidences.map((e) => ({
+        id: e.id,
+        name: e.fileName,
+        kind: e.kind,
+        sizeKb: Math.round(e.sizeBytes / 1024),
+      }))
+    : request.evidences
+
+  if (evidences.length === 0) return <div className="py-3 text-muted">Esta solicitud no tiene evidencias.</div>
 
   return (
     <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 p-0">
-      {request.evidences.map((f) => (
+      {evidences.map((f) => (
         <li key={f.id} className="overflow-hidden rounded-[10px] border border-line">
           <div
             className="grid h-[90px] place-items-center font-mono text-[11px] text-muted"

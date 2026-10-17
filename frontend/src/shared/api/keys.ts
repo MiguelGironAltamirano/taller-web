@@ -9,3 +9,5 @@ export const notificationsKey = ['notifications'] as const
 export const dashboardKey = ['dashboard'] as const
 export const triageRulesKey = ['admin', 'triage-rules'] as const
 export const adminKey = ['admin'] as const
+export const commentsKey = (code: string) => ['requests', code, 'comments'] as const
+export const evidencesKey = (code: string) => ['requests', code, 'evidences'] as const
