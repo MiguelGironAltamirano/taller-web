@@ -40,15 +40,14 @@ public class Login {
 	}
 
 	@Transactional
-	public AuthSession execute(String email, String password) {
-		limiter.checkAllowed(email);
+	public AuthSession execute(String email, String password, String clientIp) {
+		limiter.acquire(email, clientIp);
 		Optional<User> found = users.findByEmail(email.trim().toLowerCase(Locale.ROOT));
 		boolean passwordMatches = hasher.matches(password, found.map(User::passwordHash).orElse(DUMMY_HASH));
 		if (found.isEmpty() || !passwordMatches || !found.get().active()) {
-			limiter.recordFailure(email);
 			throw new InvalidCredentialsException();
 		}
-		limiter.recordSuccess(email);
+		limiter.recordSuccess(email, clientIp);
 		User user = found.get();
 		String refreshToken = codec.generate();
 		Instant now = clock.instant();

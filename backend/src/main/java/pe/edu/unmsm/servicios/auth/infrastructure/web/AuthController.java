@@ -2,6 +2,7 @@ package pe.edu.unmsm.servicios.auth.infrastructure.web;
 
 import java.time.Duration;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpHeaders;
@@ -59,8 +60,8 @@ class AuthController {
 	}
 
 	@PostMapping("/login")
-	ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
-		return withSession(login.execute(request.email(), request.password()));
+	ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+		return withSession(login.execute(request.email(), request.password(), http.getRemoteAddr()));
 	}
 
 	@PostMapping("/refresh")

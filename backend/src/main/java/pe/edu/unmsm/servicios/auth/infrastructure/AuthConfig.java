@@ -1,7 +1,6 @@
 package pe.edu.unmsm.servicios.auth.infrastructure;
 
 import java.time.Clock;
-import java.time.Duration;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +19,7 @@ import pe.edu.unmsm.servicios.auth.application.UserRepository;
 import pe.edu.unmsm.servicios.shared.infrastructure.security.JwtProperties;
 
 @Configuration
-@EnableConfigurationProperties(AuthProperties.class)
+@EnableConfigurationProperties({ AuthProperties.class, LoginLimitProperties.class })
 class AuthConfig {
 
 	@Bean
@@ -34,8 +33,9 @@ class AuthConfig {
 	}
 
 	@Bean
-	LoginAttemptLimiter loginAttemptLimiter(Clock clock) {
-		return new LoginAttemptLimiter(clock, 5, Duration.ofMinutes(15));
+	LoginAttemptLimiter loginAttemptLimiter(Clock clock, LoginLimitProperties limit) {
+		return new LoginAttemptLimiter(clock, limit.maxFailuresPerClient(), limit.maxFailuresPerEmail(), limit.window(),
+				limit.maxTrackedKeys());
 	}
 
 	@Bean

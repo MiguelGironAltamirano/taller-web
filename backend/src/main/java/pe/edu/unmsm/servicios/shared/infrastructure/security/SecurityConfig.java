@@ -64,6 +64,10 @@ class SecurityConfig {
 			@Value("${app.cors.allowed-origins:}") List<String> allowedOrigins) {
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		List<String> origins = allowedOrigins.stream().map(String::trim).filter(origin -> !origin.isEmpty()).toList();
+		if (origins.stream().anyMatch(origin -> origin.contains("*"))) {
+			throw new IllegalStateException("app.cors.allowed-origins must list explicit origins; wildcards are "
+					+ "not allowed because credentials are enabled");
+		}
 		if (!origins.isEmpty()) {
 			CorsConfiguration cors = new CorsConfiguration();
 			cors.setAllowedOrigins(origins);

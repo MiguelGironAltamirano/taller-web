@@ -12,7 +12,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,6 +144,40 @@ class LoginAttemptLimitTests {
 			assertThat(login(email, "Incorrecta1").statusCode()).isEqualTo(401);
 		}
 		assertThat(login(email, "Demo12345!").statusCode()).isEqualTo(200);
+	}
+
+	@Test
+	void concurrentWrongAttemptsCannotExceedTheLimit() throws Exception {
+		String email = uniqueEmail();
+		int attempts = 20;
+		ExecutorService pool = Executors.newFixedThreadPool(attempts);
+		CountDownLatch ready = new CountDownLatch(attempts);
+		CountDownLatch go = new CountDownLatch(1);
+		List<Future<Integer>> results = new ArrayList<>();
+		for (int i = 0; i < attempts; i++) {
+			results.add(pool.submit(() -> {
+				ready.countDown();
+				go.await();
+				return login(email, "Incorrecta1").statusCode();
+			}));
+		}
+		ready.await();
+		go.countDown();
+		int unauthorized = 0;
+		int limited = 0;
+		for (Future<Integer> result : results) {
+			int status = result.get();
+			if (status == 401) {
+				unauthorized++;
+			}
+			else if (status == 429) {
+				limited++;
+			}
+		}
+		pool.shutdown();
+
+		assertThat(unauthorized).isEqualTo(5);
+		assertThat(limited).isEqualTo(attempts - 5);
 	}
 
 }
