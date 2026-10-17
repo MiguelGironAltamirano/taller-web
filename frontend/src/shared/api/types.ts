@@ -71,12 +71,12 @@ export type RequestDetail = RequestSummary & {
   closureReason: ClosureReason | null
   history: HistoryEntry[]
   allowedTransitions: RequestStatus[]
-  // EXTENSIÓN
-  allowedActions: WorkflowActionId[]
-  comments: CommentDto[]
-  evidences: EvidenceDto[]
-  solution: string | null
-  rating: RatingDto | null
+  // EXTENSIÓN de otros módulos (workflow, collaboration, satisfaction): opcionales hasta que existan en el backend.
+  allowedActions?: WorkflowActionId[]
+  comments?: CommentDto[]
+  evidences?: EvidenceDto[]
+  solution?: string | null
+  rating?: RatingDto | null
 }
 
 export type CreateRequestBody = {
