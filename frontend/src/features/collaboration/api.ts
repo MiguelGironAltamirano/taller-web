@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiPost } from '../../shared/api/client'
+import { apiGet, apiPost, apiUploadFile } from '../../shared/api/client'
 import { commentsKey, evidencesKey, notificationsKey, requestsKey } from '../../shared/api/keys'
 import type { CommentDto, CreateCommentBody, EvidenceDto } from '../../shared/api/types'
 
@@ -14,6 +14,17 @@ export function useEvidences(code: string) {
   return useQuery({
     queryKey: evidencesKey(code),
     queryFn: () => apiGet<EvidenceDto[]>(`/requests/${code}/evidences`),
+  })
+}
+
+export function useUploadEvidence(code: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => apiUploadFile<EvidenceDto>(`/requests/${code}/evidences`, file),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: evidencesKey(code) })
+      client.invalidateQueries({ queryKey: requestsKey })
+    },
   })
 }
 

@@ -23,4 +23,27 @@ class CollaborationConfig {
 		return new CreateComment(requestAccess, commentRepository, commentNotifier);
 	}
 
+	@Bean
+	pe.edu.unmsm.servicios.collaboration.application.UploadEvidence uploadEvidence(
+			RequestAccess requestAccess,
+			pe.edu.unmsm.servicios.collaboration.application.EvidenceRepository evidenceRepository,
+			pe.edu.unmsm.servicios.collaboration.application.EvidenceStorage evidenceStorage) {
+		return new pe.edu.unmsm.servicios.collaboration.application.UploadEvidence(requestAccess, evidenceRepository, evidenceStorage);
+	}
+
+	@Bean
+	pe.edu.unmsm.servicios.collaboration.application.ListEvidences listEvidences(
+			RequestAccess requestAccess,
+			pe.edu.unmsm.servicios.collaboration.application.EvidenceRepository evidenceRepository) {
+		return new pe.edu.unmsm.servicios.collaboration.application.ListEvidences(requestAccess, evidenceRepository);
+	}
+
+	@Bean
+	pe.edu.unmsm.servicios.collaboration.application.DownloadEvidence downloadEvidence(
+			RequestAccess requestAccess,
+			pe.edu.unmsm.servicios.collaboration.application.EvidenceRepository evidenceRepository,
+			pe.edu.unmsm.servicios.collaboration.application.EvidenceStorage evidenceStorage) {
+		return new pe.edu.unmsm.servicios.collaboration.application.DownloadEvidence(requestAccess, evidenceRepository, evidenceStorage);
+	}
+
 }

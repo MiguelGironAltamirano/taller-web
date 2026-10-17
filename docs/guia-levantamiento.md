@@ -61,6 +61,7 @@ Edita `infra/.env` (no se versiona). Variables principales:
 | `FRONTEND_PORT` | Puerto de la aplicación (por defecto `8088`) |
 | `APP_JWT_SECRET` | Secreto con el que se firman los tokens. Mínimo 32 caracteres y distinto en cada entorno. Nunca lo subas al repositorio |
 | `APP_FLYWAY_LOCATIONS` | Ubicaciones de migraciones de Flyway |
+| `APP_EVIDENCES_STORAGE_PATH` | Ruta para almacenar las evidencias adjuntas (por defecto `/app/evidences` en Docker o `./evidences` en local) |
 
 Para cargar los usuarios de demostración, agrega:
 

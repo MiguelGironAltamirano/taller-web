@@ -21,4 +21,10 @@ final class CollaborationDtos {
 		}
 	}
 
+	record EvidenceResponse(long id, String fileName, String kind, long sizeBytes) {
+		static EvidenceResponse from(pe.edu.unmsm.servicios.collaboration.domain.Evidence e) {
+			return new EvidenceResponse(e.id(), e.fileName(), e.kind().name(), e.sizeBytes());
+		}
+	}
+
 }
