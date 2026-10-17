@@ -17,6 +17,10 @@ describe('registerSchema', () => {
     expect(r.success).toBe(false)
     if (!r.success) expect(r.error.issues[0].message).toBe('Usa tu correo institucional @unmsm.edu.pe.')
   })
+  it('exige al menos una letra y un número en la contraseña', () => {
+    expect(registerSchema.safeParse({ ...ok, password: 'abcdefgh', confirm: 'abcdefgh' }).success).toBe(false)
+    expect(registerSchema.safeParse({ ...ok, password: '12345678', confirm: '12345678' }).success).toBe(false)
+  })
   it('exige contraseña de al menos 8 caracteres y confirmación igual', () => {
     expect(registerSchema.safeParse({ ...ok, password: 'Ab1', confirm: 'Ab1' }).success).toBe(false)
     const r = registerSchema.safeParse({ ...ok, confirm: 'otra' })

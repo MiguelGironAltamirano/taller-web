@@ -20,7 +20,11 @@ export const registerSchema = z
       .min(1, 'Ingresa tu correo.')
       .refine((v) => v === '' || institutionalEmail.test(v), 'Usa tu correo institucional @unmsm.edu.pe.'),
     type: z.enum(REQUESTER_TYPES),
-    password: z.string().min(PASSWORD_MIN, `Mínimo ${PASSWORD_MIN} caracteres.`),
+    password: z
+      .string()
+      .min(PASSWORD_MIN, `Mínimo ${PASSWORD_MIN} caracteres.`)
+      .max(72, 'Máximo 72 caracteres.')
+      .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), 'Incluye al menos una letra y un número.'),
     confirm: z.string(),
   })
   .refine((v) => v.confirm !== '' && v.confirm === v.password, {
