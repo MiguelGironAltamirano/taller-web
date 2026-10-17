@@ -34,13 +34,16 @@ export function Button({
   children,
   ...rest
 }: ButtonProps) {
+  // Si el llamador define su propio `display` (p. ej. `hidden md:inline-flex`) no se fuerza `inline-flex`.
+  const ownDisplay = /(^|\s)(hidden|inline-flex|flex|block|grid)(\s|$)/.test(className ?? '')
   return (
     <button
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 font-semibold transition-[filter,background-color] disabled:cursor-not-allowed disabled:opacity-60',
+        !ownDisplay && 'inline-flex',
+        'items-center justify-center gap-1.5 font-semibold transition-[filter,background-color] disabled:cursor-not-allowed disabled:opacity-60',
         VARIANTS[variant],
         SIZES[size],
         className,

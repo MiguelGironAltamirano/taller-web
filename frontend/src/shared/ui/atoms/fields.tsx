@@ -29,17 +29,19 @@ export function Field({ label, error, hint, children, className }: FieldProps) {
   )
 }
 
+const hasHeight = (className?: string) => /(^|\s)h-/.test(className ?? '')
+
 type InputProps = ComponentProps<'input'> & { invalid?: boolean }
 
 export function Input({ invalid, className, ...rest }: InputProps) {
-  return <input className={controlClass(invalid, cn('h-10 px-3', className))} {...rest} />
+  return <input className={controlClass(invalid, cn(!hasHeight(className) && 'h-10', 'px-3', className))} {...rest} />
 }
 
 type SelectProps = ComponentProps<'select'> & { invalid?: boolean }
 
 export function Select({ invalid, className, children, ...rest }: SelectProps) {
   return (
-    <select className={controlClass(invalid, cn('h-10 px-2', className))} {...rest}>
+    <select className={controlClass(invalid, cn(!hasHeight(className) && 'h-10', 'px-2', className))} {...rest}>
       {children}
     </select>
   )

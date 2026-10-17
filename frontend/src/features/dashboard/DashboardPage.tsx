@@ -115,7 +115,7 @@ export function DashboardPage() {
             })}
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Card className="p-4">
               <CardTitle className="text-sm">Solicitudes por categoría</CardTitle>
               <HorizontalBars data={data.byCategory} color="var(--primary)" label="Solicitudes por categoría" />
@@ -136,7 +136,7 @@ export function DashboardPage() {
               <CardTitle className="mb-2 text-sm">Cumplimiento de SLA</CardTitle>
               <SlaGauge pct={data.slaCompliancePct} />
             </Card>
-            <Card className="p-4 [grid-column:1/-1]">
+            <Card className="p-4 md:col-span-1 xl:col-span-3">
               <CardTitle className="mb-2 text-sm">Solicitudes por vencer en 24 h</CardTitle>
               {data.dueSoon.length === 0 && <div className="py-2 text-muted">Ninguna solicitud vence en las próximas 24 horas.</div>}
               {data.dueSoon.map((s) => {
