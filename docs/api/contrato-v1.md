@@ -99,6 +99,67 @@ Reglas:
 - `POST /admin/locations` reutiliza la facultad y el pabellón si ya existen con ese nombre y crea los niveles que falten.
 - Solo se eliminan ambientes sin solicitudes; si su pabellón y su facultad quedan sin hijos ni solicitudes, también se eliminan.
 
+## Triage
+
+> Estado: acordado, **por implementar** en el backend (release candidate, semanas 10–12). El frontend ya lo consume contra la API simulada con estas mismas formas.
+
+| Método y ruta | Acceso | Cuerpo | Respuesta |
+|---|---|---|---|
+| `POST /triage/suggestions` | Rol `SOLICITANTE` | `{ description }` | `200` `{ categoryId, priorityId }`, o `200` con cuerpo `null` si ninguna regla coincide · `400` |
+| `GET /admin/triage-rules` | Rol `ADMINISTRADOR` | — | `200` `[TriageRule]` ordenadas por `id` |
+| `POST /admin/triage-rules` | Rol `ADMINISTRADOR` | `TriageRuleBody` | `201` `TriageRule` · `400` |
+| `PUT /admin/triage-rules/{id}` | Rol `ADMINISTRADOR` | `TriageRuleBody` | `200` `TriageRule` · `400` · `404` |
+| `DELETE /admin/triage-rules/{id}` | Rol `ADMINISTRADOR` | — | `204` · `404` |
+
+`TriageRuleBody = { keywords: string[], categoryId, priorityId, active? }` (`active` por defecto `true`).
+`TriageRule = { id, keywords, categoryId, categoryName, priorityId, priorityName, active }`.
+
+Reglas:
+
+- `keywords`: de 1 a 20 palabras o frases, cada una de 2 a 50 caracteres sin espacios sobrantes; se guardan en minúsculas y sin repetir. `categoryId` debe ser una categoría activa y `priorityId` una prioridad existente (`400` con `errors` en el campo).
+- Sugerencia (spec §5.1): se normalizan la descripción y las palabras clave (minúsculas, sin tildes). Una palabra clave coincide si aparece en la descripción como palabra o frase completa. Para cada regla **activa** cuya categoría siga activa se cuentan sus palabras clave que coinciden; gana la de **más coincidencias** y, si hay empate, la de menor `id` (la más antigua). Con cero coincidencias en todas, la respuesta es `null`.
+- La descripción se acepta con 1 a 2000 caracteres; el frontend pide la sugerencia cuando hay al menos 8.
+- La sugerencia no se guarda: el solicitante puede aceptarla o cambiarla, y `POST /requests` recibe lo que finalmente elija.
+
+## Dashboard (indicadores)
+
+> Estado: acordado, **por implementar** en el backend (release candidate, semanas 10–12). El frontend ya lo consume contra la API simulada con estas mismas formas.
+
+| Método y ruta | Acceso | Respuesta |
+|---|---|---|
+| `GET /dashboard/indicators?range=7\|30\|mes&areaId=` | Roles `SUPERVISOR` y `ADMINISTRADOR` | `200` `DashboardIndicators` · `400` `range` inválido · `403` otro rol |
+| `GET /dashboard/team` | Rol `SUPERVISOR` | `200` `[ { id, fullName, assigned, inProgress, overdue, capacity } ]` · `403` otro rol |
+
+Alcance y periodo:
+
+- `SUPERVISOR`: siempre su área; `areaId` se ignora. `ADMINISTRADOR`: todas las áreas, o solo `areaId` si se envía. `areaName` es el nombre del área filtrada, o `null` para todas.
+- `range` (por defecto `30`): `7` y `30` son los últimos 7 o 30 días contando hoy; `mes` va desde el día 1 del mes actual. Los días se cuentan en hora de Lima (`America/Lima`). `rangeDays` es la cantidad de días del periodo.
+- Salvo `dueSoon`, todo se calcula sobre las **solicitudes registradas en el periodo** dentro del alcance.
+
+`DashboardIndicators = { rangeDays, areaName, kpis, byCategory, byPriority, byTechnician, timeline, slaCompliancePct, dueSoon }`, con `kpis = { registered, pending, attended, resolvedPct, avgAttentionHours, overdue }` y cada KPI `{ value, deltaPct, series }`:
+
+| Indicador del enunciado | Campo | Definición |
+|---|---|---|
+| Solicitudes registradas | `kpis.registered` | Registradas en el periodo |
+| Solicitudes pendientes | `kpis.pending` | De ellas, las que hoy no están `RESUELTA` ni `CERRADA` |
+| Solicitudes atendidas | `kpis.attended` | De ellas, las que llegaron a `RESUELTA` (estén resueltas o ya cerradas); un cierre por `NO_PROCEDE` o `DUPLICADA` no cuenta |
+| Porcentaje de solicitudes resueltas | `kpis.resolvedPct` | `attended / registered × 100`, con un decimal; `0` si no hay registradas |
+| Tiempo promedio de atención | `kpis.avgAttentionHours` | Promedio, en horas con un decimal, desde el registro hasta la primera vez que pasó a `RESUELTA`, entre las atendidas; `0` si no hay atendidas |
+| Solicitudes vencidas | `kpis.overdue` | De ellas, las marcadas `overdue` (misma regla que `GET /requests`: no llegaron a `RESUELTA` antes de `dueAt`) |
+| Solicitudes por categoría | `byCategory` | `[ { label: nombre de la categoría, value } ]`, de mayor a menor |
+| Solicitudes por prioridad | `byPriority` | `[ { label, value } ]` en el orden de las prioridades, incluidas las que tienen `0` |
+| Solicitudes por responsable | `byTechnician` | `[ { label: técnico asignado, value } ]`, de mayor a menor; las no asignadas van como `"Sin asignar"` |
+
+Además:
+
+- `deltaPct`: variación porcentual del `value` respecto del periodo anterior de la misma duración, con un decimal; `0` si el periodo anterior vale `0`.
+- `series`: el valor del KPI para cada día del periodo (`rangeDays` elementos, del más antiguo al más reciente), para los mini gráficos.
+- `timeline`: solicitudes registradas por día del periodo (`rangeDays` elementos).
+- `slaCompliancePct`: de las atendidas, porcentaje que llegó a `RESUELTA` antes de `dueAt`, con un decimal; `0` si no hay atendidas.
+- `dueSoon`: hasta 10 `RequestSummary` del alcance que hoy no están `RESUELTA` ni `CERRADA` y vencen en las próximas 24 horas, ordenadas por `dueAt` (no depende del periodo).
+- `GET /dashboard/team`: técnicos activos del área del supervisor, con sus solicitudes en `ASIGNADA` (`assigned`), en `EN_ATENCION` (`inProgress`) y abiertas con `dueAt` pasado (`overdue`); `capacity` es la carga de referencia por técnico, configurable con `app.dashboard.technician-capacity` (por defecto `8`).
+- El módulo `dashboard` lee las solicitudes y su historial mediante un puerto de consulta del módulo `requests` (por acordar con su responsable al implementarlo); no escribe en sus tablas.
+
 ## Reglas de acceso reutilizables
 
 Usar siempre estas reglas en lugar de reimplementar las comprobaciones en cada módulo. Están en `pe.edu.unmsm.servicios.shared.domain` (Java puro, sin dependencias de Spring).
