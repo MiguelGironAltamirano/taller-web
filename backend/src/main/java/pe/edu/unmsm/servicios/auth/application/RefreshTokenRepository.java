@@ -14,4 +14,7 @@ public interface RefreshTokenRepository {
 	/** Revokes the token only if it is still active; returns whether this call revoked it. */
 	boolean revoke(String tokenHash, Instant at);
 
+	/** Revokes every still-active token of the user (e.g. when the account is deactivated); returns how many. */
+	int revokeAllForUser(long userId, Instant at);
+
 }

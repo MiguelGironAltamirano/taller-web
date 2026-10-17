@@ -17,8 +17,11 @@ describe('userSchema', () => {
     expect(r.success).toBe(false)
     if (!r.success) expect(r.error.issues[0].message).toBe('Usa un correo @unmsm.edu.pe.')
   })
-  it('exige el nombre', () => {
+  it('exige un nombre de 3 a 150 caracteres, como el backend', () => {
     expect(userSchema.safeParse({ ...ok, fullName: '  ' }).success).toBe(false)
+    expect(userSchema.safeParse({ ...ok, fullName: 'Al' }).success).toBe(false)
+    expect(userSchema.safeParse({ ...ok, fullName: 'Ana' }).success).toBe(true)
+    expect(userSchema.safeParse({ ...ok, fullName: 'a'.repeat(151) }).success).toBe(false)
   })
 })
 

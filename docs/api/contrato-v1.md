@@ -47,6 +47,35 @@ Transiciones (`to`, quién, requisito):
 | `RESUELTA` | `EN_ATENCION` | Solicitante dueño | `reason` |
 | `REGISTRADA`, `EN_EVALUACION` | `CERRADA` | Supervisor del área | `reason` ∈ `NO_PROCEDE`, `DUPLICADA` |
 
+## Administración: usuarios y estados
+
+Acceso: solo rol `ADMINISTRADOR`. Otro rol responde `403`; sin token, `401`. Los usuarios se identifican por `id`.
+
+| Método y ruta | Cuerpo | Respuesta |
+|---|---|---|
+| `GET /admin/users` | — | `200` `[AdminUser]` ordenados por `fullName` |
+| `POST /admin/users` | `AdminUserBody` | `201` `AdminUser` con `temporaryPassword` · `400` validación · `409` correo ya registrado |
+| `PUT /admin/users/{id}` | `AdminUserBody` | `200` `AdminUser` · `400` · `404` · `409` correo ya registrado o cambio de rol propio |
+| `PATCH /admin/users/{id}/active` | `{ active: boolean }` | `200` `AdminUser` · `404` · `409` si el administrador intenta desactivarse a sí mismo |
+| `GET /admin/states` | — | `200` `[ { order, status, description } ]`, los 6 estados en orden (solo lectura) |
+
+`AdminUserBody`: `{ fullName, email, role, areaId, requesterType? }`.
+
+Reglas de validación (`400` con `errors: { campo: mensaje }`):
+
+- `fullName` de 3 a 150 caracteres; `email` termina en `@unmsm.edu.pe` y se guarda en minúsculas.
+- `role` ∈ `SOLICITANTE`, `TECNICO`, `SUPERVISOR`, `ADMINISTRADOR`.
+- `areaId` es obligatorio y debe ser un área existente y activa para `TECNICO` y `SUPERVISOR`; para `SOLICITANTE` y `ADMINISTRADOR` debe ser `null`.
+- `requesterType` ∈ `ESTUDIANTE`, `DOCENTE`, `ADMINISTRATIVO`; solo aplica a `SOLICITANTE` (por defecto `ESTUDIANTE`) y se ignora en los demás roles.
+
+Contraseña inicial: el servidor genera una contraseña temporal (12 caracteres con letras y dígitos), la guarda como hash BCrypt y la devuelve **una sola vez** en `temporaryPassword` del `201`. Ningún otro endpoint la devuelve. El usuario la reemplaza con `PUT /auth/password`.
+
+Protecciones para no dejar el sistema sin administradores: el administrador autenticado no puede desactivar su propia cuenta ni cambiar su propio rol (`409`).
+
+Desactivar una cuenta (`active: false`) no la borra: el login responde `401` (mismo mensaje que credenciales inválidas), se revocan sus tokens de renovación y el token de acceso vigente deja de servir como máximo a los 15 minutos de su emisión. Reactivarla (`active: true`) restablece el acceso con la misma contraseña. Cambiar el rol o el área de un usuario se refleja en su token en el siguiente login o renovación.
+
+`PUT` no modifica `active` ni la contraseña.
+
 ## Reglas de acceso reutilizables
 
 Usar siempre estas reglas en lugar de reimplementar las comprobaciones en cada módulo. Están en `pe.edu.unmsm.servicios.shared.domain` (Java puro, sin dependencias de Spring).
@@ -71,6 +100,9 @@ type RequesterType = 'ESTUDIANTE' | 'DOCENTE' | 'ADMINISTRATIVO'
 type RequestStatus = 'REGISTRADA' | 'EN_EVALUACION' | 'ASIGNADA' | 'EN_ATENCION' | 'RESUELTA' | 'CERRADA'
 
 UserSummary   = { id, fullName, email, role, areaId: number | null }
+AdminUser     = UserSummary & { areaName: string | null, requesterType: RequesterType | null, active: boolean,
+                  temporaryPassword?: string }   // solo en la respuesta del POST
+StateInfo     = { order, status: RequestStatus, description }
 TokenResponse = { accessToken, expiresIn, user: UserSummary }
 Catalogs      = { areas: [{ id, name }], categories: [{ id, name, areaId }],
                   priorities: [{ id, name, slaHours }], locations: [{ id, name, kind, parentId }] }

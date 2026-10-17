@@ -157,8 +157,10 @@ export type AdminUser = {
   areaName: string | null
   requesterType: RequesterType | null
   active: boolean
+  /** Solo en la respuesta de `POST /admin/users`: se muestra una vez y no se vuelve a enviar. */
+  temporaryPassword?: string
 }
-export type AdminUserBody = { fullName: string; email: string; role: Role; areaId: number | null }
+export type AdminUserBody = { fullName: string; email: string; role: Role; areaId: number | null; requesterType?: RequesterType }
 
 export type AuditEvent = { id: number; createdAt: string; actorName: string; requestCode: string; detail: string }
 

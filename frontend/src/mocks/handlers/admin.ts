@@ -47,15 +47,36 @@ const toRuleDto = (r: MockTriageRule): TriageRuleDto => {
   }
 }
 
-function validateUser(body: AdminUserBody, ignoreId?: number): Record<string, string> {
-  const db = getDb()
+const belongsToArea = (role: AdminUserBody['role']) => role === 'TECNICO' || role === 'SUPERVISOR'
+
+/** Mismas reglas que el backend (contrato: "Administración: usuarios y estados"). */
+function validateUser(body: AdminUserBody): Record<string, string> {
   const errors: Record<string, string> = {}
-  if (!body.fullName?.trim()) errors.fullName = 'Ingresa el nombre.'
-  const email = body.email?.trim().toLowerCase() ?? ''
-  if (!INSTITUTIONAL.test(email)) errors.email = 'Usa un correo @unmsm.edu.pe.'
-  else if (db.users.some((u) => u.email === email && u.id !== ignoreId)) errors.email = 'Ya existe un usuario con ese correo.'
-  if ((body.role === 'TECNICO' || body.role === 'SUPERVISOR') && !body.areaId) errors.areaId = 'El área es obligatoria para este rol.'
+  const fullName = body.fullName?.trim() ?? ''
+  if (fullName.length < 3 || fullName.length > 150) errors.fullName = 'El nombre completo debe tener entre 3 y 150 caracteres'
+  if (!INSTITUTIONAL.test(body.email?.trim() ?? '')) errors.email = 'El correo debe terminar en @unmsm.edu.pe'
+  if (belongsToArea(body.role) && !body.areaId) errors.areaId = 'El área es obligatoria para este rol'
+  else if (!belongsToArea(body.role) && body.areaId) errors.areaId = 'Este rol no pertenece a un área'
+  else if (body.areaId && !getDb().areas.some((a) => a.id === body.areaId)) errors.areaId = 'El área no existe o está inactiva'
   return errors
+}
+
+const emailTaken = (email: string, ignoreId?: number) =>
+  getDb().users.some((u) => u.email === email.trim().toLowerCase() && u.id !== ignoreId)
+
+const emailConflict = () =>
+  problem(409, 'Conflict', 'El correo ya está registrado', { email: 'El correo ya está registrado' })
+
+const PASSWORD_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz'
+const PASSWORD_ALPHABET = PASSWORD_LETTERS + '23456789'
+
+/** 12 caracteres con al menos una letra y un dígito, como la contraseña temporal del backend. */
+function temporaryPassword(): string {
+  const random = crypto.getRandomValues(new Uint32Array(12))
+  const chars = Array.from(random, (n) => PASSWORD_ALPHABET[n % PASSWORD_ALPHABET.length])
+  chars[random[0] % 6] = PASSWORD_LETTERS[random[1] % PASSWORD_LETTERS.length]
+  chars[6 + (random[2] % 6)] = String(2 + (random[3] % 8))
+  return chars.join('')
 }
 
 export const adminHandlers = [
@@ -69,36 +90,39 @@ export const adminHandlers = [
       const body = (await request.json()) as AdminUserBody
       const errors = validateUser(body)
       if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
-      const needsArea = body.role === 'TECNICO' || body.role === 'SUPERVISOR'
+      if (emailTaken(body.email)) return emailConflict()
+      const password = temporaryPassword()
       const user: MockUser = {
         id: ++db.nextId,
         fullName: body.fullName.trim(),
         email: body.email.trim().toLowerCase(),
         role: body.role,
-        areaId: needsArea ? body.areaId : null,
-        requesterType: body.role === 'SOLICITANTE' ? 'ESTUDIANTE' : null,
+        areaId: body.areaId,
+        requesterType: body.role === 'SOLICITANTE' ? (body.requesterType ?? 'ESTUDIANTE') : null,
         active: true,
-        password: 'Demo12345!',
+        password,
       }
       db.users.push(user)
-      return HttpResponse.json(toAdminUser(user), { status: 201 })
+      return HttpResponse.json({ ...toAdminUser(user), temporaryPassword: password }, { status: 201 })
     }),
   ),
 
   http.put(
     '*/api/v1/admin/users/:id',
-    secured(ADMIN, async ({ request, params }) => {
+    secured(ADMIN, async ({ request, params, user: actor }) => {
       const user = getDb().users.find((u) => u.id === Number(params.id))
-      if (!user) return notFound()
+      if (!user) return notFound('El usuario no existe')
       const body = (await request.json()) as AdminUserBody
-      const errors = validateUser(body, user.id)
+      const errors = validateUser(body)
       if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
-      const needsArea = body.role === 'TECNICO' || body.role === 'SUPERVISOR'
+      if (emailTaken(body.email, user.id)) return emailConflict()
+      if (actor.id === user.id && body.role !== user.role) return problem(409, 'Conflict', 'No puedes cambiar tu propio rol')
       Object.assign(user, {
         fullName: body.fullName.trim(),
         email: body.email.trim().toLowerCase(),
         role: body.role,
-        areaId: needsArea ? body.areaId : null,
+        areaId: body.areaId,
+        requesterType: body.role === 'SOLICITANTE' ? (body.requesterType ?? user.requesterType ?? 'ESTUDIANTE') : null,
       })
       return HttpResponse.json(toAdminUser(user))
     }),
@@ -106,11 +130,12 @@ export const adminHandlers = [
 
   http.patch(
     '*/api/v1/admin/users/:id/active',
-    secured(ADMIN, async ({ request, params }) => {
+    secured(ADMIN, async ({ request, params, user: actor }) => {
       const db = getDb()
       const user = db.users.find((u) => u.id === Number(params.id))
-      if (!user) return notFound()
+      if (!user) return notFound('El usuario no existe')
       const { active } = (await request.json()) as { active: boolean }
+      if (actor.id === user.id && !active) return problem(409, 'Conflict', 'No puedes desactivar tu propia cuenta')
       user.active = active
       if (!active) {
         const admins = db.users.filter((u) => u.role === 'ADMINISTRADOR').map((u) => u.id)
