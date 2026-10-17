@@ -8,12 +8,14 @@ import { renderApp } from '../../test/render-app'
 
 let registerCalls = 0
 
-async function fill(values: { fullName?: string; email?: string; password?: string }) {
+async function fill(values: { fullName?: string; email?: string; password?: string; confirm?: string }) {
   const user = userEvent.setup()
+  const password = values.password ?? 'Clave12345'
   await user.type(await screen.findByLabelText('Nombre completo'), values.fullName ?? 'Ana Quispe Rojas')
   await user.type(screen.getByLabelText('Correo institucional'), values.email ?? 'ana@unmsm.edu.pe')
-  await user.type(screen.getByLabelText('Contraseña'), values.password ?? 'Clave12345')
-  await user.selectOptions(screen.getByLabelText('Tipo de solicitante'), 'DOCENTE')
+  await user.click(screen.getByRole('button', { name: 'Docente' }))
+  await user.type(screen.getByLabelText('Contraseña'), password)
+  await user.type(screen.getByLabelText('Confirmar contraseña'), values.confirm ?? password)
   await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
 }
 
@@ -33,29 +35,41 @@ describe('RegisterPage', () => {
   it('blocks a non-UNMSM email before sending', async () => {
     renderApp('/registro')
     await fill({ email: 'ana@gmail.com' })
-    expect(await screen.findByText('El correo debe terminar en @unmsm.edu.pe')).toBeInTheDocument()
+    expect(await screen.findByText('Usa tu correo institucional @unmsm.edu.pe.')).toBeInTheDocument()
     expect(registerCalls).toBe(0)
   })
 
   it('blocks a weak password before sending', async () => {
     renderApp('/registro')
     await fill({ password: 'solo letras' })
-    expect(await screen.findByText('La contraseña debe tener entre 8 y 72 caracteres, con al menos una letra y un dígito')).toBeInTheDocument()
+    expect(await screen.findByText('Incluye al menos una letra y un número.')).toBeInTheDocument()
     expect(registerCalls).toBe(0)
   })
 
-  it('goes to login with a confirmation after a successful registration', async () => {
+  it('blocks mismatching passwords before sending', async () => {
+    renderApp('/registro')
+    await fill({ confirm: 'OtraClave123' })
+    expect(await screen.findByText('Las contraseñas no coinciden.')).toBeInTheDocument()
+    expect(registerCalls).toBe(0)
+  })
+
+  it('goes to login with the email filled in after a successful registration', async () => {
     renderApp('/registro')
     await fill({})
-    expect(await screen.findByText('Cuenta creada. Ahora puedes iniciar sesión.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument()
+    expect(screen.getByText('Cuenta creada. Ya puedes ingresar.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Correo')).toHaveValue('ana@unmsm.edu.pe')
     expect(registerCalls).toBe(1)
   })
 
   it('shows a message when the email is already registered', async () => {
-    server.use(http.post('*/api/v1/auth/register', () => HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })))
+    server.use(
+      http.post('*/api/v1/auth/register', () =>
+        HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } }),
+      ),
+    )
     renderApp('/registro')
     await fill({})
-    expect(await screen.findByText('El correo ya está registrado')).toBeInTheDocument()
+    expect(await screen.findByText('El correo ya está registrado.')).toBeInTheDocument()
   })
 })

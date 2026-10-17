@@ -1,106 +1,143 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { Link, Navigate, useNavigate } from 'react-router'
-import { z } from 'zod'
+import { Controller, useForm, useWatch } from 'react-hook-form'
+import { Link, useNavigate } from 'react-router'
 import { ApiError, apiPost } from '../../shared/api/client'
-import type { RegisterBody } from '../../shared/api/types'
-import { AuthCard, FieldError, buttonClass, inputClass } from '../../shared/ui/AuthCard'
-import { useAuth } from './auth-context'
+import { requesterTypeToApi } from '../../shared/api/mappers'
+import { REQUESTER_TYPES } from '../../shared/domain'
+import { cn } from '../../shared/lib/cn'
+import { Button, Field, Input, useToast } from '../../shared/ui'
+import { AuthShell } from './AuthShell'
+import { passwordScore, registerSchema, type RegisterValues } from './schemas/auth'
 
-const DOMAIN = '@unmsm.edu.pe'
-const PASSWORD_MESSAGE = 'La contraseña debe tener entre 8 y 72 caracteres, con al menos una letra y un dígito'
-const NAME_MESSAGE = 'El nombre debe tener entre 3 y 150 caracteres'
+const STRENGTH = [
+  { color: 'var(--border)', label: '' },
+  { color: '#dc2626', label: 'Débil' },
+  { color: '#d97706', label: 'Regular' },
+  { color: '#65a30d', label: 'Buena' },
+  { color: '#16a34a', label: 'Fuerte' },
+]
 
-const schema = z.object({
-  fullName: z.string().trim().min(3, NAME_MESSAGE).max(150, NAME_MESSAGE),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .refine((value) => value.endsWith(DOMAIN) && value.length > DOMAIN.length, `El correo debe terminar en ${DOMAIN}`),
-  password: z
-    .string()
-    .min(8, PASSWORD_MESSAGE)
-    .max(72, PASSWORD_MESSAGE)
-    .regex(/[A-Za-z]/, PASSWORD_MESSAGE)
-    .regex(/\d/, PASSWORD_MESSAGE),
-  requesterType: z.enum(['ESTUDIANTE', 'DOCENTE', 'ADMINISTRATIVO']),
-})
-type RegisterForm = z.infer<typeof schema>
+// Campos del contrato de la API → campos del formulario.
+const FIELD_MAP: Record<string, keyof RegisterValues> = {
+  fullName: 'name',
+  email: 'email',
+  password: 'password',
+  requesterType: 'type',
+}
 
 export function RegisterPage() {
-  const { user } = useAuth()
   const navigate = useNavigate()
-  const [formError, setFormError] = useState<string | null>(null)
+  const toast = useToast()
   const {
     register,
+    control,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterForm>({ resolver: zodResolver(schema), defaultValues: { requesterType: 'ESTUDIANTE' } })
+  } = useForm<RegisterValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { name: '', email: '', type: 'Estudiante', password: '', confirm: '' },
+  })
+  const score = passwordScore(useWatch({ control, name: 'password' }) ?? '')
+  const strength = STRENGTH[score]
 
-  if (user) return <Navigate to="/" replace />
-
-  async function onSubmit(values: RegisterForm) {
-    setFormError(null)
+  const onSubmit = handleSubmit(async (values) => {
     try {
-      const body: RegisterBody = values
-      await apiPost('/auth/register', body)
-      void navigate('/login', { replace: true, state: { message: 'Cuenta creada. Ahora puedes iniciar sesión.' } })
-    } catch (error) {
-      setFormError(
-        error instanceof ApiError && error.status === 409
-          ? 'El correo ya está registrado'
-          : 'No se pudo crear la cuenta. Inténtalo de nuevo.',
-      )
+      await apiPost('/auth/register', {
+        fullName: values.name.trim(),
+        email: values.email.trim(),
+        password: values.password,
+        requesterType: requesterTypeToApi(values.type),
+      })
+      toast('Cuenta creada. Ya puedes ingresar.')
+      navigate('/login', { state: { email: values.email.trim() } })
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        setError('email', { message: 'El correo ya está registrado.' })
+      } else if (e instanceof ApiError && e.fieldErrors) {
+        for (const [field, message] of Object.entries(e.fieldErrors)) {
+          const mapped = FIELD_MAP[field]
+          if (mapped) setError(mapped, { message })
+        }
+      } else {
+        toast('No pudimos crear la cuenta. Inténtalo de nuevo.', { bad: true })
+      }
     }
-  }
+  })
 
   return (
-    <AuthCard title="Crear cuenta">
-      <form onSubmit={(event) => void handleSubmit(onSubmit)(event)} noValidate className="space-y-4">
+    <AuthShell>
+      <form onSubmit={onSubmit} noValidate className="flex w-full max-w-[440px] flex-col gap-3.5 self-start">
         <div>
-          <label htmlFor="fullName" className="text-sm font-medium text-slate-700">
-            Nombre completo
-          </label>
-          <input id="fullName" autoComplete="name" className={inputClass} {...register('fullName')} />
-          <FieldError message={errors.fullName?.message} />
+          <h1 className="m-0 mb-1 text-2xl font-semibold">Crear cuenta</h1>
+          <div className="text-muted">Solo correos @unmsm.edu.pe.</div>
         </div>
-        <div>
-          <label htmlFor="email" className="text-sm font-medium text-slate-700">
-            Correo institucional
-          </label>
-          <input id="email" type="email" autoComplete="email" className={inputClass} {...register('email')} />
-          <FieldError message={errors.email?.message} />
+        <Field label="Nombre completo" error={errors.name?.message}>
+          {(a) => <Input {...a} invalid={!!errors.name} autoComplete="name" {...register('name')} />}
+        </Field>
+        <Field label="Correo institucional" error={errors.email?.message}>
+          {(a) => (
+            <Input
+              {...a}
+              type="email"
+              invalid={!!errors.email}
+              autoComplete="email"
+              placeholder="usuario@unmsm.edu.pe"
+              {...register('email')}
+            />
+          )}
+        </Field>
+        <div className="flex flex-col gap-1.5 text-[13px] font-medium" role="group" aria-label="Tipo de usuario">
+          Tipo de usuario
+          <Controller
+            control={control}
+            name="type"
+            render={({ field }) => (
+              <div className="flex flex-wrap gap-2">
+                {REQUESTER_TYPES.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={field.value === t}
+                    onClick={() => field.onChange(t)}
+                    className={cn(
+                      'h-9 rounded-lg border px-3.5 font-medium max-md:h-11',
+                      field.value === t ? 'border-primary bg-primary-soft text-primary-fg' : 'border-line bg-surface text-fg',
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          />
         </div>
-        <div>
-          <label htmlFor="password" className="text-sm font-medium text-slate-700">
-            Contraseña
-          </label>
-          <input id="password" type="password" autoComplete="new-password" className={inputClass} {...register('password')} />
-          <FieldError message={errors.password?.message} />
-        </div>
-        <div>
-          <label htmlFor="requesterType" className="text-sm font-medium text-slate-700">
-            Tipo de solicitante
-          </label>
-          <select id="requesterType" className={inputClass} {...register('requesterType')}>
-            <option value="ESTUDIANTE">Estudiante</option>
-            <option value="DOCENTE">Docente</option>
-            <option value="ADMINISTRATIVO">Administrativo</option>
-          </select>
-        </div>
-        <FieldError message={formError ?? undefined} />
-        <button type="submit" disabled={isSubmitting} className={buttonClass}>
+        <Field label="Contraseña" error={errors.password?.message}>
+          {(a) => (
+            <>
+              <Input {...a} type="password" invalid={!!errors.password} autoComplete="new-password" {...register('password')} />
+              <span className="flex items-center gap-2 font-normal">
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
+                  <span
+                    className="block h-full transition-[width]"
+                    style={{ width: `${score * 25}%`, background: strength.color }}
+                  />
+                </span>
+                <span className="min-w-[60px] text-muted">{strength.label}</span>
+              </span>
+            </>
+          )}
+        </Field>
+        <Field label="Confirmar contraseña" error={errors.confirm?.message}>
+          {(a) => <Input {...a} type="password" invalid={!!errors.confirm} autoComplete="new-password" {...register('confirm')} />}
+        </Field>
+        <Button type="submit" variant="primary" size="lg" loading={isSubmitting}>
           Crear cuenta
-        </button>
+        </Button>
+        <div className="text-center text-[13px]">
+          ¿Ya tienes cuenta? <Link to="/login">Ingresar</Link>
+        </div>
       </form>
-      <p className="mt-4 text-sm text-slate-600">
-        ¿Ya tienes cuenta?{' '}
-        <Link to="/login" className="font-medium text-slate-900 underline">
-          Inicia sesión
-        </Link>
-      </p>
-    </AuthCard>
+    </AuthShell>
   )
 }

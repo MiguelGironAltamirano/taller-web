@@ -1,79 +1,116 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router'
-import { z } from 'zod'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../shared/api/client'
-import { AuthCard, FieldError, buttonClass, inputClass } from '../../shared/ui/AuthCard'
-import { useAuth } from './auth-context'
-
-const schema = z.object({
-  email: z.string().trim().min(1, 'Ingresa tu correo').email('Ingresa un correo válido'),
-  password: z.string().min(1, 'Ingresa tu contraseña'),
-})
-type LoginForm = z.infer<typeof schema>
+import { Alert, Button, Field, Input, useToast } from '../../shared/ui'
+import { AuthShell } from './AuthShell'
+import { useAuth } from './context'
+import { DEMO_ACCOUNTS, SHOW_DEMO_ACCOUNTS } from './demoAccounts'
+import { loginSchema, type LoginValues } from './schemas/auth'
 
 export function LoginPage() {
-  const { user, login } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const notice = (location.state as { message?: string } | null)?.message
-  const [formError, setFormError] = useState<string | null>(null)
+  const toast = useToast()
+  const [formError, setFormError] = useState('')
+  const prefill = (location.state as { email?: string } | null)?.email ?? ''
+
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({ resolver: zodResolver(schema) })
+    setValue,
+    formState: { isSubmitting },
+  } = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: prefill, password: '' },
+  })
 
-  if (user) return <Navigate to="/" replace />
+  const onInvalid = () => setFormError('Ingresa tu correo y contraseña.')
 
-  async function onSubmit(values: LoginForm) {
-    setFormError(null)
+  const onSubmit = handleSubmit(async (values) => {
+    setFormError('')
     try {
-      await login(values)
-      void navigate('/', { replace: true })
-    } catch (error) {
-      setFormError(
-        error instanceof ApiError && error.status === 401
-          ? 'Credenciales inválidas'
-          : 'No se pudo iniciar sesión. Inténtalo de nuevo.',
-      )
+      await login(values.email, values.password)
+      const from = (location.state as { from?: string } | null)?.from
+      toast('Sesión iniciada')
+      navigate(from && from !== '/login' ? from : '/', { replace: true })
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos conectar con el servidor.')
     }
-  }
+  }, onInvalid)
 
   return (
-    <AuthCard title="Iniciar sesión">
-      {notice && (
-        <p role="status" className="mb-4 rounded bg-green-50 p-3 text-sm text-green-800">
-          {notice}
-        </p>
-      )}
-      <form onSubmit={(event) => void handleSubmit(onSubmit)(event)} noValidate className="space-y-4">
+    <AuthShell>
+      <form onSubmit={onSubmit} noValidate className="flex w-full max-w-[360px] flex-col gap-3.5">
         <div>
-          <label htmlFor="email" className="text-sm font-medium text-slate-700">
-            Correo institucional
-          </label>
-          <input id="email" type="email" autoComplete="username" className={inputClass} {...register('email')} />
-          <FieldError message={errors.email?.message} />
+          <h1 className="m-0 mb-1 text-2xl font-semibold">Iniciar sesión</h1>
+          <div className="text-muted">Usa tu cuenta institucional.</div>
         </div>
-        <div>
-          <label htmlFor="password" className="text-sm font-medium text-slate-700">
-            Contraseña
-          </label>
-          <input id="password" type="password" autoComplete="current-password" className={inputClass} {...register('password')} />
-          <FieldError message={errors.password?.message} />
+        {formError && <Alert>{formError}</Alert>}
+        <Field label="Correo">
+          {(a) => (
+            <Input
+              {...a}
+              type="email"
+              autoComplete="username"
+              placeholder="usuario@unmsm.edu.pe"
+              {...register('email', { onChange: () => setFormError('') })}
+            />
+          )}
+        </Field>
+        <Field label="Contraseña">
+          {(a) => (
+            <Input
+              {...a}
+              type="password"
+              autoComplete="current-password"
+              {...register('password', { onChange: () => setFormError('') })}
+            />
+          )}
+        </Field>
+        <Button type="submit" variant="primary" size="lg" loading={isSubmitting}>
+          {isSubmitting ? 'Ingresando…' : 'Ingresar'}
+        </Button>
+        <div className="flex justify-between text-[13px]">
+          <button
+            type="button"
+            className="border-0 bg-transparent p-0 text-primary-fg hover:underline"
+            onClick={() => toast('Te enviaremos un enlace de recuperación a tu correo.')}
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
+          <Link to="/registro">Crear cuenta</Link>
         </div>
-        <FieldError message={formError ?? undefined} />
-        <button type="submit" disabled={isSubmitting} className={buttonClass}>
-          Iniciar sesión
-        </button>
+        {SHOW_DEMO_ACCOUNTS && (
+          <div className="border-t border-line pt-3.5">
+            <div className="mb-2 text-xs text-muted">Cuentas de ejemplo</div>
+            <div className="flex flex-col gap-1.5">
+              {DEMO_ACCOUNTS.map((u) => (
+                <button
+                  key={u.email}
+                  type="button"
+                  onClick={() => {
+                    setValue('email', u.email)
+                    setValue('password', u.password)
+                    setFormError('')
+                  }}
+                  className="flex items-center gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-fg hover:bg-surface2"
+                >
+                  <span className="grid size-7 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-primary-fg">
+                    {u.initials}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-medium">{u.name}</span>
+                    <span className="block text-xs text-muted">{u.role}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </form>
-      <p className="mt-4 text-sm text-slate-600">
-        ¿No tienes cuenta?{' '}
-        <Link to="/registro" className="font-medium text-slate-900 underline">
-          Regístrate
-        </Link>
-      </p>
-    </AuthCard>
+    </AuthShell>
   )
 }

@@ -102,6 +102,8 @@ Disponibles cuando el módulo de autenticación está integrado y `APP_FLYWAY_LO
 | Técnico | `tecnico.mantenimiento@unmsm.edu.pe` |
 | Solicitante | `estudiante@unmsm.edu.pe` |
 
+> Con la API simulada (`VITE_USE_MOCKS=true`, sección 7) el login muestra otras cuentas de ejemplo, definidas en `frontend/src/mocks/db.ts` (ver `frontend/README.md`); las de esta tabla son las de la base de datos real.
+
 ## 7. Modo desarrollo
 
 Backend (MySQL en Testcontainers; requiere Docker en ejecución):
@@ -121,19 +123,14 @@ pnpm dev
 
 ### Solo frontend, con API simulada
 
-Git Bash:
-
 ```bash
 cd frontend
-VITE_USE_MOCKS=true pnpm dev
+pnpm dev:mocks
 ```
 
-PowerShell:
+Equivale a `VITE_USE_MOCKS=true pnpm dev` (PowerShell: `$env:VITE_USE_MOCKS='true'; pnpm dev`). El login muestra cuentas de ejemplo para entrar con cada rol (contraseña `Demo12345!`); los datos viven en memoria y se reinician al recargar.
 
-```powershell
-cd frontend
-$env:VITE_USE_MOCKS='true'; pnpm dev
-```
+Si `pnpm` falla con "no se reconoce como un comando interno o externo", tu `pnpm` global es anterior a la versión que fija `frontend/package.json` (12.10.1). Se arregla con `npm install -g pnpm@12.10.1` o con `corepack enable`. Mientras tanto, los scripts se pueden ejecutar con `npm run dev:mocks`, `npm run test`, etc. (instalar dependencias sí requiere `pnpm`).
 
 ## 8. Ejecutar las pruebas
 
