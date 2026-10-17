@@ -28,8 +28,10 @@ Out: backend, subida real de evidencias, exportación a PDF, cierre automático 
 - [x] Flujo: acciones por rol con modal, confirmar o rechazar la solución
 - [x] Dashboard, equipo, reportes; usuarios, catálogos, reglas de triage, auditoría, configuración
 - [x] Verificación manual en navegador: login, restauración de sesión, dashboard, listado, detalle y asignación de técnico; vista móvil a 390 px
-- [ ] Integrar `origin/dev` (Miguel integró en paralelo layout, auth, cliente y mocks): resolver conflictos y revisar con él
-- [ ] Revisión de otro integrante y PR a `dev`
+- [x] Integrar `origin/dev` (Miguel integró en paralelo layout, auth, cliente y mocks): conflictos resueltos adoptando su `sessionStore` y su cliente HTTP
+- [x] PR #7 a `dev`: fusionado el 17 de octubre de 2026, con los 2 checks de CI en verde
+- [ ] Revisión de otro integrante (el PR se fusionó sin revisiones): pedir a Miguel que revise lo que se reemplazó de auth y layout, y a Lita `shared/ui`
+- [x] Prueba de interfaz de "Nueva solicitud" (código generado, lista, descripción fuera de rango, campos obligatorios)
 - [ ] Pruebas de accesibilidad con herramienta automática (axe) y revisión en lector de pantalla
 
 ## Decisions
@@ -45,6 +47,6 @@ Out: backend, subida real de evidencias, exportación a PDF, cierre automático 
 - Ninguna pantalla muestra datos fuera de la visibilidad del rol (el solicitante solo ve lo suyo, etc.).
 
 ## Evidence
-- `pnpm test`: 121 pruebas en 18 archivos.
+- `pnpm test`: 144 pruebas en 21 archivos (tras el merge con `dev` y la prueba de "Nueva solicitud").
 - `pnpm lint` (oxlint) sin avisos, `pnpm typecheck` y `pnpm build` sin errores.
 - Navegador (Chrome, dev server): login como supervisora, recarga con sesión restaurada, dashboard con gráficos, listado con SLA, detalle y asignación de técnico (estado `Asignada`, historial 3 entradas); vista móvil en 390 px sin iconos de escritorio.
