@@ -39,17 +39,28 @@ class AuthController {
 	private final Login login;
 	private final RefreshSession refreshSession;
 	private final Logout logout;
+	private final pe.edu.unmsm.servicios.auth.application.ChangePassword changePassword;
 	private final AuthProperties authProperties;
 	private final JwtProperties jwtProperties;
 
 	AuthController(RegisterUser registerUser, Login login, RefreshSession refreshSession, Logout logout,
+			pe.edu.unmsm.servicios.auth.application.ChangePassword changePassword,
 			AuthProperties authProperties, JwtProperties jwtProperties) {
 		this.registerUser = registerUser;
 		this.login = login;
 		this.refreshSession = refreshSession;
 		this.logout = logout;
+		this.changePassword = changePassword;
 		this.authProperties = authProperties;
 		this.jwtProperties = jwtProperties;
+	}
+
+	@org.springframework.web.bind.annotation.PutMapping("/password")
+	ResponseEntity<Void> changePassword(@Valid @RequestBody AuthDtos.ChangePasswordRequest request,
+			@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt) {
+		pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser user = pe.edu.unmsm.servicios.shared.infrastructure.security.CurrentUser.from(jwt);
+		changePassword.execute(user.id(), request.currentPassword(), request.newPassword());
+		return ResponseEntity.noContent().build();
 	}
 
 	@PostMapping("/register")

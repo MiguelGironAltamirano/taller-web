@@ -60,6 +60,14 @@ class JpaUserRepository implements UserRepository {
 		}
 	}
 
+	@Override
+	public void updatePassword(long id, String newPasswordHash) {
+		repository.findById(id).ifPresent(entity -> {
+			entity.passwordHash = newPasswordHash;
+			repository.saveAndFlush(entity);
+		});
+	}
+
 	private static User toDomain(UserEntity entity) {
 		return new User(entity.id, entity.fullName, entity.email, entity.passwordHash, Role.valueOf(entity.role),
 				entity.requesterType == null ? null : RequesterType.valueOf(entity.requesterType), entity.areaId,

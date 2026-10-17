@@ -43,4 +43,12 @@ final class AuthDtos {
 	record TokenResponse(String accessToken, long expiresIn, UserResponse user) {
 	}
 
+	record ChangePasswordRequest(
+			@NotBlank(message = "La contraseña actual es obligatoria") String currentPassword,
+			@NotBlank(message = "La contraseña nueva es obligatoria")
+			@Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres")
+			@Pattern(regexp = "^(?=.*\\p{L})(?=.*\\d).*$",
+					message = "La contraseña debe incluir al menos una letra y un dígito") String newPassword) {
+	}
+
 }

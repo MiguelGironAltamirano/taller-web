@@ -33,6 +33,12 @@ class AuthConfig {
 	}
 
 	@Bean
+	pe.edu.unmsm.servicios.auth.application.ChangePassword changePassword(UserRepository users,
+			RefreshTokenRepository refreshTokens, PasswordHasher hasher) {
+		return new pe.edu.unmsm.servicios.auth.application.ChangePassword(users, refreshTokens, hasher);
+	}
+
+	@Bean
 	LoginAttemptLimiter loginAttemptLimiter(Clock clock, LoginLimitProperties limit) {
 		return new LoginAttemptLimiter(clock, limit.maxFailuresPerClient(), limit.maxFailuresPerEmail(), limit.window(),
 				limit.maxTrackedKeys());
