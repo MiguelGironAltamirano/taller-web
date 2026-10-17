@@ -1,6 +1,7 @@
 package pe.edu.unmsm.servicios.auth.infrastructure.persistence;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,6 +30,12 @@ class JpaUserRepository implements UserRepository {
 	@Override
 	public Optional<User> findById(long id) {
 		return repository.findById(id).map(JpaUserRepository::toDomain);
+	}
+
+	@Override
+	public List<User> findActiveByRoleAndArea(Role role, long areaId) {
+		return repository.findByRoleAndAreaIdAndActiveTrueOrderByFullName(role.name(), areaId).stream()
+				.map(JpaUserRepository::toDomain).toList();
 	}
 
 	@Override
