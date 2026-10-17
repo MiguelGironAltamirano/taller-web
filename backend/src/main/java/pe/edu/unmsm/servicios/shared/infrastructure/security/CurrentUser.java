@@ -13,8 +13,10 @@ public final class CurrentUser {
 
 	public static AuthenticatedUser from(Jwt jwt) {
 		List<String> roles = jwt.getClaimAsStringList("roles");
+		Object area = jwt.getClaim("area_id");
+		Long areaId = area instanceof Number number ? number.longValue() : null;
 		return new AuthenticatedUser(Long.parseLong(jwt.getSubject()), jwt.getClaimAsString("email"),
-				jwt.getClaimAsString("name"), roles.getFirst());
+				jwt.getClaimAsString("name"), roles.getFirst(), areaId);
 	}
 
 }

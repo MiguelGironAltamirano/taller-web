@@ -55,6 +55,14 @@ class SecurityFoundationTests {
 	}
 
 	@Test
+	void meReturnsTheAreaClaimWhenPresentAndNullOtherwise() throws Exception {
+		String supervisor = issuer.issue(new AuthenticatedUser(7, "s@unmsm.edu.pe", "Sup", "SUPERVISOR", 3L)).value();
+		String requester = issuer.issue(new AuthenticatedUser(8, "r@unmsm.edu.pe", "Req", "SOLICITANTE", null)).value();
+		assertThat(get("/api/v1/me", supervisor).body()).contains("\"areaId\":3");
+		assertThat(get("/api/v1/me", requester).body()).contains("\"areaId\":null");
+	}
+
+	@Test
 	void meWithTamperedTokenReturnsUnauthorized() throws Exception {
 		String token = issuer.issue(new AuthenticatedUser(42, "ana@unmsm.edu.pe", "Ana Pérez", "SOLICITANTE")).value();
 		String tampered = token.substring(0, token.length() - 2) + (token.endsWith("A") ? "BB" : "AA");

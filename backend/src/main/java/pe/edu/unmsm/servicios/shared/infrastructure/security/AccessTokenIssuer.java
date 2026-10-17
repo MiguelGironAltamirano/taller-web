@@ -28,15 +28,18 @@ public class AccessTokenIssuer {
 
 	public IssuedToken issue(AuthenticatedUser user) {
 		Instant now = Instant.now();
-		JwtClaimsSet claims = JwtClaimsSet.builder()
+		JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
 				.issuer(properties.issuer())
 				.subject(Long.toString(user.id()))
 				.issuedAt(now)
 				.expiresAt(now.plus(properties.accessTokenTtl()))
 				.claim("email", user.email())
 				.claim("name", user.fullName())
-				.claim("roles", List.of(user.role()))
-				.build();
+				.claim("roles", List.of(user.role()));
+		if (user.areaId() != null) {
+			builder.claim("area_id", user.areaId());
+		}
+		JwtClaimsSet claims = builder.build();
 		JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
 		String value = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
 		return new IssuedToken(value, properties.accessTokenTtl().toSeconds());

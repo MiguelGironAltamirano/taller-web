@@ -83,7 +83,7 @@ final class AuthAdapters {
 		@Override
 		public AccessToken generate(User user) {
 			IssuedToken issued = issuer.issue(
-					new AuthenticatedUser(user.id(), user.email(), user.fullName(), user.role().name()));
+					new AuthenticatedUser(user.id(), user.email(), user.fullName(), user.role().name(), user.areaId()));
 			return new AccessToken(issued.value(), issued.expiresInSeconds());
 		}
 

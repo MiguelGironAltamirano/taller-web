@@ -10,7 +10,7 @@ Base: `/api/v1`. JSON en UTF-8. Fechas ISO-8601 en UTC. Errores: `application/pr
 | `POST /auth/login` | Público | `{ email, password }` | `200` `TokenResponse` + cookie `refresh_token` · `401` credenciales inválidas |
 | `POST /auth/refresh` | Cookie `refresh_token` | — | `200` `TokenResponse` + cookie rotada · `401` |
 | `POST /auth/logout` | Cookie `refresh_token` | — | `204`, cookie eliminada y token revocado |
-| `GET /me` | Token | — | `200` `{ id, email, fullName, role }` |
+| `GET /me` | Token | — | `200` `{ id, email, fullName, role, areaId }` |
 
 Reglas de registro: `email` termina en `@unmsm.edu.pe`; `password` de 8 a 72 caracteres con al menos una letra y un dígito; `requesterType` ∈ `ESTUDIANTE`, `DOCENTE`, `ADMINISTRATIVO`; `fullName` de 3 a 150 caracteres.
 
