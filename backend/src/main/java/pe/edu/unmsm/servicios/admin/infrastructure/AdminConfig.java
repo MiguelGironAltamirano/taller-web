@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 
 import pe.edu.unmsm.servicios.admin.application.AdminUserRepository;
 import pe.edu.unmsm.servicios.admin.application.AreaDirectory;
+import pe.edu.unmsm.servicios.admin.application.CatalogAdminStore;
+import pe.edu.unmsm.servicios.admin.application.ManageCatalogs;
 import pe.edu.unmsm.servicios.admin.application.CreateManagedUser;
 import pe.edu.unmsm.servicios.admin.application.ListManagedUsers;
 import pe.edu.unmsm.servicios.admin.application.SetUserActive;
@@ -31,6 +33,11 @@ class AdminConfig {
 	@Bean
 	UpdateManagedUser updateManagedUser(AdminUserRepository users, AreaDirectory areas) {
 		return new UpdateManagedUser(users, areas);
+	}
+
+	@Bean
+	ManageCatalogs manageCatalogs(CatalogAdminStore store) {
+		return new ManageCatalogs(store);
 	}
 
 	@Bean

@@ -64,8 +64,9 @@ export type MockTriageRule = { id: number; keywords: string[]; categoryId: numbe
 export type MockDb = {
   now: number
   nextId: number
-  areas: { id: number; name: string }[]
-  categories: { id: number; name: string; areaId: number }[]
+  /** `active: false` = desactivada por el administrador (como en el backend); sin el campo, activa. */
+  areas: { id: number; name: string; active?: boolean }[]
+  categories: { id: number; name: string; areaId: number; active?: boolean }[]
   priorities: { id: number; name: string; slaHours: number }[]
   locations: { id: number; name: string; kind: LocationKind; parentId: number | null }[]
   users: MockUser[]

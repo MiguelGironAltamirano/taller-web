@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ApiError, apiGet, apiPatch, apiPost, apiPut } from '../shared/api/client'
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../shared/api/client'
 import type {
   AdminUser,
   Catalogs,
@@ -320,6 +320,42 @@ describe('administración', () => {
       password: created.temporaryPassword,
     })
     expect(session.user.role).toBe('TECNICO')
+  })
+
+  it('áreas: 409 por nombre repetido o si tienen categorías activas; sin uso se eliminan', async () => {
+    await loginAs(ADMIN)
+    const catalogs = await apiGet<Catalogs>('/catalogs')
+    const used = catalogs.areas.find((a) => catalogs.categories.some((c) => c.areaId === a.id))!
+    expect(await status(apiPost('/admin/areas', { name: used.name.toUpperCase() }))).toBe(409)
+    expect(await status(apiDelete(`/admin/areas/${used.id}`))).toBe(409)
+    const created = await apiPost<{ id: number }>('/admin/areas', { name: 'Biblioteca' })
+    expect(await status(apiDelete(`/admin/areas/${created.id}`))).toBe(200)
+    expect(await status(apiDelete(`/admin/areas/${created.id}`))).toBe(404)
+  })
+
+  it('categorías: 409 por nombre repetido y se pueden desactivar aunque tengan solicitudes', async () => {
+    await loginAs(ADMIN)
+    const catalogs = await apiGet<Catalogs>('/catalogs')
+    const category = catalogs.categories[0]
+    expect(await status(apiPost('/admin/categories', { name: category.name, areaId: category.areaId }))).toBe(409)
+    expect(await status(apiPost('/admin/categories', { name: 'Nueva', areaId: 9999 }))).toBe(400)
+    expect(await status(apiDelete(`/admin/categories/${category.id}`))).toBe(200)
+  })
+
+  it('prioridades: horas de SLA entre 1 y 8760', async () => {
+    await loginAs(ADMIN)
+    const [priority] = (await apiGet<Catalogs>('/catalogs')).priorities
+    expect(await status(apiPut(`/admin/priorities/${priority.id}`, { slaHours: 8761 }))).toBe(400)
+    expect(await status(apiPut(`/admin/priorities/${priority.id}`, { slaHours: 48 }))).toBe(200)
+  })
+
+  it('ubicaciones: 409 por ambiente repetido y solo se eliminan ambientes', async () => {
+    await loginAs(ADMIN)
+    const body = { faculty: 'Facultad de Letras', pavilion: 'Pabellón B', room: 'Aula 305' }
+    const room = await apiPost<{ id: number; parentId: number }>('/admin/locations', body)
+    expect(await status(apiPost('/admin/locations', { ...body, room: 'aula 305' }))).toBe(409)
+    expect(await status(apiDelete(`/admin/locations/${room.parentId}`))).toBe(409)
+    expect(await status(apiDelete(`/admin/locations/${room.id}`))).toBe(200)
   })
 
   it('el administrador no puede desactivarse ni cambiar su propio rol', async () => {

@@ -27,7 +27,7 @@ export const categorySchema = z.object({
 export type CategoryFormValues = z.infer<typeof categorySchema>
 
 export const prioritySchema = z.object({
-  slaHours: z.string().refine((v) => /^\d+$/.test(v) && Number(v) > 0, 'Ingresa horas mayores a 0.'),
+  slaHours: z.string().refine((v) => /^\d+$/.test(v) && Number(v) > 0 && Number(v) <= 8760, 'Ingresa horas entre 1 y 8760.'),
 })
 export type PriorityFormValues = z.infer<typeof prioritySchema>
 

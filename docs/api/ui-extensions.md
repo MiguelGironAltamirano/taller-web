@@ -37,9 +37,11 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 
 `DashboardIndicators`: `{ rangeDays, areaName, kpis: { registered, pending, attended, resolvedPct, avgAttentionHours, overdue }, byCategory, byPriority, byTechnician, timeline, slaCompliancePct, dueSoon }`. Cada KPI es `{ value, deltaPct, series }` (variación respecto del periodo anterior y serie para el mini-gráfico). Los valores `deltaPct` de los mocks son fijos de ejemplo.
 
+> Triage (`/triage/suggestions`, `/admin/triage-rules*`) y dashboard (`/dashboard/indicators`, `/dashboard/team`) ya tienen contrato acordado en [`contrato-v1.md`](contrato-v1.md#triage), con la definición de cada indicador; aún falta su backend. Allí la sugerencia queda solo para `SOLICITANTE`, que es quien registra solicitudes.
+
 ### Administración (`ADMINISTRADOR`)
 
-> Usuarios (`/admin/users*`) y estados (`/admin/states`) ya están acordados en [`contrato-v1.md`](contrato-v1.md#administración-usuarios-y-estados), con la contraseña temporal en el `POST`; las filas de abajo para esas rutas quedan como referencia histórica.
+> Usuarios (`/admin/users*`), estados (`/admin/states`) y catálogos (`/admin/areas`, `/admin/categories`, `/admin/priorities`, `/admin/locations`) ya están acordados e implementados según [`contrato-v1.md`](contrato-v1.md#administración-usuarios-y-estados) (usuarios con contraseña temporal; áreas y categorías se desactivan en lugar de borrarse). Las filas de abajo para esas rutas quedan como referencia histórica.
 
 | Método y ruta | Cuerpo | Notas |
 |---|---|---|
