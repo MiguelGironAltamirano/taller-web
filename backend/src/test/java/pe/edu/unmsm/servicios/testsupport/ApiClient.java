@@ -47,6 +47,17 @@ public final class ApiClient {
 		return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
+	/** Any method (PUT, PATCH, DELETE...); {@code json} may be null for requests without body. */
+	public HttpResponse<String> send(String method, String path, String json, String token) throws Exception {
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+				.header("Content-Type", "application/json")
+				.method(method, json == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(json));
+		if (token != null) {
+			builder.header("Authorization", "Bearer " + token);
+		}
+		return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
 	public static <T> T read(HttpResponse<String> response, String jsonPath, Class<T> type) {
 		return JsonPath.parse(response.body()).read(jsonPath, type);
 	}
