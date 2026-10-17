@@ -18,12 +18,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 
 import pe.edu.unmsm.servicios.TestcontainersConfiguration;
 
+/**
+ * Creates users (technicians in area 1 among them), so the context and its database are discarded afterwards:
+ * other suites sharing this configuration, such as the workflow technicians list, must not see them.
+ */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
 		properties = "spring.flyway.locations=classpath:db/migration,classpath:db/seed-dev")
 @Import(TestcontainersConfiguration.class)
+@DirtiesContext
 class AdminUsersApiTests {
 
 	private static final String DEMO_PASSWORD = "Demo12345!";
