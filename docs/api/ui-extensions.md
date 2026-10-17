@@ -26,7 +26,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 |---|---|---|---|
 | `PATCH /requests/{code}/priority` | `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `409` si ya está resuelta o cerrada |
 | `POST /requests/{code}/comments` | Token, con visibilidad | `{ text }` (1–1000) | `201` `RequestDetail`; notifica a la otra parte |
-| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` (pasa a `CERRADA`, motivo `CONFIRMADA`) · `409` si no está `RESUELTA` |
+| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con la calificación (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6) · `409` si no está `CERRADA` por confirmación o ya fue calificada |
 | `PUT /auth/password` | Token | `{ currentPassword, newPassword }` | `204` · `400` con `errors` |
 | `GET /notifications` | Token | — | `200` `[ { id, text, createdAt, read, requestCode } ]` |
 | `PATCH /notifications/{id}/read` | Token | — | `204` |
@@ -60,3 +60,10 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 - Cierre automático a las 72 h y marca `AUTOMATICA` (lo ejecuta el backend).
 - Filtros avanzados y paginación del listado en el servidor: hoy el front pide hasta 500 solicitudes y filtra en el cliente.
 - Exportación a PDF de reportes y dashboard.
+
+## Semántica de `POST /requests/{code}/transitions` (módulo workflow)
+
+- Orden de validación: `409` (transición fuera de la tabla del spec §6) → `403` (el usuario no puede ejecutarla) → `400` (datos faltantes o inválidos).
+- `closureReason` (`NO_PROCEDE` | `DUPLICADA`) distingue el cierre sin resolver; también se acepta el valor en `reason` al estilo del contrato original.
+- `GET /users/technicians?areaId=` (solo supervisor, de su propia área) devuelve además `activeRequests` (asignadas + en atención).
+- El detalle expone `allowedTransitions` calculadas por usuario; el frontend deriva los botones (`allowedActions`) a partir de ellas.

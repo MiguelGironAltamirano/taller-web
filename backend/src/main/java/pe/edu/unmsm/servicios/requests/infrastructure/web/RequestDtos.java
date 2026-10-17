@@ -11,7 +11,7 @@ import pe.edu.unmsm.servicios.requests.application.PageView;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
 import pe.edu.unmsm.servicios.requests.application.RequestSummaryView;
 
-final class RequestDtos {
+public final class RequestDtos {
 
 	private RequestDtos() {
 	}
@@ -37,13 +37,14 @@ final class RequestDtos {
 
 	}
 
-	record PersonRef(long id, String fullName) {
+	public record PersonRef(long id, String fullName) {
 	}
 
-	record AreaRef(long id, String name) {
+	public record AreaRef(long id, String name) {
 	}
 
-	record HistoryResponse(String fromStatus, String toStatus, String actorName, String reason, Instant createdAt) {
+	public record HistoryResponse(String fromStatus, String toStatus, String actorName, String reason,
+			Instant createdAt) {
 
 		static HistoryResponse from(HistoryView h) {
 			return new HistoryResponse(h.fromStatus() == null ? null : h.fromStatus().name(), h.toStatus().name(),
@@ -52,14 +53,17 @@ final class RequestDtos {
 
 	}
 
-	/** {@code RequestDetail = RequestSummary & { … }} of the API contract, flattened. */
-	record DetailResponse(String code, String categoryName, String locationName, String priorityName, String status,
-			Instant createdAt, Instant dueAt, boolean overdue, String description, String requesterName,
-			String areaName, String technicianName, String facultyName, String pavilionName, String roomName,
-			PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
+	/**
+	 * {@code RequestDetail = RequestSummary & { … }} of the API contract, flattened. Public because the workflow
+	 * module answers its transitions with the updated detail.
+	 */
+	public record DetailResponse(String code, String categoryName, String locationName, String priorityName,
+			String status, Instant createdAt, Instant dueAt, boolean overdue, String description,
+			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
+			String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
 			List<HistoryResponse> history, List<String> allowedTransitions) {
 
-		static DetailResponse from(RequestDetailView d) {
+		public static DetailResponse from(RequestDetailView d) {
 			RequestSummaryView s = d.summary();
 			PersonRef technician = d.technicianId() == null ? null
 					: new PersonRef(d.technicianId(), s.technicianName());

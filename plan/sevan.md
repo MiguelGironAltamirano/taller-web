@@ -101,14 +101,14 @@ Prioridad sugerida: **S** = Release Candidate (semana 12), **C** = opcional si h
 
 ### Diferencias entre el diseño y el spec que hay que decidir
 
-- **Calificación al cerrar:** el diseño exige 1–5 estrellas para "Confirmar y cerrar"; el spec (§6) dice "calificación opcional" y que el cierre automático a las 72 h es sin calificación. El front sigue el diseño; si se prefiere el spec, basta quitar la validación en `ResolvedCard`.
+- **Calificación al cerrar (resuelto):** el diseño exigía 1–5 estrellas para "Confirmar y cerrar"; se siguió el spec (§6): la calificación es opcional. Confirmar cierra con `POST /transitions {to: CERRADA}` y, si hay estrellas, se guarda después con `POST /rating` (solo si la solicitud está cerrada por confirmación y sin calificar).
 - **Triage por mayor número de coincidencias:** el spec (§5.1) pide la regla con más coincidencias; el prototipo del diseño tomaba la primera que coincidía. El front y los mocks siguen el spec.
 - **Registro de solicitudes:** el contrato del MVP envía el `locationId` del ambiente; el formulario del diseño elige Facultad → Pabellón → Ambiente y el front resuelve ese id.
 - **Cierre automático a las 72 h:** el front solo lo informa; hay que implementarlo en el backend (satisfacción, plan de Lita).
 
 ## 10. Estado de avance (17 de octubre de 2026)
 
-Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; faltan los filtros avanzados del servidor y la documentación para el manual. El frontend (PR #7, `feature/ui-design-system`) ya está en `dev`; el backend (`catalog` y `requests`) está en la rama `feature/requests-backend`, pendiente de PR.
+Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; faltan los filtros avanzados del servidor y la documentación para el manual. El frontend (PR #7) y el backend `catalog` y `requests` (PR #8) ya están en `dev`, igual que el módulo `workflow` de Angela (PR #9).
 
 ### Backend (`catalog`, `requests`)
 
@@ -120,7 +120,7 @@ Resumen: **el frontend y el backend de registro y consulta de solicitudes están
 - [x] Marca de vencidas calculada en el servidor
 - [x] Pruebas de integración con MySQL real de la lista de la sección 5, incluida la de diez creaciones concurrentes (`RequestsApiTests`, `CatalogApiTests`)
 - [ ] Filtros avanzados del listado (fechas, área, vencidas): definirlos antes en `docs/api/`
-- [ ] `allowedTransitions` del detalle: hoy es siempre `[]`; lo calculará el módulo de workflow (Angela) implementando `AllowedTransitions`
+- [x] `allowedTransitions` del detalle: ya las calcula el módulo `workflow` (PR #9, implementación de `AllowedTransitions`)
 
 El detalle del backend todavía no incluye comentarios, evidencias, solución ni calificación: son de los módulos de AngelCarrasco y Lita, y el frontend ya tolera su ausencia.
 

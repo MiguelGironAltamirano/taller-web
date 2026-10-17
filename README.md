@@ -28,6 +28,16 @@ mise install
 (cd frontend && pnpm install && pnpm dev)    # frontend en http://localhost:5173
 ```
 
+### Solo el frontend, con cuentas de ejemplo
+
+Si no quieres levantar el backend, usa la API simulada:
+
+```bash
+(cd frontend && pnpm install && pnpm dev:mocks)
+```
+
+El login muestra cuentas de ejemplo para entrar con cada rol (contraseña `Demo12345!`): `lquispe@` (solicitante), `cmendoza@` (técnico), `avillanueva@` (supervisora) y `rsalazar@` (administrador), todas `@unmsm.edu.pe`. Los datos viven en memoria y se reinician al recargar. No son las cuentas del backend real; esas están en [`docs/guia-levantamiento.md`](docs/guia-levantamiento.md) y en [`frontend/README.md`](frontend/README.md).
+
 ## Ramas
 
 `main` (producción) ← `dev` (staging) ← `feature/<nombre>`.

@@ -38,4 +38,11 @@ public record ServiceRequest(Long id, String code, long requesterId, long catego
 		return Sla.isOverdue(status, dueAt, now);
 	}
 
+	/** The same request after a transition; creation data and the due date do not change. */
+	public ServiceRequest transitionedTo(RequestStatus newStatus, Long newTechnicianId, ClosureReason newClosureReason,
+			Instant now) {
+		return new ServiceRequest(id, code, requesterId, categoryId, locationId, description, priorityId, newStatus,
+				areaId, newTechnicianId, newClosureReason, createdAt, dueAt, now);
+	}
+
 }
