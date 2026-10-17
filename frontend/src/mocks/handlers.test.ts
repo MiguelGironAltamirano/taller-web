@@ -65,3 +65,25 @@ describe('mock API', () => {
     expect(response.status).toBe(409)
   })
 })
+
+describe('mock API registration', () => {
+  beforeEach(() => {
+    resetMockData()
+    server.use(...handlers)
+  })
+
+  const register = (email: string) =>
+    fetch(`${base}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName: 'Ana Quispe', email, password: 'Clave12345', requesterType: 'DOCENTE' }),
+    })
+
+  it('creates a new UNMSM account with 201', async () => {
+    expect((await register('nueva@unmsm.edu.pe')).status).toBe(201)
+  })
+
+  it('answers 409 for a seed email', async () => {
+    expect((await register('estudiante@unmsm.edu.pe')).status).toBe(409)
+  })
+})

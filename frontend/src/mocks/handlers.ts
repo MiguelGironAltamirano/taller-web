@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import type {
   CreateRequestBody,
   LoginBody,
+  RegisterBody,
   RequestDetail,
   RequestStatus,
   TransitionBody,
@@ -88,6 +89,17 @@ export const handlers = [
     if (!user || body.password !== demoPassword) return problem(401, 'Unauthorized', 'Credenciales inválidas')
     return HttpResponse.json({ accessToken: tokenFor(user), expiresIn: 900, user })
   }),
+
+  http.post(`${api}/auth/register`, async ({ request }) => {
+    const body = (await request.json()) as RegisterBody
+    if (users.some((candidate) => candidate.email === body.email)) {
+      return problem(409, 'Conflict', 'El correo ya está registrado')
+    }
+    const created: UserSummary = { id: users.length + 100, fullName: body.fullName, email: body.email, role: 'SOLICITANTE', areaId: null }
+    return HttpResponse.json(created, { status: 201 })
+  }),
+
+  http.get(`${api}/system/info`, () => HttpResponse.json({ name: 'servicios', version: 'mock' })),
 
   http.post(`${api}/auth/refresh`, () => problem(401, 'Unauthorized', 'No hay sesión activa')),
 

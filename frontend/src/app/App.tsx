@@ -1,24 +1,28 @@
-import { useQuery } from '@tanstack/react-query'
-import { apiGet } from '../shared/api/client'
-
-type SystemInfo = { name: string; version: string }
+import { Route, Routes } from 'react-router'
+import { LoginPage } from '../features/auth/LoginPage'
+import { HomeRedirect, ProtectedRoute } from '../features/auth/ProtectedRoute'
+import { RegisterPage } from '../features/auth/RegisterPage'
+import { InboxPage } from '../features/inbox/InboxPage'
+import { RequesterHomePage } from '../features/requests/RequesterHomePage'
+import { AppLayout } from './AppLayout'
 
 export function App() {
-  const info = useQuery({
-    queryKey: ['system-info'],
-    queryFn: () => apiGet<SystemInfo>('/system/info'),
-  })
-
-  let status = 'Conectando…'
-  if (info.isSuccess) status = `Versión ${info.data.version}`
-  if (info.isError) status = 'API no disponible'
-
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-50">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-slate-900">Servicios Universitarios</h1>
-        <p className="mt-2 text-slate-600">{status}</p>
-      </div>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/registro" element={<RegisterPage />} />
+      <Route path="/" element={<HomeRedirect />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          <Route element={<ProtectedRoute roles={['SOLICITANTE']} />}>
+            <Route path="/solicitudes" element={<RequesterHomePage />} />
+          </Route>
+          <Route element={<ProtectedRoute roles={['SUPERVISOR', 'TECNICO', 'ADMINISTRADOR']} />}>
+            <Route path="/bandeja" element={<InboxPage />} />
+          </Route>
+        </Route>
+      </Route>
+      <Route path="*" element={<HomeRedirect />} />
+    </Routes>
   )
 }
