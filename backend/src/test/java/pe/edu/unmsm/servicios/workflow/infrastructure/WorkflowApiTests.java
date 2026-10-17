@@ -34,14 +34,16 @@ class WorkflowApiTests {
 	private static final String TECHNICIAN = "tecnico.mantenimiento@unmsm.edu.pe"; // id 3, area 1
 	private static final String ADMIN = "admin@unmsm.edu.pe";
 	// Inserted by these tests.
-	private static final String OTHER_STUDENT = "otra.solicitante@unmsm.edu.pe"; // id 90
-	private static final String SUPPORT_SUPERVISOR = "supervisor.soporte@unmsm.edu.pe"; // id 91, area 3
-	private static final String SECOND_TECHNICIAN = "segundo.tecnico@unmsm.edu.pe"; // id 93, area 1
+	private static final String OTHER_STUDENT = "otra.solicitante@unmsm.edu.pe";
+	private static final String SUPPORT_SUPERVISOR = "supervisor.soporte@unmsm.edu.pe"; // area 3
+	private static final String SECOND_TECHNICIAN = "segundo.tecnico@unmsm.edu.pe"; // area 1
 	private static final String DEMO_HASH = "$2b$10$hOCLn2iSSfARxF.PH/fQoeUJGY3u2dOY7aug6hnxrdiqia2rKKXvy";
 
-	private static final long SUPPORT_TECHNICIAN_ID = 92; // area 3
-	private static final long SECOND_TECHNICIAN_ID = 93; // area 1
-	private static final long INACTIVE_TECHNICIAN_ID = 94; // area 1, inactive
+	// Ids of the users inserted by setUp: users.id is AUTO_INCREMENT and other test classes register users through the
+	// API on the same database, so fixed ids may already be taken.
+	private long supportTechnicianId; // area 3
+	private long secondTechnicianId; // area 1
+	private long inactiveTechnicianId; // area 1, inactive
 	private static final String VALID = "El tomacorriente del aula no funciona desde ayer";
 
 	@Value("${local.server.port}")
@@ -58,19 +60,22 @@ class WorkflowApiTests {
 		jdbc.update("delete from request_history");
 		jdbc.update("delete from service_requests");
 		jdbc.update("delete from request_code_sequences");
-		insertUser(90, "Otra Solicitante", OTHER_STUDENT, "SOLICITANTE", "DOCENTE", null, true);
-		insertUser(91, "Supervisor Soporte", SUPPORT_SUPERVISOR, "SUPERVISOR", null, 3, true);
-		insertUser(SUPPORT_TECHNICIAN_ID, "Técnico Soporte", "tecnico.soporte@unmsm.edu.pe", "TECNICO", null, 3, true);
-		insertUser(SECOND_TECHNICIAN_ID, "Segundo Técnico", SECOND_TECHNICIAN, "TECNICO", null, 1, true);
-		insertUser(INACTIVE_TECHNICIAN_ID, "Técnico Inactivo", "tecnico.inactivo@unmsm.edu.pe", "TECNICO", null, 1, false);
-		jdbc.update("update users set active = false where id = ?", INACTIVE_TECHNICIAN_ID);
+		insertUser("Otra Solicitante", OTHER_STUDENT, "SOLICITANTE", "DOCENTE", null, true);
+		insertUser("Supervisor Soporte", SUPPORT_SUPERVISOR, "SUPERVISOR", null, 3, true);
+		supportTechnicianId = insertUser("Técnico Soporte", "tecnico.soporte@unmsm.edu.pe", "TECNICO", null, 3, true);
+		secondTechnicianId = insertUser("Segundo Técnico", SECOND_TECHNICIAN, "TECNICO", null, 1, true);
+		inactiveTechnicianId = insertUser("Técnico Inactivo", "tecnico.inactivo@unmsm.edu.pe", "TECNICO", null, 1, false);
 	}
 
-	private void insertUser(long id, String name, String email, String role, String requesterType, Integer areaId,
+	/** Inserts the user if missing, restores its state if a previous test changed it, and returns its id. */
+	private long insertUser(String name, String email, String role, String requesterType, Integer areaId,
 			boolean active) {
-		jdbc.update("insert ignore into users (id, full_name, email, password_hash, role, requester_type, area_id, "
-				+ "active, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, utc_timestamp(6))", id, name, email, DEMO_HASH,
-				role, requesterType, areaId, active);
+		jdbc.update("insert ignore into users (full_name, email, password_hash, role, requester_type, area_id, "
+				+ "active, created_at) values (?, ?, ?, ?, ?, ?, ?, utc_timestamp(6))", name, email, DEMO_HASH, role,
+				requesterType, areaId, active);
+		jdbc.update("update users set full_name = ?, role = ?, requester_type = ?, area_id = ?, active = ? "
+				+ "where email = ?", name, role, requesterType, areaId, active, email);
+		return jdbc.queryForObject("select id from users where email = ?", Long.class, email);
 	}
 
 	private String createRequest(String user) throws Exception {
@@ -182,7 +187,7 @@ class WorkflowApiTests {
 	@Test
 	void anUnassignedTechnicianCannotStartAttending() throws Exception {
 		String code = createRequest(STUDENT);
-		force(code, "ASIGNADA", SECOND_TECHNICIAN_ID);
+		force(code, "ASIGNADA", secondTechnicianId);
 
 		ApiClient.assertProblem(transition(TECHNICIAN, code, to("EN_ATENCION")), 403);
 
@@ -216,8 +221,8 @@ class WorkflowApiTests {
 		HttpResponse<String> none = transition(SUPERVISOR, code, to("ASIGNADA"));
 		ApiClient.assertProblem(none, 400);
 		assertThat(ApiClient.<String>read(none, "$.errors.technicianId")).isNotBlank();
-		ApiClient.assertProblem(transition(SUPERVISOR, code, assign(SUPPORT_TECHNICIAN_ID)), 400);
-		ApiClient.assertProblem(transition(SUPERVISOR, code, assign(INACTIVE_TECHNICIAN_ID)), 400);
+		ApiClient.assertProblem(transition(SUPERVISOR, code, assign(supportTechnicianId)), 400);
+		ApiClient.assertProblem(transition(SUPERVISOR, code, assign(inactiveTechnicianId)), 400);
 		ApiClient.assertProblem(transition(SUPERVISOR, code, assign(999)), 400);
 		ApiClient.assertProblem(transition(SUPERVISOR, code, assign(4)), 400); // a requester is not a technician
 
@@ -231,12 +236,12 @@ class WorkflowApiTests {
 		force(code, "ASIGNADA", 3L);
 
 		HttpResponse<String> noReason = transition(SUPERVISOR, code,
-				"{\"to\":\"ASIGNADA\",\"technicianId\":" + SECOND_TECHNICIAN_ID + "}");
+				"{\"to\":\"ASIGNADA\",\"technicianId\":" + secondTechnicianId + "}");
 		ApiClient.assertProblem(noReason, 400);
 		assertThat(ApiClient.<String>read(noReason, "$.errors.reason")).isNotBlank();
 
 		HttpResponse<String> ok = transition(SUPERVISOR, code,
-				"{\"to\":\"ASIGNADA\",\"technicianId\":" + SECOND_TECHNICIAN_ID + ",\"reason\":\"Carga de trabajo\"}");
+				"{\"to\":\"ASIGNADA\",\"technicianId\":" + secondTechnicianId + ",\"reason\":\"Carga de trabajo\"}");
 		assertThat(ok.statusCode()).as(ok.body()).isEqualTo(200);
 		assertThat(ApiClient.<String>read(ok, "$.status")).isEqualTo("ASIGNADA");
 		assertThat(ApiClient.<String>read(ok, "$.technician.fullName")).isEqualTo("Segundo Técnico");
@@ -424,7 +429,7 @@ class WorkflowApiTests {
 		assertThat(ApiClient.<List<String>>read(response, "$[*].fullName"))
 				.containsExactlyInAnyOrder("Técnico Mantenimiento", "Segundo Técnico");
 		assertThat(ApiClient.<List<Integer>>read(response, "$[?(@.id==3)].activeRequests")).containsExactly(2);
-		assertThat(ApiClient.<List<Integer>>read(response, "$[?(@.id==" + SECOND_TECHNICIAN_ID + ")].activeRequests"))
+		assertThat(ApiClient.<List<Integer>>read(response, "$[?(@.id==" + secondTechnicianId + ")].activeRequests"))
 				.containsExactly(0);
 	}
 
