@@ -1,0 +1,365 @@
+import { http, HttpResponse } from 'msw'
+import type {
+  AdminUser,
+  AdminUserBody,
+  AppConfig,
+  AuditEvent,
+  StateInfo,
+  TriageRuleBody,
+  TriageRuleDto,
+} from '../../shared/api/types'
+import { STATUS_ORDER } from '../../shared/api/mappers'
+import { codeOf, getDb, type MockTriageRule, type MockUser } from '../db'
+import { iso, notFound, problem, secured } from '../http'
+
+const ADMIN: ['ADMINISTRADOR'] = ['ADMINISTRADOR']
+const INSTITUTIONAL = /^[^\s@]+@unmsm\.edu\.pe$/i
+const STATE_DESCRIPTIONS = [
+  'Solicitud creada',
+  'El supervisor evalúa el caso',
+  'Técnico asignado',
+  'El técnico trabaja en la solicitud',
+  'Solución propuesta, pendiente de confirmación',
+  'Solicitud finalizada',
+]
+
+const toAdminUser = (u: MockUser): AdminUser => ({
+  id: u.id,
+  fullName: u.fullName,
+  email: u.email,
+  role: u.role,
+  areaId: u.areaId,
+  areaName: getDb().areas.find((a) => a.id === u.areaId)?.name ?? null,
+  requesterType: u.requesterType,
+  active: u.active,
+})
+
+const toRuleDto = (r: MockTriageRule): TriageRuleDto => {
+  const db = getDb()
+  return {
+    id: r.id,
+    keywords: r.keywords,
+    categoryId: r.categoryId,
+    categoryName: db.categories.find((c) => c.id === r.categoryId)?.name ?? '',
+    priorityId: r.priorityId,
+    priorityName: db.priorities.find((p) => p.id === r.priorityId)?.name ?? '',
+    active: r.active,
+  }
+}
+
+function validateUser(body: AdminUserBody, ignoreId?: number): Record<string, string> {
+  const db = getDb()
+  const errors: Record<string, string> = {}
+  if (!body.fullName?.trim()) errors.fullName = 'Ingresa el nombre.'
+  const email = body.email?.trim().toLowerCase() ?? ''
+  if (!INSTITUTIONAL.test(email)) errors.email = 'Usa un correo @unmsm.edu.pe.'
+  else if (db.users.some((u) => u.email === email && u.id !== ignoreId)) errors.email = 'Ya existe un usuario con ese correo.'
+  if ((body.role === 'TECNICO' || body.role === 'SUPERVISOR') && !body.areaId) errors.areaId = 'El área es obligatoria para este rol.'
+  return errors
+}
+
+export const adminHandlers = [
+  // ───── Usuarios ─────
+  http.get('*/api/v1/admin/users', secured(ADMIN, () => HttpResponse.json(getDb().users.map(toAdminUser)))),
+
+  http.post(
+    '*/api/v1/admin/users',
+    secured(ADMIN, async ({ request }) => {
+      const db = getDb()
+      const body = (await request.json()) as AdminUserBody
+      const errors = validateUser(body)
+      if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
+      const needsArea = body.role === 'TECNICO' || body.role === 'SUPERVISOR'
+      const user: MockUser = {
+        id: ++db.nextId,
+        fullName: body.fullName.trim(),
+        email: body.email.trim().toLowerCase(),
+        role: body.role,
+        areaId: needsArea ? body.areaId : null,
+        requesterType: body.role === 'SOLICITANTE' ? 'ESTUDIANTE' : null,
+        active: true,
+        password: 'Demo12345!',
+      }
+      db.users.push(user)
+      return HttpResponse.json(toAdminUser(user), { status: 201 })
+    }),
+  ),
+
+  http.put(
+    '*/api/v1/admin/users/:id',
+    secured(ADMIN, async ({ request, params }) => {
+      const user = getDb().users.find((u) => u.id === Number(params.id))
+      if (!user) return notFound()
+      const body = (await request.json()) as AdminUserBody
+      const errors = validateUser(body, user.id)
+      if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
+      const needsArea = body.role === 'TECNICO' || body.role === 'SUPERVISOR'
+      Object.assign(user, {
+        fullName: body.fullName.trim(),
+        email: body.email.trim().toLowerCase(),
+        role: body.role,
+        areaId: needsArea ? body.areaId : null,
+      })
+      return HttpResponse.json(toAdminUser(user))
+    }),
+  ),
+
+  http.patch(
+    '*/api/v1/admin/users/:id/active',
+    secured(ADMIN, async ({ request, params }) => {
+      const db = getDb()
+      const user = db.users.find((u) => u.id === Number(params.id))
+      if (!user) return notFound()
+      const { active } = (await request.json()) as { active: boolean }
+      user.active = active
+      if (!active) {
+        const admins = db.users.filter((u) => u.role === 'ADMINISTRADOR').map((u) => u.id)
+        for (const recipientId of admins) {
+          db.notifications.unshift({
+            id: ++db.nextId,
+            recipientId,
+            text: `Se desactivó la cuenta de ${user.fullName}.`,
+            createdAt: Date.now(),
+            read: false,
+            requestCode: null,
+          })
+        }
+      }
+      return HttpResponse.json(toAdminUser(user))
+    }),
+  ),
+
+  // ───── Catálogos ─────
+  http.post(
+    '*/api/v1/admin/areas',
+    secured(ADMIN, async ({ request }) => {
+      const db = getDb()
+      const { name } = (await request.json()) as { name: string }
+      const clean = name?.trim() ?? ''
+      if (!clean) return problem(400, 'Datos no válidos', 'Ingresa el nombre.', { name: 'Ingresa el nombre.' })
+      if (db.areas.some((a) => a.name.toLowerCase() === clean.toLowerCase())) {
+        return problem(400, 'Datos no válidos', 'Esa área ya existe.', { name: 'Esa área ya existe.' })
+      }
+      const area = { id: ++db.nextId, name: clean }
+      db.areas.push(area)
+      return HttpResponse.json(area, { status: 201 })
+    }),
+  ),
+
+  http.delete(
+    '*/api/v1/admin/areas/:id',
+    secured(ADMIN, ({ params }) => {
+      const db = getDb()
+      const id = Number(params.id)
+      if (db.categories.some((c) => c.areaId === id)) {
+        return problem(409, 'No se puede eliminar', 'No se puede eliminar: tiene categorías asociadas.')
+      }
+      db.areas = db.areas.filter((a) => a.id !== id)
+      return new HttpResponse(null, { status: 204 })
+    }),
+  ),
+
+  http.post(
+    '*/api/v1/admin/categories',
+    secured(ADMIN, async ({ request }) => {
+      const db = getDb()
+      const body = (await request.json()) as { name: string; areaId: number }
+      const errors: Record<string, string> = {}
+      const name = body.name?.trim() ?? ''
+      if (!name) errors.name = 'Ingresa el nombre.'
+      else if (db.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) errors.name = 'Esa categoría ya existe.'
+      if (!db.areas.some((a) => a.id === body.areaId)) errors.areaId = 'Selecciona el área.'
+      if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
+      const category = { id: ++db.nextId, name, areaId: body.areaId }
+      db.categories.push(category)
+      return HttpResponse.json(category, { status: 201 })
+    }),
+  ),
+
+  http.delete(
+    '*/api/v1/admin/categories/:id',
+    secured(ADMIN, ({ params }) => {
+      const db = getDb()
+      const id = Number(params.id)
+      if (db.requests.some((r) => r.categoryId === id)) {
+        return problem(409, 'No se puede eliminar', 'No se puede eliminar: hay solicitudes con esta categoría.')
+      }
+      db.categories = db.categories.filter((c) => c.id !== id)
+      return new HttpResponse(null, { status: 204 })
+    }),
+  ),
+
+  http.put(
+    '*/api/v1/admin/priorities/:id',
+    secured(ADMIN, async ({ request, params }) => {
+      const priority = getDb().priorities.find((p) => p.id === Number(params.id))
+      if (!priority) return notFound()
+      const { slaHours } = (await request.json()) as { slaHours: number }
+      if (!Number.isInteger(slaHours) || slaHours <= 0) {
+        return problem(400, 'Datos no válidos', 'Ingresa horas mayores a 0.', { slaHours: 'Ingresa horas mayores a 0.' })
+      }
+      priority.slaHours = slaHours
+      return HttpResponse.json(priority)
+    }),
+  ),
+
+  http.post(
+    '*/api/v1/admin/locations',
+    secured(ADMIN, async ({ request }) => {
+      const db = getDb()
+      const body = (await request.json()) as { faculty: string; pavilion: string; room: string }
+      const errors: Record<string, string> = {}
+      if (!body.faculty?.trim()) errors.faculty = 'Ingresa la facultad.'
+      if (!body.pavilion?.trim()) errors.pavilion = 'Ingresa el pabellón.'
+      if (!body.room?.trim()) errors.room = 'Ingresa el ambiente.'
+      if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
+
+      const ensure = (name: string, kind: 'FACULTAD' | 'PABELLON' | 'AMBIENTE', parentId: number | null) => {
+        const existing = db.locations.find((l) => l.kind === kind && l.parentId === parentId && l.name.toLowerCase() === name.toLowerCase())
+        if (existing) return existing
+        const created = { id: ++db.nextId, name, kind, parentId }
+        db.locations.push(created)
+        return created
+      }
+      const faculty = ensure(body.faculty.trim(), 'FACULTAD', null)
+      const pavilion = ensure(body.pavilion.trim(), 'PABELLON', faculty.id)
+      const room = ensure(body.room.trim(), 'AMBIENTE', pavilion.id)
+      return HttpResponse.json(room, { status: 201 })
+    }),
+  ),
+
+  http.delete(
+    '*/api/v1/admin/locations/:id',
+    secured(ADMIN, ({ params }) => {
+      const db = getDb()
+      const id = Number(params.id)
+      if (db.requests.some((r) => r.locationId === id)) {
+        return problem(409, 'No se puede eliminar', 'No se puede eliminar: hay solicitudes en este ambiente.')
+      }
+      const room = db.locations.find((l) => l.id === id)
+      db.locations = db.locations.filter((l) => l.id !== id)
+      // Limpia pabellones y facultades que quedaron vacíos.
+      if (room?.parentId) {
+        const prune = (parentId: number | null) => {
+          if (parentId === null) return
+          if (!db.locations.some((l) => l.parentId === parentId)) {
+            const node = db.locations.find((l) => l.id === parentId)
+            db.locations = db.locations.filter((l) => l.id !== parentId)
+            prune(node?.parentId ?? null)
+          }
+        }
+        prune(room.parentId)
+      }
+      return new HttpResponse(null, { status: 204 })
+    }),
+  ),
+
+  http.get(
+    '*/api/v1/admin/states',
+    secured(ADMIN, () => {
+      const items: StateInfo[] = STATUS_ORDER.map((status, i) => ({ order: i + 1, status, description: STATE_DESCRIPTIONS[i] }))
+      return HttpResponse.json(items)
+    }),
+  ),
+
+  // ───── Reglas de triage ─────
+  http.get('*/api/v1/admin/triage-rules', secured(ADMIN, () => HttpResponse.json(getDb().rules.map(toRuleDto)))),
+
+  http.post(
+    '*/api/v1/admin/triage-rules',
+    secured(ADMIN, async ({ request }) => {
+      const db = getDb()
+      const body = (await request.json()) as TriageRuleBody
+      const errors = validateRule(body)
+      if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
+      const rule: MockTriageRule = {
+        id: ++db.nextId,
+        keywords: cleanKeywords(body.keywords),
+        categoryId: body.categoryId,
+        priorityId: body.priorityId,
+        active: body.active ?? true,
+      }
+      db.rules.push(rule)
+      return HttpResponse.json(toRuleDto(rule), { status: 201 })
+    }),
+  ),
+
+  http.put(
+    '*/api/v1/admin/triage-rules/:id',
+    secured(ADMIN, async ({ request, params }) => {
+      const rule = getDb().rules.find((r) => r.id === Number(params.id))
+      if (!rule) return notFound()
+      const body = (await request.json()) as TriageRuleBody
+      const errors = validateRule(body)
+      if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
+      Object.assign(rule, {
+        keywords: cleanKeywords(body.keywords),
+        categoryId: body.categoryId,
+        priorityId: body.priorityId,
+        active: body.active ?? rule.active,
+      })
+      return HttpResponse.json(toRuleDto(rule))
+    }),
+  ),
+
+  http.delete(
+    '*/api/v1/admin/triage-rules/:id',
+    secured(ADMIN, ({ params }) => {
+      const db = getDb()
+      db.rules = db.rules.filter((r) => r.id !== Number(params.id))
+      return new HttpResponse(null, { status: 204 })
+    }),
+  ),
+
+  // ───── Auditoría y configuración ─────
+  http.get(
+    '*/api/v1/admin/audit',
+    secured(ADMIN, ({ request }) => {
+      const q = (new URL(request.url).searchParams.get('q') ?? '').trim().toLowerCase()
+      const events: AuditEvent[] = []
+      for (const r of getDb().requests) {
+        for (const h of r.history) {
+          const from = h.note ? h.note.split('→')[0].trim() : (h.fromStatus ?? '—')
+          const to = h.note ? (h.note.split('→')[1] ?? '').trim() : h.toStatus
+          events.push({
+            id: events.length + 1,
+            createdAt: iso(h.createdAt),
+            actorName: h.actorName,
+            requestCode: codeOf(r),
+            detail: `${from} → ${to} · ${h.reason ?? ''}`,
+          })
+        }
+      }
+      const items = events
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .filter((e) => !q || `${e.actorName}${e.requestCode}${e.detail}`.toLowerCase().includes(q))
+        .slice(0, 40)
+      return HttpResponse.json(items)
+    }),
+  ),
+
+  http.get('*/api/v1/admin/config', secured(ADMIN, () => HttpResponse.json(getDb().config))),
+
+  http.put(
+    '*/api/v1/admin/config',
+    secured(ADMIN, async ({ request }) => {
+      const body = (await request.json()) as AppConfig
+      if (!Number.isInteger(body.autoCloseHours) || body.autoCloseHours <= 0) {
+        return problem(400, 'Datos no válidos', 'Ingresa horas mayores a 0.', { autoCloseHours: 'Ingresa horas mayores a 0.' })
+      }
+      getDb().config = { ...body }
+      return HttpResponse.json(getDb().config)
+    }),
+  ),
+]
+
+const cleanKeywords = (keywords: string[]) => keywords.map((k) => k.trim()).filter(Boolean)
+
+function validateRule(body: TriageRuleBody): Record<string, string> {
+  const db = getDb()
+  const errors: Record<string, string> = {}
+  if (!cleanKeywords(body.keywords ?? []).length) errors.keywords = 'Ingresa al menos una palabra clave.'
+  if (!db.categories.some((c) => c.id === body.categoryId)) errors.categoryId = 'Selecciona la categoría.'
+  if (!db.priorities.some((p) => p.id === body.priorityId)) errors.priorityId = 'Selecciona la prioridad.'
+  return errors
+}

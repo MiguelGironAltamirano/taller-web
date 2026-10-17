@@ -1,4 +1,7 @@
-/** Tipos y constantes del dominio compartidos por todas las features (spec §4–§7). */
+/**
+ * Modelo de vista del dominio (spec §4–§7): etiquetas en español y fechas en milisegundos.
+ * La API habla con los códigos del contrato (`EN_ATENCION`, ISO-8601); `shared/api/mappers.ts` traduce.
+ */
 
 export const REQUEST_STATES = [
   'Registrada',
@@ -36,47 +39,18 @@ export type RequesterType = (typeof REQUESTER_TYPES)[number]
 
 export const INSTITUTIONAL_DOMAIN = 'unmsm.edu.pe'
 
-export type User = {
+export type SessionUser = {
   id: number
   name: string
   email: string
   role: Role
-  /** Área del técnico o supervisor. */
-  area: string | null
-  /** Solo para solicitantes. */
-  type: RequesterType | null
-  active: boolean
+  areaId: number | null
 }
 
-export type CurrentUser = Pick<User, 'id' | 'name' | 'email' | 'role' | 'area'>
+export type WorkflowActionId = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
 
-export type Area = { id: number; name: string }
-export type Category = { id: number; name: string; area: string }
-export type PriorityLevel = { name: Priority; slaHours: number; order: number }
-export type LocationLevel = 'facultad' | 'pabellon' | 'ambiente'
-export type Location = { id: number; name: string; level: LocationLevel; parentId: number | null }
-
-export type Catalogs = {
-  areas: Area[]
-  categories: Category[]
-  priorities: PriorityLevel[]
-  locations: Location[]
-}
-
-export type HistoryEntry = {
-  /** Estado anterior, o `—` en el registro inicial; también "Prioridad X" en cambios de prioridad. */
-  from: string
-  to: string
-  reason: string
-  who: string
-  at: number
-}
-
-export type RequestComment = { id: number; author: string; text: string; at: number; mine?: boolean }
-export type Evidence = { id: number; name: string; kind: 'IMG' | 'PDF'; sizeKb: number }
-export type Rating = { score: number; comment: string }
-
-export type ServiceRequest = {
+/** Fila de una bandeja: lo necesario para listar, filtrar y calcular el SLA. */
+export type RequestRow = {
   code: string
   requester: string
   category: string
@@ -90,17 +64,33 @@ export type ServiceRequest = {
   technician: string | null
   createdAt: number
   dueAt: number
-  history: HistoryEntry[]
-  comments: RequestComment[]
-  evidences: Evidence[]
-  solution: string | null
-  rating: Rating | null
 }
 
-export type AppNotification = {
+export type HistoryItem = {
+  /** Estado anterior, `—` en el registro inicial, o una nota (p. ej. "Prioridad Alta"). */
+  from: string
+  to: string
+  reason: string
+  who: string
+  at: number
+}
+
+export type CommentItem = { id: number; author: string; text: string; at: number }
+export type EvidenceItem = { id: number; name: string; kind: 'IMG' | 'PDF'; sizeKb: number }
+
+export type RequestDetailView = RequestRow & {
+  requesterId: number
+  technicianId: number | null
+  history: HistoryItem[]
+  comments: CommentItem[]
+  evidences: EvidenceItem[]
+  solution: string | null
+  rating: { score: number; comment: string } | null
+  allowedActions: WorkflowActionId[]
+}
+
+export type NotificationItem = {
   id: number
-  recipientRole: Role
-  recipientName: string | null
   text: string
   at: number
   read: boolean
