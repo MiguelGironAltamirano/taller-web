@@ -18,7 +18,7 @@ class SchemaMigrationTests {
 	JdbcTemplate jdbc;
 
 	@Test
-	void createsAllMvpTables() {
+	void createsAllInitialTables() {
 		List<String> tables = jdbc.queryForList(
 				"select table_name from information_schema.tables where table_schema = database()", String.class);
 		assertThat(tables).contains("areas", "categories", "priorities", "locations", "users", "refresh_tokens",

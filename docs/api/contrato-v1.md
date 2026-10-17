@@ -1,4 +1,4 @@
-# Contrato de API del MVP (v1)
+# Contrato de API (v1)
 
 Base: `/api/v1`. JSON en UTF-8. Fechas ISO-8601 en UTC. Errores: `application/problem+json` con `type`, `title`, `status`, `detail` y, en validación, `errors: { campo: mensaje }`.
 
