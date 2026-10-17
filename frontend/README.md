@@ -6,7 +6,8 @@ React 19 + Vite + TypeScript estricto + Tailwind 4. Estado de servidor con TanSt
 
 ```bash
 pnpm install
-pnpm dev          # http://localhost:5173 con la API simulada y las cuentas de ejemplo
+pnpm dev          # http://localhost:5173 contra el backend real
+pnpm dev:mocks    # con la API simulada y las cuentas de ejemplo en el login
 pnpm lint         # oxlint
 pnpm typecheck
 pnpm test         # vitest
@@ -15,7 +16,7 @@ pnpm build
 
 ## Datos simulados
 
-Con `VITE_USE_MOCKS=true pnpm dev` (PowerShell: `$env:VITE_USE_MOCKS='true'; pnpm dev`) la interfaz usa MSW en lugar del backend y el login muestra cuentas de ejemplo. Sin esa variable, `pnpm dev` habla con el backend real (ver `docs/guia-levantamiento.md`).
+Con `pnpm dev:mocks` (equivale a `VITE_USE_MOCKS=true pnpm dev`) la interfaz usa MSW en lugar del backend y el login muestra cuentas de ejemplo. Sin esa variable, `pnpm dev` habla con el backend real (ver `docs/guia-levantamiento.md`).
 
 Los datos viven en memoria y se reinician al recargar. Los mocks cumplen `docs/api/contrato-v1.md` y sus extensiones documentadas en `docs/api/ui-extensions.md`.
 
