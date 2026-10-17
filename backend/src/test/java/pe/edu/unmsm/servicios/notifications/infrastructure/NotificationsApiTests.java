@@ -10,15 +10,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import pe.edu.unmsm.servicios.TestcontainersConfiguration;
 import pe.edu.unmsm.servicios.testsupport.ApiClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Testcontainers(disabledWithoutDocker = true)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+		properties = "spring.flyway.locations=classpath:db/migration,classpath:db/seed-dev")
+@Import(TestcontainersConfiguration.class)
 @ActiveProfiles("test")
 class NotificationsApiTests {
 

@@ -17,9 +17,4 @@ public class NotificationsConfig {
 		return new NotificationUseCases(repository, clock);
 	}
 
-	@Bean
-	public NotificationService notificationService(NotificationUseCases useCases) {
-		return useCases;
-	}
-
 }
