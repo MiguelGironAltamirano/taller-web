@@ -52,7 +52,9 @@ export function RegisterPage() {
       toast('Cuenta creada. Ya puedes ingresar.')
       navigate('/login', { state: { email: values.email.trim() } })
     } catch (e) {
-      if (e instanceof ApiError && e.fieldErrors) {
+      if (e instanceof ApiError && e.status === 409) {
+        setError('email', { message: 'El correo ya está registrado.' })
+      } else if (e instanceof ApiError && e.fieldErrors) {
         for (const [field, message] of Object.entries(e.fieldErrors)) {
           const mapped = FIELD_MAP[field]
           if (mapped) setError(mapped, { message })

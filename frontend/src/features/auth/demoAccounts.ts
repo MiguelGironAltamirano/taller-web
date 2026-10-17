@@ -1,8 +1,8 @@
 /**
  * Cuentas de la API simulada para recorrer los cuatro roles sin backend.
- * Solo se muestran con `VITE_SHOW_DEMO_ACCOUNTS=true` (desarrollo y staging, nunca producción).
+ * Solo se muestran con `VITE_USE_MOCKS=true`: contra el backend real no existen estas cuentas.
  */
-export const SHOW_DEMO_ACCOUNTS = import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === 'true'
+export const SHOW_DEMO_ACCOUNTS = import.meta.env.VITE_USE_MOCKS === 'true'
 
 const PASSWORD = 'Demo12345!'
 

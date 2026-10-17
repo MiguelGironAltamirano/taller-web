@@ -102,6 +102,8 @@ Disponibles cuando el módulo de autenticación está integrado y `APP_FLYWAY_LO
 | Técnico | `tecnico.mantenimiento@unmsm.edu.pe` |
 | Solicitante | `estudiante@unmsm.edu.pe` |
 
+> Con la API simulada (`VITE_USE_MOCKS=true`, sección 7) el login muestra otras cuentas de ejemplo, definidas en `frontend/src/mocks/db.ts` (ver `frontend/README.md`); las de esta tabla son las de la base de datos real.
+
 ## 7. Modo desarrollo
 
 Backend (MySQL en Testcontainers; requiere Docker en ejecución):

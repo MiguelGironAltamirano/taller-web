@@ -37,7 +37,7 @@ Out: backend, subida real de evidencias, exportación a PDF, cierre automático 
 - Los filtros del listado viven en la URL (`?view=venc&status=Resuelta`) para poder compartir vistas y enlazar desde el inicio y el dashboard.
 - La calificación es obligatoria al confirmar (como en el diseño) aunque el spec la declara opcional: ver `plan/sevan.md` §9.
 - El triage sigue el spec (regla con más coincidencias) y no el prototipo (primera coincidencia).
-- La API simulada se activa con `VITE_ENABLE_MOCKS=true` y las cuentas de ejemplo con `VITE_SHOW_DEMO_ACCOUNTS=true`; ambas están desactivadas por defecto fuera de desarrollo.
+- La API simulada se activa con `VITE_USE_MOCKS=true` (variable del equipo, ver `docs/guia-levantamiento.md`); con ella el login muestra cuentas de ejemplo. Sin la variable, `pnpm dev` va contra el backend real.
 
 ## Acceptance criteria
 - `pnpm lint`, `pnpm typecheck`, `pnpm test` y `pnpm build` pasan en `frontend/`.

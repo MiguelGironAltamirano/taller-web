@@ -1,3 +1,6 @@
+import { sessionStore } from '../session/session-store'
+import type { TokenResponse } from './types'
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1'
 
 type ProblemDetails = {
@@ -24,19 +27,6 @@ export class ApiError extends Error {
   }
 }
 
-// El token de acceso vive solo en memoria (spec §3.3); nunca en localStorage.
-let accessToken: string | null = null
-let onUnauthorized: (() => void) | null = null
-
-export const setAccessToken = (token: string | null) => {
-  accessToken = token
-}
-export const getAccessToken = () => accessToken
-/** Registra qué hacer cuando una petición autenticada devuelve 401 (sesión vencida). */
-export const setUnauthorizedHandler = (handler: (() => void) | null) => {
-  onUnauthorized = handler
-}
-
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 export type QueryParams = Record<string, string | number | boolean | null | undefined>
 
@@ -48,33 +38,67 @@ function toUrl(path: string, query?: QueryParams): string {
   return url.toString()
 }
 
-async function request<T>(method: Method, path: string, body?: unknown, query?: QueryParams): Promise<T> {
+function send(method: Method, path: string, body?: unknown, query?: QueryParams): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' }
+  const session = sessionStore.get()
+  if (session) headers.Authorization = `Bearer ${session.accessToken}`
   if (body !== undefined) headers['Content-Type'] = 'application/json'
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
-
-  const response = await fetch(toUrl(path, query), {
+  return fetch(toUrl(path, query), {
     method,
     headers,
     credentials: 'include',
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+}
 
-  if (!response.ok) {
-    if (response.status === 401 && accessToken) onUnauthorized?.()
-    const contentType = response.headers.get('Content-Type') ?? ''
-    if (contentType.includes('application/problem+json')) {
-      const problem = (await response.json()) as ProblemDetails
-      throw new ApiError(response.status, problem.title ?? response.statusText, problem.detail, problem.errors)
+let refreshing: Promise<boolean> | null = null
+
+/**
+ * Restores the session from the refresh cookie. Concurrent callers share one request,
+ * because the server rotates the refresh token on every use.
+ */
+export function refreshSession(): Promise<boolean> {
+  refreshing ??= (async () => {
+    try {
+      const response = await send('POST', '/auth/refresh')
+      if (!response.ok) {
+        sessionStore.clear()
+        return false
+      }
+      const token = (await response.json()) as TokenResponse
+      sessionStore.set({ accessToken: token.accessToken, user: token.user })
+      return true
+    } catch {
+      sessionStore.clear()
+      return false
+    } finally {
+      refreshing = null
     }
-    throw new ApiError(response.status, response.statusText)
+  })()
+  return refreshing
+}
+
+async function toError(response: Response): Promise<ApiError> {
+  const contentType = response.headers.get('Content-Type') ?? ''
+  if (contentType.includes('application/problem+json')) {
+    const problem = (await response.json()) as ProblemDetails
+    return new ApiError(response.status, problem.title ?? response.statusText, problem.detail, problem.errors)
   }
+  return new ApiError(response.status, response.statusText)
+}
+
+async function request<T>(method: Method, path: string, body?: unknown, query?: QueryParams): Promise<T> {
+  let response = await send(method, path, body, query)
+  if (response.status === 401 && !path.startsWith('/auth/') && (await refreshSession())) {
+    response = await send(method, path, body, query)
+  }
+  if (!response.ok) throw await toError(response)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }
 
 export const apiGet = <T>(path: string, query?: QueryParams) => request<T>('GET', path, undefined, query)
-export const apiPost = <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {})
+export const apiPost = <T>(path: string, body?: unknown) => request<T>('POST', path, body)
 export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', path, body ?? {})
 export const apiPatch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body ?? {})
 export const apiDelete = <T = void>(path: string) => request<T>('DELETE', path)

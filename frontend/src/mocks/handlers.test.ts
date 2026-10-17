@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ApiError, apiGet, apiPatch, apiPost, setAccessToken } from '../shared/api/client'
+import { ApiError, apiGet, apiPatch, apiPost } from '../shared/api/client'
 import type {
   Catalogs,
   CreateRequestBody,
@@ -8,14 +8,15 @@ import type {
   RequestSummary,
   TokenResponse,
 } from '../shared/api/types'
+import { sessionStore } from '../shared/session/session-store'
 import { server } from '../test/msw-server'
 import { DEMO_PASSWORD } from './db'
 import { handlers, resetMockData } from './handlers'
 
 async function loginAs(email: string) {
-  setAccessToken(null)
+  sessionStore.clear()
   const res = await apiPost<TokenResponse>('/auth/login', { email, password: DEMO_PASSWORD })
-  setAccessToken(res.accessToken)
+  sessionStore.set({ accessToken: res.accessToken, user: res.user })
   return res
 }
 
@@ -50,7 +51,9 @@ beforeEach(async () => {
 
 describe('autenticación', () => {
   it('rechaza peticiones sin token con problem+json', async () => {
-    setAccessToken(null)
+    // Sin sesión ni cookie de renovación (la simulada vive en sessionStorage).
+    sessionStore.clear()
+    sessionStorage.clear()
     expect(await status(apiGet('/requests'))).toBe(401)
   })
 

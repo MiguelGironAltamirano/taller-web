@@ -15,16 +15,11 @@ pnpm build
 
 ## Datos simulados
 
-En desarrollo (`.env.development`) la interfaz usa MSW en lugar del backend:
+Con `VITE_USE_MOCKS=true pnpm dev` (PowerShell: `$env:VITE_USE_MOCKS='true'; pnpm dev`) la interfaz usa MSW en lugar del backend y el login muestra cuentas de ejemplo. Sin esa variable, `pnpm dev` habla con el backend real (ver `docs/guia-levantamiento.md`).
 
-| Variable | Efecto |
-|---|---|
-| `VITE_ENABLE_MOCKS=true` | Sirve `/api/v1` desde `src/mocks` |
-| `VITE_SHOW_DEMO_ACCOUNTS=true` | Muestra cuentas de ejemplo en el login (contraseña `Demo12345!`) |
+Los datos viven en memoria y se reinician al recargar. Los mocks cumplen `docs/api/contrato-v1.md` y sus extensiones documentadas en `docs/api/ui-extensions.md`.
 
-Ambas están desactivadas por defecto fuera de desarrollo; para apuntar al backend real basta no activarlas. Los datos viven en memoria y se reinician al recargar. Los mocks cumplen `docs/api/contrato-v1.md` y sus extensiones documentadas en `docs/api/ui-extensions.md`.
-
-Cuentas de ejemplo: `lquispe@` (solicitante), `cmendoza@` (técnico), `avillanueva@` (supervisora), `rsalazar@` (administrador), todas `@unmsm.edu.pe`.
+Cuentas de ejemplo (contraseña `Demo12345!`, todas `@unmsm.edu.pe`): `lquispe@` (solicitante), `cmendoza@` (técnico), `avillanueva@` (supervisora) y `rsalazar@` (administrador). **No son las del backend real** (`estudiante@`, `supervisor.mantenimiento@`…, ver la guía de levantamiento).
 
 ## Estructura
 
