@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { ApiError } from '../../shared/api/client'
 import { useCatalogs } from '../../shared/api/catalogs'
+import { requestsKey } from '../../shared/api/keys'
 import type { Priority, WorkflowActionId } from '../../shared/domain'
 import { dateLong } from '../../shared/lib/format'
 import { Alert, Button, Field, Modal, ModalActions, Select, Textarea, useToast } from '../../shared/ui'
@@ -25,6 +27,7 @@ type Props = { action: WorkflowActionId; target: ActionTarget; onClose: () => vo
 export function ActionModal({ action, target, onClose }: Props) {
   const config = ACTION_CONFIG[action]
   const toast = useToast()
+  const client = useQueryClient()
   const { data: catalogs } = useCatalogs()
   const areaId = catalogs?.areas.find((a) => a.name === target.area)?.id
   const technicians = useTechnicians(config.needTech ? areaId : undefined)
@@ -54,6 +57,13 @@ export function ActionModal({ action, target, onClose }: Props) {
       toast(`${config.title}: listo. Historial y notificación actualizados.`)
       onClose()
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        // Otro usuario cambió la solicitud antes: se avisa y se refresca para mostrar su estado actual.
+        toast('Transición no permitida', { bad: true })
+        await client.invalidateQueries({ queryKey: requestsKey })
+        onClose()
+        return
+      }
       if (e instanceof ApiError && e.fieldErrors) {
         const f = e.fieldErrors
         if (f.technicianId) setError('technicianId', { message: f.technicianId })
@@ -74,7 +84,8 @@ export function ActionModal({ action, target, onClose }: Props) {
               <option value="">Selecciona un técnico</option>
               {techOptions.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.fullName} · {t.activeRequests} solicitudes activas
+                  {t.fullName}
+                  {t.activeRequests !== undefined && ` · ${t.activeRequests} solicitudes activas`}
                 </option>
               ))}
             </Select>

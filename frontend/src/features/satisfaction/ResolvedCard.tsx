@@ -2,17 +2,18 @@ import { useState } from 'react'
 import { ApiError } from '../../shared/api/client'
 import type { RequestDetailView } from '../../shared/domain'
 import { Alert, Button, Modal, ModalActions, StarRating, Textarea, useToast } from '../../shared/ui'
-import { useRate, useRejectSolution } from './api'
+import { useConfirmSolution, useRejectSolution } from './api'
 
 const REJECT_MIN = 10
 
 /**
  * Tarjeta "¿Quedó resuelto?" para el solicitante dueño de una solicitud Resuelta.
- * Confirmar exige calificar de 1 a 5 (como en el diseño); si no responde en 72 h se cierra sola, sin calificación.
+ * Confirmar cierra la solicitud; la calificación de 1 a 5 es opcional (spec §6). Si no responde en 72 h se cierra
+ * sola, sin calificación.
  */
 export function ResolvedCard({ request }: { request: RequestDetailView }) {
   const toast = useToast()
-  const rate = useRate(request.code)
+  const confirmSolution = useConfirmSolution(request.code)
   const reject = useRejectSolution(request.code)
   const [score, setScore] = useState(0)
   const [comment, setComment] = useState('')
@@ -21,13 +22,11 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
   const [reasonError, setReasonError] = useState('')
 
   const confirm = async () => {
-    if (!score) {
-      toast('Califica la atención de 1 a 5 estrellas', { bad: true })
-      return
-    }
     try {
-      await rate.mutateAsync({ score, comment: comment.trim() || undefined })
-      toast('Solicitud cerrada. Gracias por tu calificación.')
+      const result = await confirmSolution.mutateAsync(score ? { score, comment: comment.trim() || undefined } : null)
+      if (!score) toast('Solicitud cerrada.')
+      else if (result.rated) toast('Solicitud cerrada. Gracias por tu calificación.')
+      else toast('Solicitud cerrada, pero no pudimos guardar tu calificación.', { bad: true })
     } catch (e) {
       toast(e instanceof ApiError ? e.detail || e.title : 'No pudimos cerrar la solicitud.', { bad: true })
     }
@@ -54,6 +53,9 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
       <div className="rounded-lg bg-ok-bg px-3 py-2.5 text-ok-fg">
         <b>Solución propuesta:</b> {request.solution}
       </div>
+      <div className="text-[13px] font-medium">
+        Califica la atención <span className="font-normal text-muted">(opcional)</span>
+      </div>
       <StarRating value={score} onChange={setScore} />
       <Textarea
         rows={2}
@@ -63,7 +65,7 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
         onChange={(e) => setComment(e.target.value)}
       />
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" size="lg" loading={rate.isPending} onClick={confirm}>
+        <Button variant="primary" size="lg" loading={confirmSolution.isPending} onClick={confirm}>
           Confirmar y cerrar
         </Button>
         <Button size="lg" onClick={() => setRejecting(true)}>

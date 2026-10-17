@@ -83,3 +83,31 @@ export function resolveTransition(role: Role, from: RequestState, to: RequestSta
   }
   return null
 }
+
+/**
+ * Las acciones de la interfaz que corresponden a las transiciones que el servidor permite al usuario
+ * (`allowedTransitions` del contrato). Confirmar o rechazar la solución no se incluyen: las ofrece la tarjeta de
+ * satisfacción del solicitante.
+ */
+export function actionsFromTransitions(state: RequestState, allowed: RequestState[]): WorkflowAction[] {
+  const actions: WorkflowAction[] = []
+  const can = (to: RequestState) => allowed.includes(to)
+  switch (state) {
+    case 'Registrada':
+    case 'En evaluación':
+      if (state === 'Registrada' && can('En evaluación')) actions.push('eval')
+      if (state === 'En evaluación' && can('Asignada')) actions.push('assign')
+      if (can('Cerrada')) actions.push('noproc', 'dup')
+      break
+    case 'Asignada':
+      if (can('Asignada')) actions.push('reassign')
+      if (can('En atención')) actions.push('start')
+      break
+    case 'En atención':
+      if (can('Resuelta')) actions.push('resolve')
+      break
+    default:
+      break
+  }
+  return actions
+}

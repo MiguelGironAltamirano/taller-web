@@ -11,11 +11,25 @@ function useRefresh() {
   }
 }
 
-/** Confirma la solución y cierra la solicitud con su calificación (Resuelta → Cerrada). */
-export function useRate(code: string) {
+export type ConfirmResult = { rated: boolean }
+
+/**
+ * Confirma la solución: es la transición Resuelta → Cerrada del contrato, que no necesita calificación (spec §6).
+ * Si el solicitante calificó, la calificación se guarda después; que falle no deshace el cierre.
+ */
+export function useConfirmSolution(code: string) {
   const refresh = useRefresh()
   return useMutation({
-    mutationFn: (body: RateBody) => apiPost<RequestDetail>(`/requests/${code}/rating`, body),
+    mutationFn: async (rating: RateBody | null): Promise<ConfirmResult> => {
+      await apiPost<RequestDetail>(`/requests/${code}/transitions`, { to: 'CERRADA' })
+      if (!rating) return { rated: false }
+      try {
+        await apiPost<RequestDetail>(`/requests/${code}/rating`, rating)
+        return { rated: true }
+      } catch {
+        return { rated: false }
+      }
+    },
     onSuccess: refresh,
   })
 }

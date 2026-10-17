@@ -272,22 +272,16 @@ export const requestHandlers = [
     secured(['SOLICITANTE'], async ({ request, params, user }) => {
       const r = findByCode(String(params.code))
       if (!r || r.requesterId !== user.id) return notFound()
-      if (r.status !== 'RESUELTA') return problem(409, 'Transición inválida', 'Solo se puede calificar una solicitud resuelta.')
+      // La calificación es opcional y se guarda después de confirmar la solución (que ya cerró la solicitud).
+      if (r.status !== 'CERRADA' || r.closureReason !== 'CONFIRMADA') {
+        return problem(409, 'Transición inválida', 'Solo se puede calificar una solicitud cuya solución confirmaste.')
+      }
+      if (r.rating) return problem(409, 'Transición inválida', 'Ya calificaste esta solicitud.')
       const body = (await request.json()) as RateBody
       if (!Number.isInteger(body.score) || body.score < 1 || body.score > 5) {
         return problem(400, 'Datos no válidos', 'La calificación debe ser de 1 a 5.', { score: 'Califica de 1 a 5 estrellas.' })
       }
-      const comment = body.comment?.trim() || null
-      r.rating = { score: body.score, comment }
-      const from = r.status
-      r.status = 'CERRADA'
-      r.closureReason = 'CONFIRMADA'
-      pushHistory(r, {
-        from,
-        to: r.status,
-        actor: user.fullName,
-        reason: `Solución confirmada · ${body.score} de 5 estrellas${comment ? `: ${comment}` : ''}`,
-      })
+      r.rating = { score: body.score, comment: body.comment?.trim() || null }
       return HttpResponse.json(detailOf(r, user))
     }),
   ),
