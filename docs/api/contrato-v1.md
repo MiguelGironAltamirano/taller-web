@@ -47,6 +47,22 @@ Transiciones (`to`, quién, requisito):
 | `RESUELTA` | `EN_ATENCION` | Solicitante dueño | `reason` |
 | `REGISTRADA`, `EN_EVALUACION` | `CERRADA` | Supervisor del área | `reason` ∈ `NO_PROCEDE`, `DUPLICADA` |
 
+## Reglas de acceso reutilizables
+
+Usar siempre estas reglas en lugar de reimplementar las comprobaciones en cada módulo. Están en `pe.edu.unmsm.servicios.shared.domain` (Java puro, sin dependencias de Spring).
+
+El usuario autenticado se obtiene en los controladores con `CurrentUser.from(jwt)` (`shared.infrastructure.security`), que devuelve `AuthenticatedUser(long id, String email, String fullName, String role, Long areaId)`. `areaId` solo tiene valor para `SUPERVISOR` y `TECNICO`.
+
+| Método de `AccessPolicy` | Devuelve `true` cuando |
+|---|---|
+| `isOwner(user, ownerId)` | el usuario es el dueño del recurso (`user.id() == ownerId`) |
+| `isSupervisorOfArea(user, areaId)` | el usuario es `SUPERVISOR` del área indicada |
+| `isAssignedTechnician(user, technicianId)` | el usuario es `TECNICO` y es el técnico asignado |
+| `isAdministrator(user)` | el usuario es `ADMINISTRADOR` |
+| `canViewRequest(user, requesterId, areaId, technicianId)` | se cumple la regla de visibilidad de solicitudes de este contrato |
+
+Cuando una solicitud no es visible para el usuario, la API responde `404` (no `403`), para no revelar que existe.
+
 ## Tipos
 
 ```ts
