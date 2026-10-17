@@ -6,6 +6,6 @@ CREATE TABLE notifications (
   read_at DATETIME(6) NULL,
   created_at DATETIME(6) NOT NULL,
   CONSTRAINT fk_notifications_recipient FOREIGN KEY (recipient_id) REFERENCES users (id),
-  CONSTRAINT fk_notifications_request FOREIGN KEY (request_id) REFERENCES service_requests (id)
+  CONSTRAINT fk_notifications_request FOREIGN KEY (request_id) REFERENCES service_requests (id) ON DELETE CASCADE
 );
 CREATE INDEX ix_notifications_recipient_read ON notifications (recipient_id, read_at);

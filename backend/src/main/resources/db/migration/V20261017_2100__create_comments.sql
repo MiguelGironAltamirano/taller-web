@@ -4,7 +4,7 @@ CREATE TABLE comments (
   author_id BIGINT NOT NULL,
   text VARCHAR(1000) NOT NULL,
   created_at DATETIME(6) NOT NULL,
-  CONSTRAINT fk_comments_request FOREIGN KEY (request_id) REFERENCES service_requests (id),
+  CONSTRAINT fk_comments_request FOREIGN KEY (request_id) REFERENCES service_requests (id) ON DELETE CASCADE,
   CONSTRAINT fk_comments_author FOREIGN KEY (author_id) REFERENCES users (id)
 );
 

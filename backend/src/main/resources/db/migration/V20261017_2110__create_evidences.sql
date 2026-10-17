@@ -7,7 +7,7 @@ CREATE TABLE evidences (
   kind VARCHAR(5) NOT NULL,
   size_bytes BIGINT NOT NULL,
   created_at DATETIME(6) NOT NULL,
-  CONSTRAINT fk_evidences_request FOREIGN KEY (request_id) REFERENCES service_requests (id),
+  CONSTRAINT fk_evidences_request FOREIGN KEY (request_id) REFERENCES service_requests (id) ON DELETE CASCADE,
   CONSTRAINT fk_evidences_uploader FOREIGN KEY (uploader_id) REFERENCES users (id),
   CONSTRAINT ck_evidences_kind CHECK (kind IN ('IMG', 'PDF'))
 );
