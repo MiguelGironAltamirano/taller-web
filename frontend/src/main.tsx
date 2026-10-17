@@ -1,15 +1,20 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app/App'
 import './index.css'
 
-const queryClient = new QueryClient()
+async function enableMocks() {
+  // Con VITE_ENABLE_MOCKS=true la interfaz usa la API simulada (MSW) en lugar del backend.
+  if (import.meta.env.VITE_ENABLE_MOCKS === 'true') {
+    const { startMocks } = await import('./mocks/browser')
+    await startMocks()
+  }
+}
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
+enableMocks().then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
       <App />
-    </QueryClientProvider>
-  </StrictMode>,
-)
+    </StrictMode>,
+  )
+})
