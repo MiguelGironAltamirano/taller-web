@@ -2,6 +2,8 @@
 
 Complementa [`contrato-v1.md`](contrato-v1.md) (contrato del MVP). Todo lo de este documento **ya está simulado con MSW** en `frontend/src/mocks/` y lo consume el frontend. Antes de implementar cada endpoint se acuerda aquí (o se mueve a `contrato-v1.md`) con el módulo dueño.
 
+> **Nota (2026-10-17):** el contrato completo de comentarios, evidencias, notificaciones y cambio de contraseña (módulo AngelCarrasco) está en [`collaboration-notifications-v1.md`](collaboration-notifications-v1.md). Los endpoints correspondientes en la tabla de abajo ya están acordados; se reproduce aquí solo para referencia cruzada.
+
 **Ya implementado en el backend** (módulos `catalog` y `requests`): los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, y `size` hasta 500 en `GET /requests` (el frontend pide la lista completa). `allowedTransitions` existe pero es siempre `[]` hasta que el módulo de workflow lo calcule. **Todo lo demás de este documento sigue sin existir en el backend.**
 
 Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `application/problem+json` con `errors: { campo: mensaje }`, `404` cuando el recurso no es visible).
@@ -58,8 +60,10 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 
 ## Pendiente de definir
 
-- Subida y descarga real de evidencias (hoy el front solo envía los metadatos y simula la descarga).
-- Cierre automático a las 72 h y marca `AUTOMATICA` (lo ejecuta el backend).
+- ~~Subida y descarga real de evidencias~~ **Resuelto:** ver [`collaboration-notifications-v1.md §4`](collaboration-notifications-v1.md#4-evidencias). Subida multipart `POST /requests/{code}/evidences`; descarga autenticada `GET /requests/{code}/evidences/{id}`.
+- ~~Cambio de contraseña~~ **Resuelto:** ver [`collaboration-notifications-v1.md §2`](collaboration-notifications-v1.md#2-cambio-de-contraseña).
+- ~~Notificaciones~~ **Resuelto:** ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones).
+- Cierre automático a las 72 h y marca `AUTOMATICA` (lo ejecuta el backend, módulo Lita). El mecanismo de notificación para este evento está previsto en el puerto `NotificationService`; ver `collaboration-notifications-v1.md §5`.
 - Filtros avanzados y paginación del listado en el servidor: hoy el front pide hasta 500 solicitudes y filtra en el cliente.
 - Exportación a PDF de reportes y dashboard.
 
