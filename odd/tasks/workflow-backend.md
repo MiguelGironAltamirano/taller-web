@@ -13,7 +13,7 @@ El detalle devolvía siempre `allowedTransitions: []` y no había endpoint para 
 
 ## Scope
 In: `POST /api/v1/requests/{codigo}/transitions`, `GET /api/v1/users/technicians`, transiciones permitidas en el detalle, ajuste del frontend y de los mocks.
-Out: cierre automático a las 72 h, comentarios y evidencias (AngelCarrasco), calificación (Lita), documentación de Fase I.
+Out: cierre automático a las 72 h, comentarios y evidencias (AngelCarrasco), calificación (Lita).
 
 ## Tasks
 - [x] Dominio: `StateMachine` pura, comandos y excepciones (409 → 403 → 400)
@@ -25,3 +25,5 @@ Out: cierre automático a las 72 h, comentarios y evidencias (AngelCarrasco), ca
 - [ ] Pruebas de interfaz de workflow y satisfacción
 - [ ] Verificación manual de punta a punta con el backend real
 - [ ] Cierre automático a las 72 h
+- [x] Documentación de Fase I en `docs/fase-1/` (problema, requerimientos, épicas e historias con BDD, arquitectura, wireframes, evidencia)
+- [ ] Revisión de `docs/fase-1/` por el equipo antes de la semana 10

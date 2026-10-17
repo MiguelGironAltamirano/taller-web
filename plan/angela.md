@@ -93,7 +93,7 @@ Ver la [definición de terminado general](README.md#5-definición-de-terminado).
 
 ## 9. Estado de avance (17 de octubre de 2026)
 
-Resumen: **el backend de `workflow` y su conexión con el frontend están hechos y en `dev` (PR #9)**; faltan las pruebas de interfaz, la verificación manual con el backend real y la documentación de Fase I.
+Resumen: **el backend de `workflow` y su conexión con el frontend están hechos y en `dev` (PR #9)**; faltan las pruebas de interfaz y la verificación manual con el backend real. La documentación de Fase I está redactada en `docs/fase-1/` y pendiente de revisión del equipo.
 
 ### Backend (`workflow`)
 
@@ -117,4 +117,5 @@ Resumen: **el backend de `workflow` y su conexión con el frontend están hechos
 ### Documentación
 
 - [x] Semántica de las transiciones en `docs/api/ui-extensions.md`
-- [ ] Fase I en `docs/fase-1/`
+- [x] Fase I en `docs/fase-1/`: problema y alcance, requerimientos, épicas e historias con escenarios BDD (HU-01 a HU-27), arquitectura, wireframes y prototipo, y evidencia
+- [ ] Revisión de las historias por el equipo y escribir las pruebas marcadas "Por escribir" en `docs/fase-1/03-epicas-y-historias.md` (las de prioridad S se escriben junto con su backend)
