@@ -9,6 +9,11 @@ Monorepo del proyecto del curso Taller de Construcción de Software Web (UNMSM).
 - `infra/` — Docker Compose y configuración de despliegue.
 - `docs/` — enunciado, especificaciones, planes e informes.
 
+## Documentación
+
+- [Guía de levantamiento](docs/guia-levantamiento.md): cómo clonar, configurar y ejecutar el proyecto.
+- [Plan del equipo](plan/README.md): módulos, cronograma y planes individuales.
+
 ## Requisitos
 
 - [mise](https://mise.jdx.dev) (instala Java 25 y Node 24 según `mise.toml`).
