@@ -1,15 +1,18 @@
 package pe.edu.unmsm.servicios.requests.infrastructure.persistence;
 
+import java.util.Optional;
+
 import org.springframework.stereotype.Repository;
 
 import pe.edu.unmsm.servicios.requests.application.RequestRepository;
+import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
 import pe.edu.unmsm.servicios.requests.domain.RequestHistoryEntry;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
 
 @Repository
-class JpaRequestRepository implements RequestRepository {
+class JpaRequestRepository implements RequestRepository, RequestStateStore {
 
 	private final SpringDataServiceRequestRepository requests;
 	private final SpringDataRequestHistoryRepository history;
@@ -48,6 +51,36 @@ class JpaRequestRepository implements RequestRepository {
 		entry.createdAt = firstEntry.createdAt();
 		history.saveAndFlush(entry);
 
+		return toDomain(stored);
+	}
+
+	@Override
+	public Optional<ServiceRequest> findByCodeForUpdate(String code) {
+		return requests.findByCode(code).map(JpaRequestRepository::toDomain);
+	}
+
+	/**
+	 * Runs inside the use case's transaction, after {@link #findByCodeForUpdate}: the row is already locked and
+	 * managed, so the changes and the new history entry commit together.
+	 */
+	@Override
+	public ServiceRequest update(ServiceRequest request, RequestHistoryEntry entry) {
+		ServiceRequestEntity entity = requests.findById(request.id()).orElseThrow();
+		entity.status = request.status().name();
+		entity.technicianId = request.technicianId();
+		entity.closureReason = request.closureReason() == null ? null : request.closureReason().name();
+		entity.updatedAt = request.updatedAt();
+		ServiceRequestEntity stored = requests.saveAndFlush(entity);
+
+		RequestHistoryEntity row = new RequestHistoryEntity();
+		row.requestId = stored.id;
+		row.fromStatus = entry.fromStatus() == null ? null : entry.fromStatus().name();
+		row.toStatus = entry.toStatus().name();
+		row.actorId = entry.actorId();
+		row.technicianId = entry.technicianId();
+		row.reason = entry.reason();
+		row.createdAt = entry.createdAt();
+		history.saveAndFlush(row);
 		return toDomain(stored);
 	}
 

@@ -189,10 +189,32 @@ describe('flujo de estados', () => {
     expect(resolved.solution).toBe('Se cambió el tomacorriente')
 
     await loginAs(SOLICITANTE)
-    const closed = await apiPost<RequestDetail>(`/requests/${code}/rating`, { score: 5, comment: 'Excelente' })
+    const closed = await transition(code, { to: 'CERRADA' })
     expect(closed.status).toBe('CERRADA')
-    expect(closed.rating?.score).toBe(5)
+    expect(closed.closureReason).toBe('CONFIRMADA')
     expect(closed.history.length).toBe(6)
+  })
+
+  it('la calificación es opcional y solo se guarda una vez, después de confirmar la solución', async () => {
+    const code = await registered()
+    await loginAs(SUPERVISOR)
+    await transition(code, { to: 'EN_EVALUACION' })
+    const techs = await apiGet<{ id: number; fullName: string }[]>('/users/technicians', { areaId: 1 })
+    await transition(code, { to: 'ASIGNADA', technicianId: techs[0].id })
+    await loginAs(`${techs[0].fullName === 'Carlos Mendoza Rojas' ? 'cmendoza' : 'jpaucar'}@unmsm.edu.pe`)
+    await transition(code, { to: 'EN_ATENCION' })
+    await transition(code, { to: 'RESUELTA', reason: 'Se resolvió el problema' })
+    await loginAs(SOLICITANTE)
+
+    // Antes de confirmar no se puede calificar.
+    expect(await status(apiPost(`/requests/${code}/rating`, { score: 4 }))).toBe(409)
+    await transition(code, { to: 'CERRADA' })
+    expect(await status(apiPost(`/requests/${code}/rating`, { score: 9 }))).toBe(400)
+
+    const rated = await apiPost<RequestDetail>(`/requests/${code}/rating`, { score: 5, comment: 'Excelente' })
+    expect(rated.rating?.score).toBe(5)
+    expect(rated.history.length).toBe(6)
+    expect(await status(apiPost(`/requests/${code}/rating`, { score: 3 }))).toBe(409)
   })
 
   it('rechaza con 409 una transición no listada', async () => {

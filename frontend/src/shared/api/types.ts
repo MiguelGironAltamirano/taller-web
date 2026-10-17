@@ -27,7 +27,7 @@ export type Catalogs = {
   locations: { id: number; name: string; kind: LocationKind; parentId: number | null }[]
 }
 
-export type Technician = { id: number; fullName: string; activeRequests: number }
+export type Technician = { id: number; fullName: string; activeRequests?: number }
 
 export type RequestSummary = {
   code: string

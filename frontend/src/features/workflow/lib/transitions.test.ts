@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { availableActions, resolveTransition } from './transitions'
+import { actionsFromTransitions, availableActions, resolveTransition } from './transitions'
 
 describe('availableActions', () => {
   it('el supervisor evalúa una solicitud registrada y puede cerrarla con motivo', () => {
@@ -40,5 +40,28 @@ describe('resolveTransition', () => {
     expect(resolveTransition('tecnico', 'Registrada', 'Asignada')).toBeNull()
     expect(resolveTransition('solicitante', 'Registrada', 'En evaluación')).toBeNull()
     expect(resolveTransition('supervisor', 'Resuelta', 'En atención')).toBeNull()
+  })
+})
+
+describe('actionsFromTransitions', () => {
+  it('traduce las transiciones que ofrece el servidor a las acciones de la interfaz', () => {
+    expect(actionsFromTransitions('Registrada', ['En evaluación', 'Cerrada'])).toEqual(['eval', 'noproc', 'dup'])
+    expect(actionsFromTransitions('En evaluación', ['Asignada', 'Cerrada'])).toEqual(['assign', 'noproc', 'dup'])
+    expect(actionsFromTransitions('Asignada', ['Asignada'])).toEqual(['reassign'])
+    expect(actionsFromTransitions('Asignada', ['En atención'])).toEqual(['start'])
+    expect(actionsFromTransitions('En atención', ['Resuelta'])).toEqual(['resolve'])
+  })
+
+  it('no ofrece acciones sin transiciones permitidas', () => {
+    expect(actionsFromTransitions('Registrada', [])).toEqual([])
+    expect(actionsFromTransitions('Cerrada', [])).toEqual([])
+  })
+
+  it('confirmar o rechazar la solución no son acciones del flujo: las ofrece la tarjeta de satisfacción', () => {
+    expect(actionsFromTransitions('Resuelta', ['Cerrada', 'En atención'])).toEqual([])
+  })
+
+  it('ignora destinos que no corresponden al estado actual', () => {
+    expect(actionsFromTransitions('Registrada', ['Resuelta'])).toEqual([])
   })
 })

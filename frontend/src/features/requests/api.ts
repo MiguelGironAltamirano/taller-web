@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost } from '../../shared/api/client'
 import { requestDetailKey, requestListKey, requestsKey, notificationsKey } from '../../shared/api/keys'
-import { toRequestDetail, toRequestRow } from '../../shared/api/mappers'
+import { statusToState, toRequestDetail, toRequestRow } from '../../shared/api/mappers'
 import type { CreateRequestBody, Page, RequestDetail, RequestSummary } from '../../shared/api/types'
+import { actionsFromTransitions } from '../workflow'
 
 /**
  * Bandeja del usuario. El backend ya filtra por rol (spec §5); el listado completo se pide una vez
@@ -21,7 +22,14 @@ export function useRequestDetail(code: string | undefined) {
   return useQuery({
     queryKey: requestDetailKey(code ?? ''),
     queryFn: () => apiGet<RequestDetail>(`/requests/${code}`),
-    select: toRequestDetail,
+    select: (detail) => {
+      const view = toRequestDetail(detail)
+      // El contrato solo define `allowedTransitions`: si el servidor no envía las acciones de la interfaz
+      // (`allowedActions`, extensión), se derivan de las transiciones que sí permite.
+      if (detail.allowedActions) return view
+      const allowed = detail.allowedTransitions.map(statusToState)
+      return { ...view, allowedActions: actionsFromTransitions(view.state, allowed) }
+    },
     enabled: Boolean(code),
     retry: false,
   })

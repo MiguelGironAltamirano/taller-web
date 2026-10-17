@@ -6,7 +6,10 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,13 +21,14 @@ import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
 import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestScope;
 import pe.edu.unmsm.servicios.requests.application.RequestSummaryView;
+import pe.edu.unmsm.servicios.requests.application.TechnicianWorkload;
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.Sla;
 
 /** Read model: one joined query per list page or detail, instead of loading entities and their relations. */
 @Repository
-class JdbcRequestQueries implements RequestQueries {
+class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 
 	private static final String SELECT = """
 			select r.id, r.code, r.status, r.created_at, r.due_at, r.description, r.requester_id, r.area_id,
@@ -73,6 +77,22 @@ class JdbcRequestQueries implements RequestQueries {
 	@Override
 	public Optional<RequestDetailView> findDetail(String code, Instant now) {
 		return jdbc.query(SELECT + " where r.code = ?", (rs, row) -> detail(rs, now), code).stream().findFirst();
+	}
+
+	/** Requests assigned or in attention count as load; resolved and closed ones do not. */
+	@Override
+	public Map<Long, Long> activeRequestsByTechnician(Collection<Long> technicianIds) {
+		if (technicianIds.isEmpty()) {
+			return Map.of();
+		}
+		String placeholders = String.join(",", technicianIds.stream().map(id -> "?").toList());
+		Map<Long, Long> counts = new HashMap<>();
+		jdbc.query("select technician_id, count(*) as active from service_requests where technician_id in ("
+				+ placeholders + ") and status in ('ASIGNADA', 'EN_ATENCION') group by technician_id",
+				rs -> {
+					counts.put(rs.getLong("technician_id"), rs.getLong("active"));
+				}, technicianIds.toArray());
+		return counts;
 	}
 
 	/** SQL equivalent of AccessPolicy.canViewRequest; a role without the data it needs sees nothing. */
