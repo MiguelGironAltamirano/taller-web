@@ -1,0 +1,1 @@
+export { ResolvedCard } from './ResolvedCard'
