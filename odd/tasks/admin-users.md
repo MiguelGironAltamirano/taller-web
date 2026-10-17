@@ -28,6 +28,6 @@ Dentro: `GET/POST /admin/users`, `PUT /admin/users/{id}`, `PATCH /admin/users/{i
 - El token de acceso de una cuenta desactivada sigue siendo válido hasta su vencimiento (máximo 15 minutos), según el contrato.
 
 ## Pendientes
-- Revisión del PR por Miguel (cambio en `RefreshTokenRepository`) y por otro integrante.
-- Fase 2: CRUD de catálogos; acordar con Sevan la propiedad de las entidades y `GET /catalogs`.
+- [x] Revisión e integración del PR (#10).
+- [x] Fase 2 (catálogos): ver `odd/tasks/admin-catalogs.md`; se usó persistencia JDBC como en el módulo `catalog` de Sevan, sin entidades JPA nuevas.
 - Recorrido manual de la pantalla de usuarios en el navegador contra el backend real (verificado por API y por pruebas de interfaz, no en navegador).
