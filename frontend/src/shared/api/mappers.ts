@@ -91,11 +91,11 @@ export function toRequestDetail(d: RequestDetail): RequestDetailView {
       who: h.actorName,
       at: Date.parse(h.createdAt),
     })),
-    comments: d.comments.map((c) => ({ id: c.id, author: c.authorName, text: c.text, at: Date.parse(c.createdAt) })),
-    evidences: d.evidences.map((e) => ({ id: e.id, name: e.fileName, kind: e.kind, sizeKb: Math.round(e.sizeBytes / 1024) })),
-    solution: d.solution,
+    comments: (d.comments ?? []).map((c) => ({ id: c.id, author: c.authorName, text: c.text, at: Date.parse(c.createdAt) })),
+    evidences: (d.evidences ?? []).map((e) => ({ id: e.id, name: e.fileName, kind: e.kind, sizeKb: Math.round(e.sizeBytes / 1024) })),
+    solution: d.solution ?? null,
     rating: d.rating ? { score: d.rating.score, comment: d.rating.comment ?? '' } : null,
-    allowedActions: d.allowedActions,
+    allowedActions: d.allowedActions ?? [],
   }
 }
 

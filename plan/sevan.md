@@ -105,3 +105,45 @@ Prioridad sugerida: **S** = Release Candidate (semana 12), **C** = opcional si h
 - **Triage por mayor número de coincidencias:** el spec (§5.1) pide la regla con más coincidencias; el prototipo del diseño tomaba la primera que coincidía. El front y los mocks siguen el spec.
 - **Registro de solicitudes:** el contrato del MVP envía el `locationId` del ambiente; el formulario del diseño elige Facultad → Pabellón → Ambiente y el front resuelve ese id.
 - **Cierre automático a las 72 h:** el front solo lo informa; hay que implementarlo en el backend (satisfacción, plan de Lita).
+
+## 10. Estado de avance (17 de octubre de 2026)
+
+Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; faltan los filtros avanzados del servidor y la documentación para el manual. El frontend (PR #7, `feature/ui-design-system`) ya está en `dev`; el backend (`catalog` y `requests`) está en la rama `feature/requests-backend`, pendiente de PR.
+
+### Backend (`catalog`, `requests`)
+
+- [x] Esquema y semillas de catálogos en `dev` (`V2__initial_schema.sql`, `V3__catalog_seed.sql`, de Miguel).
+- [x] `GET /api/v1/catalogs`: solo áreas y categorías activas, prioridades con su SLA y el árbol de ubicaciones
+- [x] `POST /api/v1/requests` con código `SOL-AAAA-NNNNNN` correlativo por año (año de Lima), validación de 20–2000 caracteres, área derivada de la categoría y vencimiento = registro + SLA; solo el rol `SOLICITANTE`
+- [x] `GET /api/v1/requests` filtrado por rol y por estado, con paginación (máximo 500 por página)
+- [x] `GET /api/v1/requests/{codigo}` con `404` si no es visible
+- [x] Marca de vencidas calculada en el servidor
+- [x] Pruebas de integración con MySQL real de la lista de la sección 5, incluida la de diez creaciones concurrentes (`RequestsApiTests`, `CatalogApiTests`)
+- [ ] Filtros avanzados del listado (fechas, área, vencidas): definirlos antes en `docs/api/`
+- [ ] `allowedTransitions` del detalle: hoy es siempre `[]`; lo calculará el módulo de workflow (Angela) implementando `AllowedTransitions`
+
+El detalle del backend todavía no incluye comentarios, evidencias, solución ni calificación: son de los módulos de AngelCarrasco y Lita, y el frontend ya tolera su ausencia.
+
+### Frontend (`features/requests`)
+
+- [x] "Mis solicitudes": lista por rol con contadores por estado, búsqueda, filtros, vistas guardadas (incluye "vencidas"), orden, paginación y exportación CSV
+- [x] "Nueva solicitud": validación en vivo de 20–2000 caracteres, ubicación Facultad → Pabellón → Ambiente, prioridad con su SLA, evidencias (hasta 5, 5 MB, JPG/PNG/PDF) y resumen lateral
+- [x] Detalle de la solicitud con historial, SLA, comentarios y evidencias
+- [x] Integración con la sugerencia de triage (aceptar o ignorar)
+- [x] Marca de "Vencida" en lista, kanban, detalle y calendario
+- [x] Prueba obligatoria: crear una solicitud muestra el código y aparece en la lista; el formulario no se envía con la descripción fuera de rango (`frontend/src/features/requests/new-request.test.tsx`)
+- [ ] Filtros avanzados por **rango de fechas y área**: hoy se filtra en el cliente por estado, categoría, prioridad, técnico, texto y "vencidas"
+- [x] Conectado con el backend real y verificado a mano en el navegador: inicio de sesión, catálogos, crear una solicitud (código consecutivo, vencimiento a 24 h para prioridad Alta), listado y detalle
+- [ ] Las demás pantallas (notificaciones, dashboard, administración, triage) siguen necesitando los mocks hasta que existan sus endpoints
+
+### Documentación
+
+- [x] Contrato de catálogos y solicitudes: `docs/api/contrato-v1.md` y `docs/api/ui-extensions.md`
+- [ ] Notas del manual de usuario sobre el registro de solicitudes
+- [ ] Manual técnico del módulo (semana 15)
+
+### Avisos
+
+- **Los datos de los mocks no son los de la semilla real:** los mocks usan los datos del diseño (3 áreas, 8 categorías, 6 facultades) y la semilla del backend define 4 áreas, 7 categorías y 8 ubicaciones. Con el backend real la interfaz funciona igual, pero las listas son las de la semilla.
+- **Campos que el backend ya devuelve además del contrato v1:** `description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName` y `roomName` en cada solicitud (ver `docs/api/ui-extensions.md`).
+- **Pruebas de aceptación y revisión de otro integrante:** pendientes (semanas 13–14).

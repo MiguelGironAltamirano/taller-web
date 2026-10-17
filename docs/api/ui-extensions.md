@@ -1,6 +1,8 @@
 # Extensiones del contrato de API para el diseño final
 
-Complementa [`contrato-v1.md`](contrato-v1.md) (contrato del MVP). Todo lo de este documento **ya está simulado con MSW** en `frontend/src/mocks/` y lo consume el frontend, pero **no existe en el backend**. Antes de implementar cada endpoint se acuerda aquí (o se mueve a `contrato-v1.md`) con el módulo dueño.
+Complementa [`contrato-v1.md`](contrato-v1.md) (contrato del MVP). Todo lo de este documento **ya está simulado con MSW** en `frontend/src/mocks/` y lo consume el frontend. Antes de implementar cada endpoint se acuerda aquí (o se mueve a `contrato-v1.md`) con el módulo dueño.
+
+**Ya implementado en el backend** (módulos `catalog` y `requests`): los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, y `size` hasta 500 en `GET /requests` (el frontend pide la lista completa). `allowedTransitions` existe pero es siempre `[]` hasta que el módulo de workflow lo calcule. **Todo lo demás de este documento sigue sin existir en el backend.**
 
 Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `application/problem+json` con `errors: { campo: mensaje }`, `404` cuando el recurso no es visible).
 
