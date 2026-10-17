@@ -77,3 +77,31 @@ Pantallas: "Mis solicitudes" (lista filtrada por estado), "Nueva solicitud" (for
 ## 8. Definición de terminado
 
 Ver la [definición de terminado general](README.md#5-definición-de-terminado).
+
+## 9. Funcionalidades del diseño no previstas en el planning
+
+El diseño final (Claude Design, proyecto "Servicios Universitarios UNMSM") trae pantallas y comportamientos que el spec y los planes individuales no mencionan. Ya están construidos en el frontend con datos simulados (MSW) en la rama `feature/ui-design-system`; este plan los adopta para que no queden huérfanos. Cada uno necesita, antes de pasar a producción, su contrato en `docs/api/` (ver [`docs/api/ui-extensions.md`](../docs/api/ui-extensions.md)) y su backend.
+
+Prioridad sugerida: **S** = Release Candidate (semana 12), **C** = opcional si hay tiempo, **D** = solo interfaz (sin backend).
+
+| # | Funcionalidad | Dónde está en el front | Falta | Prioridad |
+|---|---|---|---|---|
+| 1 | Página de inicio del solicitante (resumen, "requieren tu atención", actividad reciente) | `features/requests` (`HomePage`) | Sin backend propio: se arma con `GET /requests` y `GET /notifications` | S |
+| 2 | Calendario de vencimientos del técnico | `features/requests` (`CalendarPage`) | Sin backend propio: usa `GET /requests` | C |
+| 3 | Vista kanban con arrastre de tarjetas (solo transiciones válidas) | `features/workflow` (`KanbanBoard`) | Sin backend propio: reutiliza `/transitions` | C |
+| 4 | Vistas guardadas, orden, filtros en la URL, densidad y exportación CSV del listado | `features/requests` (`RequestListPage`) | Filtros del servidor (fechas, área, vencidas) ya previstos en la sección 3; el CSV se genera en el cliente | S |
+| 5 | Equipo: carga por técnico del área | `features/dashboard` (`TeamPage`) | `GET /dashboard/team` | C |
+| 6 | Reportes descargables (por estado, SLA, carga, vencidas) | `features/dashboard` (`ReportsPage`) | CSV en el cliente; exportación a PDF sin implementar | C |
+| 7 | Auditoría: registro de cambios sobre solicitudes | `features/admin` (`AuditPage`) | `GET /admin/audit` (se deriva del historial) | C |
+| 8 | Configuración: horas de cierre automático, correo y sugerencia de triage | `features/admin` (`ConfigPage`) | `GET/PUT /admin/config` y que el backend la respete | S |
+| 9 | Dashboard ampliado: variación vs. periodo anterior, mini-gráficos, medidor de SLA, "por vencer en 24 h" | `features/dashboard` (`DashboardPage`) | `GET /dashboard/indicators` (ver la extensión del contrato) | S |
+| 10 | Paleta de comandos (Ctrl+K), menú lateral colapsable, modo oscuro y navegación móvil inferior | `app/layout` | Ninguno: solo interfaz | D |
+| 11 | Comentarios en la solicitud (con aviso a la otra parte) | `features/collaboration` | Ya previsto para AngelCarrasco; el front lo consume | S |
+| 12 | "Recuperar contraseña" en el login | `features/auth` | Hoy solo muestra un aviso; depende del correo (opcional del spec) | C |
+
+### Diferencias entre el diseño y el spec que hay que decidir
+
+- **Calificación al cerrar:** el diseño exige 1–5 estrellas para "Confirmar y cerrar"; el spec (§6) dice "calificación opcional" y que el cierre automático a las 72 h es sin calificación. El front sigue el diseño; si se prefiere el spec, basta quitar la validación en `ResolvedCard`.
+- **Triage por mayor número de coincidencias:** el spec (§5.1) pide la regla con más coincidencias; el prototipo del diseño tomaba la primera que coincidía. El front y los mocks siguen el spec.
+- **Registro de solicitudes:** el contrato del MVP envía el `locationId` del ambiente; el formulario del diseño elige Facultad → Pabellón → Ambiente y el front resuelve ese id.
+- **Cierre automático a las 72 h:** el front solo lo informa; hay que implementarlo en el backend (satisfacción, plan de Lita).
