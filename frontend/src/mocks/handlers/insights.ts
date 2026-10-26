@@ -6,10 +6,10 @@ import type {
   TeamMemberLoad,
   TriageSuggestionDto,
 } from '../../shared/api/types'
-import { suggestTriage } from '../../features/triage/lib/suggest'
-import { PRIORITIES, type Priority } from '../../shared/domain'
+import { matchTriage } from '../../features/triage/lib/suggest'
+import { PRIORITIES } from '../../shared/domain'
 import { getDb, HOUR } from '../db'
-import { iso, notFound, secured } from '../http'
+import { iso, notFound, problem, secured } from '../http'
 import { areaIdOf, inScope, summaryOf } from '../views'
 
 const DAY = 24 * HOUR
@@ -48,23 +48,18 @@ export const notificationHandlers = [
 export const triageHandlers = [
   http.post(
     '*/api/v1/triage/suggestions',
-    secured(null, async ({ request }) => {
+    secured(['SOLICITANTE'], async ({ request }) => {
       const db = getDb()
-      const { description } = (await request.json()) as { description: string }
+      const { description } = (await request.json()) as { description?: string }
+      if (typeof description !== 'string' || !description.trim() || description.length > 2000) {
+        const message = 'La descripción debe tener entre 1 y 2000 caracteres.'
+        return problem(400, 'Datos no válidos', message, { description: message })
+      }
       if (!db.config.triageSuggestions) return HttpResponse.json<TriageSuggestionDto>(null)
-      const rules = db.rules.map((r) => ({
-        id: r.id,
-        keywords: r.keywords,
-        category: db.categories.find((c) => c.id === r.categoryId)?.name ?? '',
-        priority: (db.priorities.find((p) => p.id === r.priorityId)?.name ?? 'Media') as Priority,
-        active: r.active,
-      }))
-      const hit = suggestTriage(description ?? '', rules)
-      if (!hit) return HttpResponse.json<TriageSuggestionDto>(null)
-      return HttpResponse.json<TriageSuggestionDto>({
-        categoryId: db.categories.find((c) => c.name === hit.category)!.id,
-        priorityId: db.priorities.find((p) => p.name === hit.priority)!.id,
-      })
+      // Igual que el backend: solo reglas activas cuya categoría siga activa.
+      const rules = db.rules.filter((r) => db.categories.some((c) => c.id === r.categoryId && c.active !== false))
+      const hit = matchTriage(description, rules)
+      return HttpResponse.json<TriageSuggestionDto>(hit ? { categoryId: hit.categoryId, priorityId: hit.priorityId } : null)
     }),
   ),
 ]

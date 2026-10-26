@@ -55,6 +55,13 @@ function RuleDrawer({ rule, onClose }: { rule: TriageRuleDto | null; onClose: ()
       toast('Regla guardada')
       onClose()
     } catch (e) {
+      const fields = e instanceof ApiError ? e.fieldErrors : undefined
+      if (fields?.keywords || fields?.categoryId || fields?.priorityId) {
+        for (const name of ['keywords', 'categoryId', 'priorityId'] as const) {
+          if (fields[name]) setError(name, { message: fields[name] })
+        }
+        return
+      }
       setError('root', { message: e instanceof ApiError ? e.detail || e.title : 'No pudimos guardar la regla.' })
     }
   })

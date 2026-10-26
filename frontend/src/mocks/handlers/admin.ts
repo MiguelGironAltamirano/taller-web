@@ -8,6 +8,7 @@ import type {
   TriageRuleBody,
   TriageRuleDto,
 } from '../../shared/api/types'
+import { normalizeTriageText } from '../../features/triage/lib/suggest'
 import { STATUS_ORDER } from '../../shared/api/mappers'
 import { codeOf, getDb, type MockTriageRule, type MockUser } from '../db'
 import { iso, notFound, problem, secured } from '../http'
@@ -318,7 +319,10 @@ export const adminHandlers = [
   ),
 
   // ───── Reglas de triage ─────
-  http.get('*/api/v1/admin/triage-rules', secured(ADMIN, () => HttpResponse.json(getDb().rules.map(toRuleDto)))),
+  http.get(
+    '*/api/v1/admin/triage-rules',
+    secured(ADMIN, () => HttpResponse.json([...getDb().rules].sort((a, b) => a.id - b.id).map(toRuleDto))),
+  ),
 
   http.post(
     '*/api/v1/admin/triage-rules',
@@ -351,7 +355,7 @@ export const adminHandlers = [
         keywords: cleanKeywords(body.keywords),
         categoryId: body.categoryId,
         priorityId: body.priorityId,
-        active: body.active ?? rule.active,
+        active: body.active ?? true,
       })
       return HttpResponse.json(toRuleDto(rule))
     }),
@@ -361,6 +365,7 @@ export const adminHandlers = [
     '*/api/v1/admin/triage-rules/:id',
     secured(ADMIN, ({ params }) => {
       const db = getDb()
+      if (!db.rules.some((r) => r.id === Number(params.id))) return notFound('La regla de triage no existe')
       db.rules = db.rules.filter((r) => r.id !== Number(params.id))
       return new HttpResponse(null, { status: 204 })
     }),
@@ -408,13 +413,29 @@ export const adminHandlers = [
   ),
 ]
 
-const cleanKeywords = (keywords: string[]) => keywords.map((k) => k.trim()).filter(Boolean)
+/** Como el backend: sin espacios sobrantes, en minúsculas y sin repetir (las que solo difieren en tildes son la misma). */
+const cleanKeywords = (keywords: string[]) => {
+  const seen = new Set<string>()
+  return keywords
+    .map((k) => (typeof k === 'string' ? k.trim().replace(/\s+/g, ' ').toLowerCase() : ''))
+    .filter((k) => {
+      const key = normalizeTriageText(k)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
 
 function validateRule(body: TriageRuleBody): Record<string, string> {
   const db = getDb()
   const errors: Record<string, string> = {}
-  if (!cleanKeywords(body.keywords ?? []).length) errors.keywords = 'Ingresa al menos una palabra clave.'
-  if (!db.categories.some((c) => c.id === body.categoryId)) errors.categoryId = 'Selecciona la categoría.'
-  if (!db.priorities.some((p) => p.id === body.priorityId)) errors.priorityId = 'Selecciona la prioridad.'
+  const keywords = Array.isArray(body.keywords) ? cleanKeywords(body.keywords) : []
+  if (!keywords.length) errors.keywords = 'Ingresa al menos una palabra clave.'
+  else if (keywords.some((k) => k.length < 2 || k.length > 50))
+    errors.keywords = 'Cada palabra clave debe tener entre 2 y 50 caracteres.'
+  else if (keywords.length > 20) errors.keywords = 'Ingresa como máximo 20 palabras clave.'
+  if (!db.categories.some((c) => c.id === body.categoryId && c.active !== false))
+    errors.categoryId = 'La categoría no existe o está inactiva.'
+  if (!db.priorities.some((p) => p.id === body.priorityId)) errors.priorityId = 'La prioridad no existe.'
   return errors
 }
