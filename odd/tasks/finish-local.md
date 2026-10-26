@@ -44,8 +44,8 @@ Ola 2 (tras integrar la ola 1):
 Ola 3:
 
 - [x] FL9a — correcciones de integración: notificaciones con JWT real, datos demo alineados con el cierre automático (actor nulo), `autoCloseAt` en `RequestDetail` en lugar de "72 horas" fijo — ruta: delegada (`wt-fixes`). Integrada en `7122479` (commits `b43bb11`, `368a4d5`, `d460eae`, `ce5fb2f`). Evidencia en su rama: `./mvnw verify` 574/574, frontend 198/198, flujo completo por curl a través de nginx OK, `infra/smoke.sh` OK. FL9 lanzada en `wt-e2e`.
-- [ ] FL9 — pruebas de punta a punta con Playwright contra el stack de Compose sin mocks, accesibilidad con axe
-- [ ] FL10 — guía de levantamiento y documentos de contrato actualizados; verificación final
+- [x] FL9 — pruebas de punta a punta con Playwright contra el stack de Compose sin mocks, accesibilidad con axe — ruta: delegada (`wt-e2e`). Integrada en `cade3a1` (commits `0c43cda`..`5bd532e`). 26 pruebas E2E por rol (solicitante, supervisor, técnico, administrador, autenticación, accesibilidad), 26/26 dos veces seguidas con `infra/e2e.sh`; axe sin violaciones en 16 páginas. Corrige: evidencias del formulario de nueva solicitud que nunca se subían, agrupación "Hoy/Ayer" de notificaciones por día de Lima, estructura ARIA de tablas, nombres de botones y contraste. CI: el job `smoke` ahora ejecuta `infra/e2e.sh`. Pendiente de decisión de producto: el técnico recibe dos notificaciones al ser asignado.
+- [x] FL10 — guía de levantamiento y documentos de contrato actualizados; verificación final — ruta: inline (orquestador). Cada paquete actualizó `contrato-v1.md`, `ui-extensions.md` y `guia-levantamiento.md`; verificación final abajo.
 
 ## Criterios de aceptación
 
@@ -57,6 +57,9 @@ Ola 3:
 - Ola 1 integrada en `feature/finish-local` (2026-10-26): `./mvnw verify` 512/512 (0 fallos) y frontend lint, typecheck, build OK con 184/184 pruebas.
 - Ola 2 integrada en `feature/finish-local` (`58c3ccb`): `./mvnw verify` 572/572 (0 fallos) y frontend lint, typecheck, build OK con 195/195 pruebas.
 
+- Verificación final en `feature/finish-local` (`cade3a1`, 2026-10-26): `./mvnw verify` 574/574 (0 fallos); frontend lint, typecheck, typecheck:e2e, build OK y 203/203 pruebas; `infra/e2e.sh` (stack desde cero con datos demo) prueba de humo OK y 26/26 E2E; sin contenedores sobrantes.
+- No verificado: ejecución en CI (no se hizo push).
+
 ## Siguiente paso
 
-Lanzar la ola 1.
+Decisiones del responsable: revisar `feature/finish-local`, fusionarla en `dev`, hacer push y abrir el PR; decidir si el técnico debe recibir una sola notificación al ser asignado. Pendientes menores: Inicio, calendario, reportes y paleta piden hasta 500 filas; el proceso maestro de nginx corre como root; staging en Dokploy sigue bloqueado por el dominio.
