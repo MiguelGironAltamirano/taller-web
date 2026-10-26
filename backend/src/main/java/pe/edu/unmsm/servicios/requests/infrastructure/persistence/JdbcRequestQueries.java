@@ -32,7 +32,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 
 	private static final String SELECT = """
 			select r.id, r.code, r.status, r.created_at, r.due_at, r.description, r.requester_id, r.area_id,
-			       r.technician_id, r.closure_reason,
+			       r.technician_id, r.closure_reason, r.solution,
 			       c.name as category_name, p.name as priority_name,
 			       room.name as room_name, pav.name as pavilion_name, fac.name as faculty_name,
 			       u.full_name as requester_name, a.name as area_name, t.full_name as technician_name
@@ -122,13 +122,14 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 		Long technician = rs.wasNull() ? null : technicianId;
 		String closure = rs.getString("closure_reason");
 		long requestId = rs.getLong("id");
-		return new RequestDetailView(summary(rs, now), rs.getLong("requester_id"), rs.getLong("area_id"), technician,
-				closure == null ? null : ClosureReason.valueOf(closure), history(requestId), List.of());
+		return new RequestDetailView(requestId, summary(rs, now), rs.getLong("requester_id"), rs.getLong("area_id"),
+				technician, closure == null ? null : ClosureReason.valueOf(closure), rs.getString("solution"),
+				history(requestId), List.of());
 	}
 
 	private List<HistoryView> history(long requestId) {
 		return jdbc.query("""
-				select h.from_status, h.to_status, actor.full_name as actor_name, h.reason, h.created_at
+				select h.from_status, h.to_status, actor.full_name as actor_name, h.reason, h.note, h.created_at
 				  from request_history h
 				  join users actor on actor.id = h.actor_id
 				 where h.request_id = ?
@@ -137,7 +138,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 			String from = rs.getString("from_status");
 			return new HistoryView(from == null ? null : RequestStatus.valueOf(from),
 					RequestStatus.valueOf(rs.getString("to_status")), rs.getString("actor_name"),
-					rs.getString("reason"), instant(rs, "created_at"));
+					rs.getString("reason"), instant(rs, "created_at"), rs.getString("note"));
 		}, requestId);
 	}
 

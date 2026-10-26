@@ -9,11 +9,12 @@ import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
  * Full detail of a request. The ids are kept so the visibility rule can be applied; the controller never
  * exposes them beyond what the contract defines.
  */
-public record RequestDetailView(RequestSummaryView summary, long requesterId, long areaId, Long technicianId,
-		ClosureReason closureReason, List<HistoryView> history, List<RequestStatus> allowedTransitions) {
+public record RequestDetailView(long id, RequestSummaryView summary, long requesterId, long areaId, Long technicianId,
+		ClosureReason closureReason, String solution, List<HistoryView> history,
+		List<RequestStatus> allowedTransitions) {
 
 	public RequestDetailView withAllowedTransitions(List<RequestStatus> transitions) {
-		return new RequestDetailView(summary, requesterId, areaId, technicianId, closureReason, history,
+		return new RequestDetailView(id, summary, requesterId, areaId, technicianId, closureReason, solution, history,
 				List.copyOf(transitions));
 	}
 

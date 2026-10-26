@@ -65,7 +65,8 @@ public final class StateMachine {
 			}
 			case RESOLVE -> {
 				requireText(errors, reason, "Indica el comentario de solución");
-				yield same(subject, command.to(), "Solución: " + reason);
+				yield new TransitionOutcome(command.to(), subject.technicianId(), null, "Solución: " + reason, null,
+						reason);
 			}
 			case CONFIRM -> new TransitionOutcome(command.to(), subject.technicianId(), ClosureReason.CONFIRMADA,
 					"Solución confirmada por el solicitante" + suffix(reason), null);

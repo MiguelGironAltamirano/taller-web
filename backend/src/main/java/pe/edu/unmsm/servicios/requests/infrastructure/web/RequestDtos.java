@@ -43,12 +43,13 @@ public final class RequestDtos {
 	public record AreaRef(long id, String name) {
 	}
 
+	/** {@code note} is null for state changes and describes the change otherwise (e.g. a new priority). */
 	public record HistoryResponse(String fromStatus, String toStatus, String actorName, String reason,
-			Instant createdAt) {
+			Instant createdAt, String note) {
 
 		static HistoryResponse from(HistoryView h) {
 			return new HistoryResponse(h.fromStatus() == null ? null : h.fromStatus().name(), h.toStatus().name(),
-					h.actorName(), h.reason(), h.createdAt());
+					h.actorName(), h.reason(), h.createdAt(), h.note());
 		}
 
 	}
@@ -61,7 +62,7 @@ public final class RequestDtos {
 			String status, Instant createdAt, Instant dueAt, boolean overdue, String description,
 			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
 			String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
-			List<HistoryResponse> history, List<String> allowedTransitions) {
+			List<HistoryResponse> history, List<String> allowedTransitions, String solution) {
 
 		public static DetailResponse from(RequestDetailView d) {
 			RequestSummaryView s = d.summary();
@@ -73,7 +74,7 @@ public final class RequestDtos {
 					new PersonRef(d.requesterId(), s.requesterName()), new AreaRef(d.areaId(), s.areaName()),
 					technician, d.closureReason() == null ? null : d.closureReason().name(),
 					d.history().stream().map(HistoryResponse::from).toList(),
-					d.allowedTransitions().stream().map(Enum::name).toList());
+					d.allowedTransitions().stream().map(Enum::name).toList(), d.solution());
 		}
 
 	}

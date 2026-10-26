@@ -84,7 +84,7 @@ class ListTechniciansAndAllowedTransitionsTest {
 		RequestSummaryView summary = new RequestSummaryView("SOL-2026-000001", "Electricidad", "F → P → A", "Alta",
 				status, now, now.plusSeconds(3600), false, "Descripción", "Owner", "Mantenimiento", null, "F", "P",
 				"A");
-		return new RequestDetailView(summary, requesterId, areaId, technicianId, null, List.of(), List.of());
+		return new RequestDetailView(1L, summary, requesterId, areaId, technicianId, null, null, List.of(), List.of());
 	}
 
 	@Test

@@ -104,6 +104,13 @@ class StateMachineTest {
 
 		assertThat(outcome.to()).isEqualTo(RESUELTA);
 		assertThat(outcome.reason()).isEqualTo("Solución: Se cambió el tomacorriente");
+		assertThat(outcome.solution()).isEqualTo("Se cambió el tomacorriente");
+	}
+
+	@Test
+	void onlyResolvingProposesASolution() {
+		assertThat(move(TECHNICIAN, ASIGNADA, to(EN_ATENCION), null).solution()).isNull();
+		assertThat(move(OWNER, RESUELTA, to(CERRADA), null).solution()).isNull();
 	}
 
 	@Test

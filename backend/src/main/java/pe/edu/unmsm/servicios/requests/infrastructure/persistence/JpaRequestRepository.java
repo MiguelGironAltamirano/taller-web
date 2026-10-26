@@ -31,26 +31,11 @@ class JpaRequestRepository implements RequestRepository, RequestStateStore {
 		entity.categoryId = request.categoryId();
 		entity.locationId = request.locationId();
 		entity.description = request.description();
-		entity.priorityId = request.priorityId();
-		entity.status = request.status().name();
 		entity.areaId = request.areaId();
-		entity.technicianId = request.technicianId();
-		entity.closureReason = request.closureReason() == null ? null : request.closureReason().name();
 		entity.createdAt = request.createdAt();
-		entity.dueAt = request.dueAt();
-		entity.updatedAt = request.updatedAt();
+		copyMutableState(request, entity);
 		ServiceRequestEntity stored = requests.saveAndFlush(entity);
-
-		RequestHistoryEntity entry = new RequestHistoryEntity();
-		entry.requestId = stored.id;
-		entry.fromStatus = firstEntry.fromStatus() == null ? null : firstEntry.fromStatus().name();
-		entry.toStatus = firstEntry.toStatus().name();
-		entry.actorId = firstEntry.actorId();
-		entry.technicianId = firstEntry.technicianId();
-		entry.reason = firstEntry.reason();
-		entry.createdAt = firstEntry.createdAt();
-		history.saveAndFlush(entry);
-
+		appendHistory(stored.id, firstEntry);
 		return toDomain(stored);
 	}
 
@@ -66,29 +51,41 @@ class JpaRequestRepository implements RequestRepository, RequestStateStore {
 	@Override
 	public ServiceRequest update(ServiceRequest request, RequestHistoryEntry entry) {
 		ServiceRequestEntity entity = requests.findById(request.id()).orElseThrow();
+		copyMutableState(request, entity);
+		ServiceRequestEntity stored = requests.saveAndFlush(entity);
+		appendHistory(stored.id, entry);
+		return toDomain(stored);
+	}
+
+	/** Everything that may change after the registration (creation data never does). */
+	private static void copyMutableState(ServiceRequest request, ServiceRequestEntity entity) {
+		entity.priorityId = request.priorityId();
 		entity.status = request.status().name();
 		entity.technicianId = request.technicianId();
 		entity.closureReason = request.closureReason() == null ? null : request.closureReason().name();
+		entity.solution = request.solution();
+		entity.dueAt = request.dueAt();
 		entity.updatedAt = request.updatedAt();
-		ServiceRequestEntity stored = requests.saveAndFlush(entity);
+	}
 
+	private void appendHistory(long requestId, RequestHistoryEntry entry) {
 		RequestHistoryEntity row = new RequestHistoryEntity();
-		row.requestId = stored.id;
+		row.requestId = requestId;
 		row.fromStatus = entry.fromStatus() == null ? null : entry.fromStatus().name();
 		row.toStatus = entry.toStatus().name();
 		row.actorId = entry.actorId();
 		row.technicianId = entry.technicianId();
 		row.reason = entry.reason();
+		row.note = entry.note();
 		row.createdAt = entry.createdAt();
 		history.saveAndFlush(row);
-		return toDomain(stored);
 	}
 
 	private static ServiceRequest toDomain(ServiceRequestEntity e) {
 		return new ServiceRequest(e.id, e.code, e.requesterId, e.categoryId, e.locationId, e.description,
 				e.priorityId, RequestStatus.valueOf(e.status), e.areaId, e.technicianId,
-				e.closureReason == null ? null : ClosureReason.valueOf(e.closureReason), e.createdAt, e.dueAt,
-				e.updatedAt);
+				e.closureReason == null ? null : ClosureReason.valueOf(e.closureReason), e.solution, e.createdAt,
+				e.dueAt, e.updatedAt);
 	}
 
 }

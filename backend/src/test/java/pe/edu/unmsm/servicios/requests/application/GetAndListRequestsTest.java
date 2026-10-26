@@ -26,7 +26,7 @@ class GetAndListRequestsTest {
 			"Facultad → Pabellón → Aula 101", "Alta", RequestStatus.ASIGNADA, NOW, NOW.plusSeconds(3600), false,
 			"El tomacorriente del aula no funciona", "Estudiante Demo", "Mantenimiento", "Técnico Demo", "Facultad",
 			"Pabellón", "Aula 101");
-	private static final RequestDetailView DETAIL = new RequestDetailView(SUMMARY, 4, 1, 3L, null, List.of(),
+	private static final RequestDetailView DETAIL = new RequestDetailView(1L, SUMMARY, 4, 1, 3L, null, null, List.of(),
 			List.of());
 
 	private static final AuthenticatedUser OWNER = new AuthenticatedUser(4, "a@unmsm.edu.pe", "Owner", "SOLICITANTE");

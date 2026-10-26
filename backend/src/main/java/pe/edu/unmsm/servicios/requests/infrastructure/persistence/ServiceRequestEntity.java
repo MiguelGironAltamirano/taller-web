@@ -48,6 +48,10 @@ class ServiceRequestEntity {
 	@Column(name = "closure_reason", length = 20)
 	String closureReason;
 
+	/** The solution proposed by the technician (see ServiceRequest). */
+	@Column(length = 400)
+	String solution;
+
 	@Column(name = "created_at", nullable = false)
 	Instant createdAt;
 
