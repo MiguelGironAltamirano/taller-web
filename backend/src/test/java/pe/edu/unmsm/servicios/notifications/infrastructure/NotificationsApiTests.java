@@ -90,15 +90,15 @@ class NotificationsApiTests {
 	}
 
 	@Test
-	@DisplayName("Assignment notifies the technician; the list holds only the user's own items, newest first")
+	@DisplayName("Assignment notifies the technician once; the list holds only the user's own items, newest first")
 	void assignmentNotifiesTechnicianNewestFirst() throws Exception {
 		String code = createRequest(STUDENT);
 		transition(SUPERVISOR, code, "{\"to\":\"EN_EVALUACION\"}");
 		transition(SUPERVISOR, code, "{\"to\":\"ASIGNADA\",\"technicianId\":3}");
 
 		HttpResponse<String> technician = list(api.login(TECHNICIAN));
-		assertThat(ApiClient.<List<String>>read(technician, "$[*].text")).containsExactlyInAnyOrder(
-				"Se te asignó la solicitud " + code + ".", "La solicitud " + code + " pasó a Asignada.");
+		assertThat(ApiClient.<List<String>>read(technician, "$[*].text"))
+				.containsExactly("Se te asignó la solicitud " + code + ".");
 
 		HttpResponse<String> student = list(api.login(STUDENT));
 		assertThat(ApiClient.<List<String>>read(student, "$[*].text")).containsExactly(
@@ -135,7 +135,7 @@ class NotificationsApiTests {
 		assertThat(response.statusCode()).as(response.body()).isEqualTo(204);
 
 		assertThat(ApiClient.<List<Boolean>>read(list(studentToken), "$[*].read")).hasSize(2).containsOnly(true);
-		assertThat(ApiClient.<List<Boolean>>read(list(api.login(TECHNICIAN)), "$[*].read")).hasSize(2)
+		assertThat(ApiClient.<List<Boolean>>read(list(api.login(TECHNICIAN)), "$[*].read")).hasSize(1)
 				.containsOnly(false);
 	}
 

@@ -232,8 +232,10 @@ Lista vacía si no hay evidencias.
 
 | Evento | Quién notificar | Excluir |
 |---|---|---|
-| Cambio de estado (cualquier transición) | Solicitante, técnico asignado (si hay), supervisores activos del área | El actor de la transición |
+| Cambio de estado (cualquier transición) | Solicitante, técnico asignado (si hay), supervisores activos del área | El actor de la transición; en una asignación o reasignación, también el técnico asignado |
 | Asignación o reasignación | Técnico asignado (el nuevo) | El actor (supervisor) |
+
+> **Decisión documentada:** en una asignación o reasignación el técnico asignado recibe **una sola** notificación, la de asignación (`"Se te asignó la solicitud …"`), y no la genérica de cambio de estado (`"… pasó a Asignada."`). El solicitante y los supervisores sí reciben la de cambio de estado. Lo implementa `NotificationRecipients.forAssignmentTransition`.
 | Comentario nuevo | Solicitante, técnico asignado (si hay), supervisores activos del área | El autor del comentario |
 
 **Texto de notificación (en español):**

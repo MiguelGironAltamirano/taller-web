@@ -24,6 +24,14 @@ public final class NotificationRecipients {
 		return new ArrayList<>(recipients);
 	}
 
+	/** Like {@link #forTransition} but without the assigned technician, who already gets the assignment notification. */
+	public static List<Long> forAssignmentTransition(long requesterId, long technicianId, List<Long> areaSupervisorIds,
+			Long actorId) {
+		List<Long> recipients = forTransition(requesterId, technicianId, areaSupervisorIds, actorId);
+		recipients.remove(Long.valueOf(technicianId));
+		return recipients;
+	}
+
 	public static List<Long> forAssignment(long newTechnicianId, Long actorId) {
 		Set<Long> recipients = new LinkedHashSet<>();
 		recipients.add(newTechnicianId);

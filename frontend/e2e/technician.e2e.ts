@@ -51,7 +51,7 @@ test.describe('Technician', () => {
     const code = await createRequest(requester, { description: `Se desprendió la tapa del tablero eléctrico (${uniqueTag()}).` })
     await advance({ requester, supervisor, technician }, code, 'ASIGNADA')
 
-    // The assigned technician is told twice (assignment and status change); the test follows the assignment one.
+    // The assigned technician gets only the assignment notification, not the generic status change one.
     const assigned = new RegExp(`^Se te asignó la solicitud ${code}\\.`)
 
     await login(page, carmen)
