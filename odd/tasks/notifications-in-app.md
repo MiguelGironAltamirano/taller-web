@@ -48,14 +48,14 @@ Una falla al generar notificaciones es **no bloqueante**: el cambio de estado/co
 - [x] 15 - `AreaSupervisorLookup` para buscar supervisores activos del área por JDBC.
 
 ### Pruebas backend
-- [ ] 16 - `NotificationsApiTests.transitionNotifiesParticipantsExcludingActor` (escrita, pendiente de ejecutar en CI)
-- [ ] 17 - `NotificationsApiTests.assignmentNotifiesAssignedTechnician` (escrita, pendiente de ejecutar en CI)
-- [ ] 18 - `NotificationsApiTests.reassignmentNotifiesNewTechnician` (escrita, pendiente de ejecutar en CI)
-- [ ] 19 - `NotificationsApiTests.commentNotifiesOtherParticipants` (escrita, pendiente de ejecutar en CI)
-- [ ] 20 - `NotificationsApiTests.listReturnsOnlyOwnNotifications` (escrita, pendiente de ejecutar en CI)
-- [ ] 21 - `NotificationsApiTests.markReadOnForeignNotificationReturns404` (escrita, pendiente de ejecutar en CI)
-- [ ] 22 - `NotificationsApiTests.markAllReadOnlyAffectsOwnNotifications` (escrita, pendiente de ejecutar en CI)
-- [ ] 23 - `NotificationsApiTests.listWithoutTokenReturns401` (escrita, pendiente de ejecutar en CI)
+- [x] 16 - `NotificationsApiTests.transitionNotifiesParticipantsExcludingActor` (verde en local con Testcontainers, 2026-10-26)
+- [x] 17 - `NotificationsApiTests.assignmentNotifiesAssignedTechnician` (verde en local con Testcontainers, 2026-10-26)
+- [x] 18 - `NotificationsApiTests.reassignmentNotifiesNewTechnician` (verde en local con Testcontainers, 2026-10-26)
+- [x] 19 - `NotificationsApiTests.commentNotifiesOtherParticipants` (verde en local con Testcontainers, 2026-10-26)
+- [x] 20 - `NotificationsApiTests.listReturnsOnlyOwnNotifications` (verde en local con Testcontainers, 2026-10-26)
+- [x] 21 - `NotificationsApiTests.markReadOnForeignNotificationReturns404` (verde en local con Testcontainers, 2026-10-26)
+- [x] 22 - `NotificationsApiTests.markAllReadOnlyAffectsOwnNotifications` (verde en local con Testcontainers, 2026-10-26)
+- [x] 23 - `NotificationsApiTests.listWithoutTokenReturns401` (verde en local con Testcontainers, 2026-10-26)
 
 ### Pruebas dominio
 - [x] 24 - `NotificationRecipientsTest` — 4 tests que cubren cambio de estado, asignación y comentarios con exclusión del autor/actor.
@@ -85,4 +85,9 @@ Una falla al generar notificaciones es **no bloqueante**: el cambio de estado/co
 2. **Lita:** el puerto `NotificationService.notify` queda disponible para el cierre automático a las 72 h; Lita lo inyecta desde `satisfaction`.
 
 ## Pendientes
-- Ninguno para Fase E. Pruebas de integración API (`NotificationsApiTests`) quedan anotadas para ejecución en CI por ausencia de Docker local.
+- Ninguno para Fase E. `NotificationsApiTests` (8 pruebas) se ejecutó en local con Testcontainers el 2026-10-26: verde.
+
+## Evidencia de verificación (2026-10-26)
+
+- Comando: `cd backend && mise exec -- ./mvnw verify` (Testcontainers con MySQL 8.4, Docker local), rama `feature/fl-infra` sobre `dev` 44d1e4d.
+- Resultado: `Tests run: 377, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`. Incluye `AuthApiTests` 17/17, `CollaborationApiTests` 6/6, `EvidenceApiTests` 12/12 y `NotificationsApiTests` 8/8; no hizo falta corregir pruebas ni código de producción.
