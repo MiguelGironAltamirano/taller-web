@@ -39,10 +39,11 @@ Ola 2 (tras integrar la ola 1):
 
 - [x] FL6 — cierre automático a las 72 h (`AUTOMATICA`, lee `autoCloseHours`, notifica) y `SuggestTriage` respeta `triageSuggestions` vía `SystemSettingsProvider` — ruta: delegada (`wt-autoclose`). Integrada en `a6099f1` (commits `0599526`..`6750a05`, sin conflictos). Evidencia en su rama: `./mvnw verify` 539/539. El cierre lo registra el sistema con `actor_id` nulo (`V20261026_0400`), mostrado como `Sistema`. Pendiente: `ResolvedCard.tsx` muestra "72 horas" fijo porque el solicitante no puede leer `/admin/config`.
 - [x] FL7 — filtros avanzados y paginación del listado en el servidor — ruta: delegada (`wt-filters`). Integrada en `8b0616c` (commits `4d72e26`, `0539be2`, `3e3a718`; conflicto en `ui-extensions.md` resuelto; backend compila tras el merge). Evidencia en su rama: `./mvnw verify` 537/537, frontend 195/195. Nuevo `GET /requests/counts`; `page`/`size` fuera de rango ahora devuelven 400. Pendiente: Inicio, calendario, reportes y paleta siguen pidiendo hasta 500 filas.
-- [ ] FL8 — datos demo `seed-dev` para todas las tablas
+- [x] FL8 — datos demo para todas las tablas — ruta: delegada (`wt-seed`). Integrada en `58c3ccb` (commits `5415415`, `6ce1f28`, `6ce67ec`). Migración repetible opcional `db/seed-demo/R__demo_data.sql` (corre después de todas las versionadas; no rompe pruebas que usan `seed-dev`), protegida por `DemoSeedTests`. Evidencia en su rama: `./mvnw verify` 520/520, `infra/smoke.sh` OK, datos visibles por rol a través de nginx. Hallazgo: `GET /notifications` responde 500 con JWT real (`@AuthenticationPrincipal AuthenticatedUser` nulo) → FL9a.
 
 Ola 3:
 
+- [ ] FL9a — correcciones de integración: notificaciones con JWT real, alineación de datos demo con el cierre automático (actor nulo), `autoCloseAt` en `RequestDetail` en lugar de "72 horas" fijo — ruta: delegada (`wt-fixes`)
 - [ ] FL9 — pruebas de punta a punta con Playwright contra el stack de Compose sin mocks, accesibilidad con axe
 - [ ] FL10 — guía de levantamiento y documentos de contrato actualizados; verificación final
 
