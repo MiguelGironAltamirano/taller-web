@@ -11,7 +11,7 @@ import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 
 /**
  * The detail of a request for the user who asks. The ports are implemented by the modules that own each part:
- * workflow (transitions and actions) and collaboration (comments and evidences).
+ * workflow (transitions and actions), collaboration (comments and evidences) and satisfaction (rating).
  */
 public class GetRequest {
 
@@ -19,14 +19,16 @@ public class GetRequest {
 	private final AllowedTransitions allowedTransitions;
 	private final AllowedActions allowedActions;
 	private final RequestCollaboration collaboration;
+	private final RequestRatings ratings;
 	private final Clock clock;
 
 	public GetRequest(RequestQueries queries, AllowedTransitions allowedTransitions, AllowedActions allowedActions,
-			RequestCollaboration collaboration, Clock clock) {
+			RequestCollaboration collaboration, RequestRatings ratings, Clock clock) {
 		this.queries = queries;
 		this.allowedTransitions = allowedTransitions;
 		this.allowedActions = allowedActions;
 		this.collaboration = collaboration;
+		this.ratings = ratings;
 		this.clock = clock;
 	}
 
@@ -37,7 +39,8 @@ public class GetRequest {
 						view.technicianId()))
 				.orElseThrow(() -> new RequestNotFoundException(code));
 		return detail.withPermissions(allowedTransitions.forUser(user, detail), actionsFor(user, detail))
-				.withCollaboration(collaboration.comments(detail.id()), collaboration.evidences(detail.id()));
+				.withCollaboration(collaboration.comments(detail.id()), collaboration.evidences(detail.id()))
+				.withRating(ratings.forRequest(detail.id()).orElse(null));
 	}
 
 	/** The workflow actions plus the priority change, which this module owns (see {@link ChangePriority}). */

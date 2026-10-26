@@ -79,7 +79,12 @@ class GetAndListRequestsTest {
 					return List.of(new EvidenceView(9, "foto.jpg", "IMG", 2048));
 				}
 
-			}, CLOCK);
+			}, requestId -> Optional.of(new RatingView(5, "Excelente")), CLOCK);
+
+	@Test
+	void theDetailCarriesTheRatingOfTheSatisfactionModule() {
+		assertThat(get.execute(OWNER, "SOL-2026-000001").rating()).isEqualTo(new RatingView(5, "Excelente"));
+	}
 
 	@Test
 	void theDetailCarriesTheCommentsAndEvidencesOfTheCollaborationModule() {
