@@ -55,6 +55,7 @@ Ola 3:
 ## Progreso y evidencia
 
 - Ola 1 integrada en `feature/finish-local` (2026-10-26): `./mvnw verify` 512/512 (0 fallos) y frontend lint, typecheck, build OK con 184/184 pruebas.
+- Ola 2 integrada en `feature/finish-local` (`58c3ccb`): `./mvnw verify` 572/572 (0 fallos) y frontend lint, typecheck, build OK con 195/195 pruebas.
 
 ## Siguiente paso
 
