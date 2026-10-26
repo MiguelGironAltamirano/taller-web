@@ -33,13 +33,13 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 | `GET /notifications` | Token | — | `200` `[ { id, text, createdAt, read, requestCode } ]` |
 | `PATCH /notifications/{id}/read` | Token | — | `204` |
 | `POST /notifications/read-all` | Token | — | `204` |
-| `POST /triage/suggestions` | Token | `{ description }` | `200` `{ categoryId, priorityId }` o `null` sin coincidencias; regla con más coincidencias (spec §5.1) |
+| `POST /triage/suggestions` | `SOLICITANTE` | `{ description }` | `200` `{ categoryId, priorityId }` o `null` sin coincidencias; regla con más coincidencias (spec §5.1) |
 | `GET /dashboard/indicators?range=7\|30\|mes&areaId=` | `SUPERVISOR` (su área), `ADMINISTRADOR` | — | `200` `DashboardIndicators` (ver abajo) |
 | `GET /dashboard/team` | `SUPERVISOR` | — | `200` `[ { id, fullName, assigned, inProgress, overdue, capacity } ]` |
 
 `DashboardIndicators`: `{ rangeDays, areaName, kpis: { registered, pending, attended, resolvedPct, avgAttentionHours, overdue }, byCategory, byPriority, byTechnician, timeline, slaCompliancePct, dueSoon }`. Cada KPI es `{ value, deltaPct, series }` (variación respecto del periodo anterior y serie para el mini-gráfico). Los valores `deltaPct` de los mocks son fijos de ejemplo.
 
-> Triage (`/triage/suggestions`, `/admin/triage-rules*`) y dashboard (`/dashboard/indicators`, `/dashboard/team`) ya tienen contrato acordado en [`contrato-v1.md`](contrato-v1.md#triage), con la definición de cada indicador; aún falta su backend. Allí la sugerencia queda solo para `SOLICITANTE`, que es quien registra solicitudes.
+> Triage (`/triage/suggestions`, `/admin/triage-rules*`) ya está implementado en el backend según [`contrato-v1.md`](contrato-v1.md#triage); la sugerencia queda solo para `SOLICITANTE`, que es quien registra solicitudes. El dashboard (`/dashboard/indicators`, `/dashboard/team`) tiene contrato acordado en [`contrato-v1.md`](contrato-v1.md#dashboard-indicadores), con la definición de cada indicador; aún falta su backend.
 
 ### Administración (`ADMINISTRADOR`)
 
@@ -54,7 +54,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 | `PUT /admin/priorities/{id}` | `{ slaHours }` | Entero mayor a 0; no recalcula solicitudes ya registradas |
 | `POST /admin/locations`, `DELETE /admin/locations/{id}` | `{ faculty, pavilion, room }` | Crea los niveles que falten; `409` si hay solicitudes en el ambiente |
 | `GET /admin/states` | — | Solo lectura (spec §5) |
-| `GET /admin/triage-rules`, `POST`, `PUT /{id}`, `DELETE /{id}` | `{ keywords[], categoryId, priorityId, active? }` | Gestión de reglas de triage |
+| `GET /admin/triage-rules`, `POST`, `PUT /{id}`, `DELETE /{id}` | `{ keywords[], categoryId, priorityId, active? }` | **Implementado.** Gestión de reglas de triage; ver [`contrato-v1.md`](contrato-v1.md#triage) |
 | `GET /admin/audit?q=` | — | **Implementado.** Eventos derivados del historial de cambios (máx. 40, más recientes primero) |
 | `GET /admin/config`, `PUT /admin/config` | `{ autoCloseHours, emailNotifications, triageSuggestions }` | **Implementado.** `autoCloseHours` entero mayor a 0 |
 

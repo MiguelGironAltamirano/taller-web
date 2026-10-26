@@ -10,6 +10,7 @@ import type {
   RequestDetail,
   RequestSummary,
   TokenResponse,
+  TriageRuleDto,
 } from '../shared/api/types'
 import { sessionStore } from '../shared/session/session-store'
 import { server } from '../test/msw-server'
@@ -280,6 +281,36 @@ describe('triage', () => {
       priorityId: catalogs.priorities.find((p) => p.name === 'Crítica')!.id,
     })
     expect(await apiPost('/triage/suggestions', { description: 'Texto sin relación alguna con reglas' })).toBeNull()
+  })
+
+  it('valida la descripción y solo responde al solicitante', async () => {
+    expect(await status(apiPost('/triage/suggestions', { description: '   ' }))).toBe(400)
+    expect(await status(apiPost('/triage/suggestions', { description: 'x'.repeat(2001) }))).toBe(400)
+    await loginAs(ADMIN)
+    expect(await status(apiPost('/triage/suggestions', { description: 'No hay luz en el aula' }))).toBe(403)
+  })
+
+  it('las reglas se guardan limpias y validan categoría activa, prioridad y palabras clave', async () => {
+    await loginAs(ADMIN)
+    const categoryId = catalogs.categories[0].id
+    const priorityId = catalogs.priorities[0].id
+    const created = await apiPost<TriageRuleDto>('/admin/triage-rules', {
+      keywords: ['  Zumbido ', 'ZUMBIDO', 'Ruido   Fuerte'],
+      categoryId,
+      priorityId,
+    })
+    expect(created).toMatchObject({ keywords: ['zumbido', 'ruido fuerte'], active: true })
+    const ids = (await apiGet<TriageRuleDto[]>('/admin/triage-rules')).map((r) => r.id)
+    expect(ids).toEqual([...ids].sort((a, b) => a - b))
+
+    const invalid = await apiPost('/admin/triage-rules', { keywords: ['x'], categoryId: 999, priorityId: 999 }).catch(
+      (e: ApiError) => e,
+    )
+    expect(invalid).toBeInstanceOf(ApiError)
+    expect(Object.keys((invalid as ApiError).fieldErrors ?? {})).toEqual(['keywords', 'categoryId', 'priorityId'])
+
+    expect(await status(apiDelete(`/admin/triage-rules/${created.id}`))).toBe(200)
+    expect(await status(apiDelete(`/admin/triage-rules/${created.id}`))).toBe(404)
   })
 })
 

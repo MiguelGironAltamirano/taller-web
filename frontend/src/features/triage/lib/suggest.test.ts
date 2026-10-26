@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestTriage, type TriageRule } from './suggest'
+import { matchTriage, suggestTriage, type TriageRule } from './suggest'
 
 const rules: TriageRule[] = [
   { id: 1, keywords: ['chispa', 'humo'], category: 'Electricidad', priority: 'Crítica', active: true },
@@ -24,5 +24,29 @@ describe('suggestTriage', () => {
   })
   it('no sugiere con descripciones muy cortas', () => {
     expect(suggestTriage('luz', rules)).toBeNull()
+  })
+})
+
+describe('matchTriage', () => {
+  it('solo cuenta palabras o frases completas', () => {
+    expect(matchTriage('Las luces del pasillo parpadean', rules)).toBeNull()
+    expect(matchTriage('El foco, la luz; todo falla', rules)?.id).toBe(2)
+    const phrase = [{ id: 9, keywords: ['aula virtual'], active: true }]
+    expect(matchTriage('No entro al AULA   virtual', phrase)?.id).toBe(9)
+    expect(matchTriage('El aula es virtual', phrase)).toBeNull()
+  })
+  it('en empate gana la regla de menor id aunque llegue después', () => {
+    const tied = [
+      { id: 7, keywords: ['wifi'], active: true },
+      { id: 3, keywords: ['internet'], active: true },
+    ]
+    expect(matchTriage('Sin wifi ni internet', tied)?.id).toBe(3)
+  })
+  it('cada palabra clave cuenta una vez', () => {
+    const r = [
+      { id: 1, keywords: ['humo', 'HÚMO'], active: true },
+      { id: 2, keywords: ['humo', 'chispa'], active: true },
+    ]
+    expect(matchTriage('humo y chispa', r)?.id).toBe(2)
   })
 })

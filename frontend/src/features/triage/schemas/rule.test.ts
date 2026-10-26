@@ -18,4 +18,11 @@ describe('ruleSchema', () => {
     expect(ruleSchema.safeParse({ ...ok, categoryId: '' }).success).toBe(false)
     expect(ruleSchema.safeParse({ ...ok, priorityId: '' }).success).toBe(false)
   })
+  it('limita las palabras clave a 20, cada una de 2 a 50 caracteres', () => {
+    const many = Array.from({ length: 21 }, (_, i) => `palabra${i}`)
+    expect(ruleSchema.safeParse({ ...ok, keywords: many.join(',') }).success).toBe(false)
+    expect(ruleSchema.safeParse({ ...ok, keywords: many.slice(0, 20).join(',') }).success).toBe(true)
+    expect(ruleSchema.safeParse({ ...ok, keywords: 'wifi, x' }).success).toBe(false)
+    expect(ruleSchema.safeParse({ ...ok, keywords: 'x'.repeat(51) }).success).toBe(false)
+  })
 })

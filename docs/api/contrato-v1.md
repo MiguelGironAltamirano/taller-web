@@ -121,7 +121,7 @@ Reglas:
 
 ## Triage
 
-> Estado: acordado, **por implementar** en el backend (release candidate, semanas 10–12). El frontend ya lo consume contra la API simulada con estas mismas formas.
+> Estado: acordado e **implementado** en el backend (módulo `triage`, migración `V20261026_0100`). Los mocks del frontend siguen las mismas reglas.
 
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
@@ -140,6 +140,9 @@ Reglas:
 - Sugerencia (spec §5.1): se normalizan la descripción y las palabras clave (minúsculas, sin tildes). Una palabra clave coincide si aparece en la descripción como palabra o frase completa. Para cada regla **activa** cuya categoría siga activa se cuentan sus palabras clave que coinciden; gana la de **más coincidencias** y, si hay empate, la de menor `id` (la más antigua). Con cero coincidencias en todas, la respuesta es `null`.
 - La descripción se acepta con 1 a 2000 caracteres; el frontend pide la sugerencia cuando hay al menos 8.
 - La sugerencia no se guarda: el solicitante puede aceptarla o cambiarla, y `POST /requests` recibe lo que finalmente elija.
+- Errores: `400` en formato *problem details* con `errors` por campo (`keywords`, `categoryId`, `priorityId`; `description` en la sugerencia), igual que el resto de la administración; `404` si la regla no existe. En `PUT` el cuerpo reemplaza la regla completa, por lo que `active` omitido vale `true`.
+- Detalles de implementación: «palabra completa» significa que la palabra clave no está pegada a otra letra o dígito (los espacios y signos de puntuación separan); los espacios repetidos cuentan como uno; cada palabra clave cuenta una sola vez aunque se repita en el texto; dos palabras clave que solo difieren en tildes se consideran repetidas. Sin coincidencias, el cuerpo es el literal JSON `null` con `Content-Type: application/json`.
+- Las migraciones no crean reglas iniciales: se registran desde la administración (o con los datos de demostración). El interruptor `triageSuggestions` de la configuración del sistema aún no se aplica en el backend.
 
 ## Dashboard (indicadores)
 
