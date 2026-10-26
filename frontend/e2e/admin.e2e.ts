@@ -26,7 +26,7 @@ test.describe('Administrator', () => {
     await form.getByLabel('Nombre completo').fill(`Técnico E2E ${tag}`)
     await form.getByLabel('Correo institucional').fill(email)
     await form.getByLabel('Rol').selectOption('Técnico')
-    await form.getByLabel('Área (obligatoria para Técnico y Supervisor)').selectOption('Mantenimiento')
+    await form.getByLabel('Área (obligatoria para Técnico y Supervisor)').selectOption('Infraestructura')
     await form.getByRole('button', { name: 'Guardar' }).click()
 
     const created = page.getByRole('dialog', { name: 'Usuario creado' })
@@ -39,7 +39,7 @@ test.describe('Administrator', () => {
     const row = page.getByRole('table', { name: 'Usuarios' }).getByRole('row').filter({ hasText: email })
     await expect(row).toHaveCount(1)
     await expect(row).toContainText('Técnico')
-    await expect(row).toContainText('Mantenimiento')
+    await expect(row).toContainText('Infraestructura')
     await expect(row).toContainText('Activo')
 
     await row.getByRole('button', { name: 'Desactivar' }).click()

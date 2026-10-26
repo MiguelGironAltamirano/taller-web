@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 import { accounts, DEMO_PASSWORD } from './demoUsers.ts'
 
 /**
@@ -105,6 +105,24 @@ export async function advance(a: Actors, code: string, stage: Stage, solution = 
     if (step === 'EN_ATENCION') await a.technician.post(`/requests/${code}/transitions`, { to: step })
     if (step === 'RESUELTA') await a.technician.post(`/requests/${code}/transitions`, { to: step, reason: solution })
   }
+}
+
+/**
+ * Runs an action that changes the request list (filter, search, page) and waits until the server answered a query
+ * containing `urlFragment` and the list stopped fetching. The list keeps the previous rows on screen while it
+ * loads, so asserting right after the action could read stale rows.
+ */
+export async function refetchList(page: Page, urlFragment: string, action: () => Promise<unknown>) {
+  const answered = page.waitForResponse((r) => r.url().includes('/api/v1/requests?') && r.url().includes(urlFragment) && r.ok())
+  await action()
+  await answered
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
+}
+
+/** At least one row is shown and every one contains `text` (retried, so it waits for the new rows). */
+export async function expectEveryRow(rows: Locator, text: string) {
+  await expect(rows.first()).toBeVisible()
+  await expect(rows.filter({ hasNotText: text })).toHaveCount(0)
 }
 
 /** Opens one tab of the request detail ("Resumen", "Comentarios", "Evidencias", "Historial"). */

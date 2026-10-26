@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { accounts } from './demoUsers.ts'
-import { actors, advance, catalog, createRequest, login, openTab, uniqueTag } from './support.ts'
+import { actors, advance, catalog, createRequest, expectEveryRow, login, openTab, refetchList, uniqueTag } from './support.ts'
 
 const CODE = /SOL-\d{4}-\d{6}/
 /** A valid 1×1 PNG, enough for the server-side type check of evidences. */
@@ -63,34 +63,29 @@ test.describe('Requester', () => {
     await expect(dataRows).toHaveCount(10)
     const firstOfPageOne = await dataRows.first().textContent()
 
-    const nextPage = page.waitForRequest((r) => r.url().includes('/api/v1/requests?') && r.url().includes('page=1'))
-    await page.getByRole('button', { name: 'Siguiente' }).click()
-    await nextPage
+    await refetchList(page, 'page=1', () => page.getByRole('button', { name: 'Siguiente' }).click())
     await expect(page.getByText(/^11–\d+ de \d+$/)).toBeVisible()
     await expect(dataRows.first()).not.toHaveText(firstOfPageOne!)
     await expect(page.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
 
     // Status filter from the strip: only closed requests, sent to the server as a query parameter.
-    const closed = page.waitForRequest((r) => r.url().includes('status=CERRADA'))
-    await page.getByRole('button', { name: /^Cerrada \d+$/ }).click()
-    await closed
+    await refetchList(page, 'status=CERRADA', () => page.getByRole('button', { name: /^Cerrada \d+$/ }).click())
     await expect(page.getByRole('button', { name: 'Quitar filtro Estado: Cerrada' })).toBeVisible()
-    await expect(dataRows.first()).toBeVisible()
-    for (const row of await dataRows.all()) await expect(row).toContainText('Cerrada')
+    await expectEveryRow(dataRows, 'Cerrada')
 
     // Priority filter on top of it.
-    const priority = page.waitForRequest((r) => r.url().includes(`priorityId=${catalog.priority.media}`))
-    await page.getByRole('combobox', { name: 'Prioridad' }).selectOption('Media')
-    await priority
-    await expect(dataRows.first()).toBeVisible()
-    for (const row of await dataRows.all()) await expect(row).toContainText('Media')
+    await refetchList(page, `priorityId=${catalog.priority.media}`, () =>
+      page.getByRole('combobox', { name: 'Prioridad' }).selectOption('Media'),
+    )
+    await expectEveryRow(dataRows, 'Cerrada')
+    await expectEveryRow(dataRows, 'Media')
 
     // Free-text search by code, after clearing the filters.
     await page.getByRole('button', { name: 'Limpiar filtros' }).first().click()
+    await expect(page.getByRole('button', { name: /^Quitar filtro/ })).toHaveCount(0)
+    await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
     const someCode = (await dataRows.first().textContent())!.match(CODE)![0]
-    const search = page.waitForRequest((r) => r.url().includes(`q=${someCode}`))
-    await page.getByRole('searchbox', { name: 'Buscar' }).fill(someCode)
-    await search
+    await refetchList(page, `q=${someCode}`, () => page.getByRole('searchbox', { name: 'Buscar' }).fill(someCode))
     await expect(dataRows).toHaveCount(1)
     await expect(dataRows.first()).toContainText(someCode)
   })

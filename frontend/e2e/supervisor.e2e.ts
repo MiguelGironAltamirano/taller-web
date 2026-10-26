@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { accounts } from './demoUsers.ts'
-import { actors, Api, createRequest, login, openTab, uniqueTag } from './support.ts'
+import { actors, Api, createRequest, expectEveryRow, login, openTab, refetchList, uniqueTag } from './support.ts'
 
 const CODE = /SOL-\d{4}-\d{6}/
 
@@ -30,33 +30,22 @@ test.describe('Supervisor', () => {
     const rows = page.getByRole('table', { name: 'Solicitudes' }).getByRole('row').filter({ hasText: CODE })
     await expect(rows.first()).toBeVisible()
 
-    const byTechnician = page.waitForRequest((r) => r.url().includes('technicianId='))
-    await page.getByRole('combobox', { name: 'Técnico' }).selectOption('Jorge Ramírez Soto')
-    await byTechnician
+    await refetchList(page, 'technicianId=', () => page.getByRole('combobox', { name: 'Técnico' }).selectOption('Jorge Ramírez Soto'))
     await expect(page.getByRole('button', { name: 'Quitar filtro Técnico: Jorge Ramírez Soto' })).toBeVisible()
-    await expect(rows.first()).toBeVisible()
-    for (const row of await rows.all()) await expect(row).toContainText('Jorge Ramírez Soto')
+    await expectEveryRow(rows, 'Jorge Ramírez Soto')
 
-    const byStatus = page.waitForRequest((r) => r.url().includes('status=EN_ATENCION'))
-    await page.getByRole('button', { name: /^En atención \d+$/ }).click()
-    await byStatus
-    await expect(rows.first()).toBeVisible()
-    for (const row of await rows.all()) {
-      await expect(row).toContainText('En atención')
-      await expect(row).toContainText('Jorge Ramírez Soto')
-    }
+    await refetchList(page, 'status=EN_ATENCION', () => page.getByRole('button', { name: /^En atención \d+$/ }).click())
+    await expectEveryRow(rows, 'En atención')
+    await expectEveryRow(rows, 'Jorge Ramírez Soto')
 
     await page.getByRole('button', { name: 'Limpiar filtros' }).first().click()
     await expect(page.getByRole('button', { name: /^Quitar filtro/ })).toHaveCount(0)
-    const critical = page.waitForRequest((r) => r.url().includes('priorityId=1'))
-    await page.getByRole('combobox', { name: 'Prioridad' }).selectOption('Crítica')
-    await critical
-    await expect(rows.first()).toBeVisible()
-    for (const row of await rows.all()) await expect(row).toContainText('Crítica')
+    await refetchList(page, 'priorityId=1', () => page.getByRole('combobox', { name: 'Prioridad' }).selectOption('Crítica'))
+    await expectEveryRow(rows, 'Crítica')
   })
 
   test('evaluates a request, assigns a technician showing the load and changes the priority', async ({ page, request }) => {
-    const { requester, supervisor, technician } = await actors(request)
+    const { requester, technician } = await actors(request)
     const code = await createRequest(requester, { description: `El enchufe del laboratorio no da corriente (${uniqueTag()}).` })
 
     await login(page, accounts.supervisor)
@@ -73,11 +62,11 @@ test.describe('Supervisor', () => {
     await detail.getByRole('button', { name: 'Asignar técnico' }).click()
     const assign = page.getByRole('dialog', { name: 'Asignar técnico' })
     const select = assign.getByRole('combobox', { name: 'Técnico del área' })
-    // Every option shows the current load of the technician, as the API reports it.
-    const loads = await supervisor.get<{ id: number; fullName: string; activeRequests: number }[]>('/users/technicians?areaId=1')
-    const target = loads.find((t) => t.id === technician.userId)!
-    await expect(select.getByRole('option', { name: /· \d+ solicitudes activas$/ })).toHaveCount(loads.length)
-    await expect(select.getByRole('option', { name: new RegExp(`^${target.fullName} · \\d+ solicitudes activas$`) })).toHaveCount(1)
+    // Every technician option shows its current load; only the placeholder has none. The exact numbers are not
+    // compared because other journeys assign work to the same technicians while this one runs.
+    await expect(select.getByRole('option', { name: /· \d+ solicitudes activas$/ }).first()).toBeAttached()
+    await expect(select.getByRole('option').filter({ hasNotText: 'solicitudes activas' })).toHaveText(['Selecciona un técnico'])
+    await expect(select.getByRole('option', { name: new RegExp(`^${accounts.tecnico.name} · \\d+ solicitudes activas$`) })).toHaveCount(1)
     await select.selectOption(String(technician.userId))
     await assign.getByRole('button', { name: 'Asignar' }).click()
     await expect(assign).toBeHidden()
