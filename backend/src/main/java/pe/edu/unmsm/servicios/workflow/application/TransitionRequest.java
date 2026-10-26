@@ -56,7 +56,7 @@ public class TransitionRequest {
 
 		Instant now = clock.instant();
 		ServiceRequest updated = request.transitionedTo(outcome.to(), outcome.technicianId(), outcome.closureReason(),
-				now);
+				outcome.solution(), now);
 		RequestHistoryEntry entry = new RequestHistoryEntry(request.status(), outcome.to(), actor.id(),
 				outcome.historyTechnicianId(), outcome.reason(), now);
 		ServiceRequest result = requests.update(updated, entry);

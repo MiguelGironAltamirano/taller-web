@@ -12,6 +12,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
@@ -26,7 +27,7 @@ class GetAndListRequestsTest {
 			"Facultad → Pabellón → Aula 101", "Alta", RequestStatus.ASIGNADA, NOW, NOW.plusSeconds(3600), false,
 			"El tomacorriente del aula no funciona", "Estudiante Demo", "Mantenimiento", "Técnico Demo", "Facultad",
 			"Pabellón", "Aula 101");
-	private static final RequestDetailView DETAIL = new RequestDetailView(SUMMARY, 4, 1, 3L, null, List.of(),
+	private static final RequestDetailView DETAIL = new RequestDetailView(1L, SUMMARY, 4, 1, 3L, null, null,
 			List.of());
 
 	private static final AuthenticatedUser OWNER = new AuthenticatedUser(4, "a@unmsm.edu.pe", "Owner", "SOLICITANTE");
@@ -65,7 +66,33 @@ class GetAndListRequestsTest {
 
 	};
 
-	private final GetRequest get = new GetRequest(queries, (user, view) -> List.of(RequestStatus.EN_ATENCION), CLOCK);
+	private final GetRequest get = new GetRequest(queries, (user, view) -> List.of(RequestStatus.EN_ATENCION),
+			(user, view) -> List.of(RequestAction.REASSIGN), new RequestCollaboration() {
+
+				@Override
+				public List<CommentView> comments(long requestId) {
+					return List.of(new CommentView(7, "Técnico Demo", "Voy en camino", NOW));
+				}
+
+				@Override
+				public List<EvidenceView> evidences(long requestId) {
+					return List.of(new EvidenceView(9, "foto.jpg", "IMG", 2048));
+				}
+
+			}, requestId -> Optional.of(new RatingView(5, "Excelente")), CLOCK);
+
+	@Test
+	void theDetailCarriesTheRatingOfTheSatisfactionModule() {
+		assertThat(get.execute(OWNER, "SOL-2026-000001").rating()).isEqualTo(new RatingView(5, "Excelente"));
+	}
+
+	@Test
+	void theDetailCarriesTheCommentsAndEvidencesOfTheCollaborationModule() {
+		RequestDetailView detail = get.execute(OWNER, "SOL-2026-000001");
+
+		assertThat(detail.comments()).extracting(CommentView::text).containsExactly("Voy en camino");
+		assertThat(detail.evidences()).extracting(EvidenceView::fileName).containsExactly("foto.jpg");
+	}
 	private final ListRequests list = new ListRequests(queries, CLOCK);
 
 	@Test
@@ -92,6 +119,14 @@ class GetAndListRequestsTest {
 	void theDetailCarriesTheTransitionsAllowedForTheUser() {
 		assertThat(get.execute(SUPERVISOR, "SOL-2026-000001").allowedTransitions())
 				.containsExactly(RequestStatus.EN_ATENCION);
+	}
+
+	@Test
+	void theSupervisorOfTheAreaIsAlsoOfferedThePriorityChange() {
+		assertThat(get.execute(SUPERVISOR, "SOL-2026-000001").allowedActions())
+				.containsExactly(RequestAction.REASSIGN, RequestAction.PRIORITY);
+		assertThat(get.execute(TECHNICIAN, "SOL-2026-000001").allowedActions())
+				.containsExactly(RequestAction.REASSIGN);
 	}
 
 	@Test

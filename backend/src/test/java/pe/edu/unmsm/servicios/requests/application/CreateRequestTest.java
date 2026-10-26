@@ -79,7 +79,7 @@ class CreateRequestTest {
 			ServiceRequest stored = new ServiceRequest(100L, request.code(), request.requesterId(),
 					request.categoryId(), request.locationId(), request.description(), request.priorityId(),
 					request.status(), request.areaId(), request.technicianId(), request.closureReason(),
-					request.createdAt(), request.dueAt(), request.updatedAt());
+					request.solution(), request.createdAt(), request.dueAt(), request.updatedAt());
 			saved.add(stored);
 			history.add(first);
 			return stored;

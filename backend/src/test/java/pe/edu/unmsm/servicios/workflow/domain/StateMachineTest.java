@@ -17,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
+import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 
@@ -104,6 +105,13 @@ class StateMachineTest {
 
 		assertThat(outcome.to()).isEqualTo(RESUELTA);
 		assertThat(outcome.reason()).isEqualTo("Solución: Se cambió el tomacorriente");
+		assertThat(outcome.solution()).isEqualTo("Se cambió el tomacorriente");
+	}
+
+	@Test
+	void onlyResolvingProposesASolution() {
+		assertThat(move(TECHNICIAN, ASIGNADA, to(EN_ATENCION), null).solution()).isNull();
+		assertThat(move(OWNER, RESUELTA, to(CERRADA), null).solution()).isNull();
 	}
 
 	@Test
@@ -337,6 +345,34 @@ class StateMachineTest {
 		assertThat(StateMachine.allowedTransitions(OTHER_TECHNICIAN, subject(ASIGNADA))).isEmpty();
 		assertThat(StateMachine.allowedTransitions(OTHER_REQUESTER, subject(RESUELTA))).isEmpty();
 		assertThat(StateMachine.allowedTransitions(ADMIN, subject(REGISTRADA))).isEmpty();
+	}
+
+	// ───── Which interface actions a user may perform ─────
+
+	@Test
+	void supervisorActionsFollowTheTransitionsTheyMayPerform() {
+		assertThat(StateMachine.allowedActions(SUPERVISOR, subject(REGISTRADA)))
+				.containsExactly(RequestAction.EVAL, RequestAction.NO_PROCEDE, RequestAction.DUPLICATE);
+		assertThat(StateMachine.allowedActions(SUPERVISOR, subject(EN_EVALUACION)))
+				.containsExactly(RequestAction.ASSIGN, RequestAction.NO_PROCEDE, RequestAction.DUPLICATE);
+		assertThat(StateMachine.allowedActions(SUPERVISOR, subject(ASIGNADA))).containsExactly(RequestAction.REASSIGN);
+		assertThat(StateMachine.allowedActions(SUPERVISOR, subject(EN_ATENCION))).isEmpty();
+		assertThat(StateMachine.allowedActions(SUPERVISOR, subject(CERRADA))).isEmpty();
+	}
+
+	@Test
+	void technicianActionsAreStartAndResolve() {
+		assertThat(StateMachine.allowedActions(TECHNICIAN, subject(ASIGNADA))).containsExactly(RequestAction.START);
+		assertThat(StateMachine.allowedActions(TECHNICIAN, subject(EN_ATENCION))).containsExactly(RequestAction.RESOLVE);
+	}
+
+	@Test
+	void confirmingOrRejectingIsNotAnInterfaceAction() {
+		// The requester answers a resolved request through allowedTransitions (confirm / reject).
+		assertThat(StateMachine.allowedActions(OWNER, subject(RESUELTA))).isEmpty();
+		assertThat(StateMachine.allowedActions(OTHER_AREA_SUPERVISOR, subject(REGISTRADA))).isEmpty();
+		assertThat(StateMachine.allowedActions(OTHER_TECHNICIAN, subject(ASIGNADA))).isEmpty();
+		assertThat(StateMachine.allowedActions(ADMIN, subject(REGISTRADA))).isEmpty();
 	}
 
 	@Test

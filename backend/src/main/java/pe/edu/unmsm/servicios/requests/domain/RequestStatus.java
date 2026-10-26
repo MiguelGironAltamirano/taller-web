@@ -8,4 +8,9 @@ public enum RequestStatus {
 		return this == RESUELTA || this == CERRADA;
 	}
 
+	/** The supervisor may reprioritize a request while it is still being handled. */
+	public boolean allowsPriorityChange() {
+		return !isFinished();
+	}
+
 }

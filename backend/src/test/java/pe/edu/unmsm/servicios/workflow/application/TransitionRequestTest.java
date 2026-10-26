@@ -78,7 +78,7 @@ class TransitionRequestTest {
 
 	private ServiceRequest request(RequestStatus status, Long technicianId) {
 		ServiceRequest request = new ServiceRequest(10L, "SOL-2026-000001", 4, 1, 3, "Descripción de la solicitud",
-				2, status, 1, technicianId, null, CREATED, CREATED.plusSeconds(86400), CREATED);
+				2, status, 1, technicianId, null, null, CREATED, CREATED.plusSeconds(86400), CREATED);
 		stored.put(request.code(), request);
 		return request;
 	}
@@ -178,6 +178,16 @@ class TransitionRequestTest {
 		assertThat(result.status()).isEqualTo(RequestStatus.CERRADA);
 		assertThat(result.closureReason()).isEqualTo(ClosureReason.CONFIRMADA);
 		assertThat(result.technicianId()).isEqualTo(3L);
+	}
+
+	@Test
+	void resolvingStoresTheProposedSolution() {
+		request(RequestStatus.EN_ATENCION, 3L);
+
+		ServiceRequest result = useCase.execute(TECHNICIAN, "SOL-2026-000001",
+				new TransitionCommand(RequestStatus.RESUELTA, "  Se cambió el tomacorriente ", null, null));
+
+		assertThat(result.solution()).isEqualTo("Se cambió el tomacorriente");
 	}
 
 }

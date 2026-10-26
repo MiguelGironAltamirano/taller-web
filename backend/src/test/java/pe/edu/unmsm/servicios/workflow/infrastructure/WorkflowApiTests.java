@@ -152,7 +152,30 @@ class WorkflowApiTests {
 		assertThat(ApiClient.<List<String>>read(response, "$.history[*].createdAt")).doesNotContainNull().hasSize(6);
 		assertThat(ApiClient.<String>read(response, "$.history[4].reason")).isEqualTo("Solución: Se cambió el tomacorriente");
 		assertThat(ApiClient.<List<Object>>read(response, "$.allowedTransitions")).isEmpty();
+		assertThat(ApiClient.<String>read(response, "$.solution")).isEqualTo("Se cambió el tomacorriente");
+		assertThat(ApiClient.<List<Object>>read(response, "$.history[*].note")).containsOnlyNulls();
 		assertThat(historyCount(code)).isEqualTo(6);
+	}
+
+	@Test
+	void rejectingTheSolutionDropsItFromTheDetail() throws Exception {
+		String code = createRequest(STUDENT);
+		force(code, "EN_ATENCION", 3L);
+		HttpResponse<String> resolved = transition(TECHNICIAN, code, "{\"to\":\"RESUELTA\",\"reason\":\"Ajuste hecho\"}");
+		assertThat(ApiClient.<String>read(resolved, "$.solution")).isEqualTo("Ajuste hecho");
+
+		HttpResponse<String> rejected = transition(STUDENT, code, "{\"to\":\"EN_ATENCION\",\"reason\":\"Sigue fallando\"}");
+
+		assertThat(rejected.statusCode()).as(rejected.body()).isEqualTo(200);
+		assertThat(ApiClient.<Object>read(rejected, "$.solution")).isNull();
+	}
+
+	@Test
+	void anAutomaticClosureIsStoredAndShown() throws Exception {
+		String code = createRequest(STUDENT);
+		jdbc.update("update service_requests set status = 'CERRADA', closure_reason = 'AUTOMATICA' where code = ?", code);
+
+		assertThat(ApiClient.<String>read(detail(STUDENT, code), "$.closureReason")).isEqualTo("AUTOMATICA");
 	}
 
 	// ───── 409: outside the table ─────

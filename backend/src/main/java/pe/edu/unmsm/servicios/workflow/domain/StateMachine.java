@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
+import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.shared.domain.AccessPolicy;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
@@ -65,7 +66,8 @@ public final class StateMachine {
 			}
 			case RESOLVE -> {
 				requireText(errors, reason, "Indica el comentario de solución");
-				yield same(subject, command.to(), "Solución: " + reason);
+				yield new TransitionOutcome(command.to(), subject.technicianId(), null, "Solución: " + reason, null,
+						reason);
 			}
 			case CONFIRM -> new TransitionOutcome(command.to(), subject.technicianId(), ClosureReason.CONFIRMADA,
 					"Solución confirmada por el solicitante" + suffix(reason), null);
@@ -92,6 +94,32 @@ public final class StateMachine {
 			}
 		}
 		return List.copyOf(allowed);
+	}
+
+	/**
+	 * The interface actions behind the transitions this user may perform. Closing without resolving offers both
+	 * closures; the requester's answer to a solution (confirm or reject) is not an action, it is read from
+	 * {@link #allowedTransitions}. The priority change is not a transition and is decided by the requests module.
+	 */
+	public static List<RequestAction> allowedActions(AuthenticatedUser actor, WorkflowSubject subject) {
+		Set<RequestAction> actions = new LinkedHashSet<>();
+		for (RequestStatus to : RequestStatus.values()) {
+			stepFor(subject.status(), to).filter(step -> mayPerform(step, actor, subject))
+					.ifPresent(step -> actions.addAll(actionsOf(step)));
+		}
+		return List.copyOf(actions);
+	}
+
+	private static List<RequestAction> actionsOf(Step step) {
+		return switch (step) {
+			case EVALUATE -> List.of(RequestAction.EVAL);
+			case ASSIGN -> List.of(RequestAction.ASSIGN);
+			case REASSIGN -> List.of(RequestAction.REASSIGN);
+			case CLOSE_UNRESOLVED -> List.of(RequestAction.NO_PROCEDE, RequestAction.DUPLICATE);
+			case START -> List.of(RequestAction.START);
+			case RESOLVE -> List.of(RequestAction.RESOLVE);
+			case CONFIRM, REJECT -> List.of();
+		};
 	}
 
 	private static Optional<Step> stepFor(RequestStatus from, RequestStatus to) {
