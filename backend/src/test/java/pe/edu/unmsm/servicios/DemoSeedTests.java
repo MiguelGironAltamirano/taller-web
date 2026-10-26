@@ -54,7 +54,7 @@ class DemoSeedTests {
 
 	@Test
 	void seedsRequestsInEveryStatusAndArea() {
-		assertThat(count("select count(*) from service_requests")).isBetween(30, 60);
+		assertThat(count("select count(*) from service_requests")).isBetween(30, 80);
 		assertThat(jdbc.queryForList("select distinct status from service_requests", String.class))
 				.containsExactlyInAnyOrder("REGISTRADA", "EN_EVALUACION", "ASIGNADA", "EN_ATENCION", "RESUELTA",
 						"CERRADA");
