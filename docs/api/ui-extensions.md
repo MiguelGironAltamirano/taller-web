@@ -7,7 +7,7 @@ Complementa [`contrato-v1.md`](contrato-v1.md) (contrato del MVP). Todo lo de es
 **Ya implementado en el backend** (módulos `catalog`, `requests`, `workflow`, `collaboration` y `satisfaction`; ver [`contrato-v1.md`](contrato-v1.md#solicitudes)):
 
 - Los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, `size` hasta 500 en `GET /requests`, `totalPages` en `Page` y `GET /requests/counts`.
-- En `RequestDetail`: `allowedTransitions` y `allowedActions` calculados por usuario, `comments`, `evidences`, `solution` y `rating`.
+- En `RequestDetail`: `allowedTransitions` y `allowedActions` calculados por usuario, `comments`, `evidences`, `solution`, `rating` y `autoCloseAt`.
 - `HistoryEntry.note`, `ClosureReason.AUTOMATICA` (con el proceso de [cierre automático](#cierre-automático)), `TransitionBody.closureReason` y `activeRequests` en `GET /users/technicians`.
 - `PATCH /requests/{code}/priority` y `POST /requests/{code}/rating`.
 
@@ -20,7 +20,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 | Tipo | Campos nuevos | Para qué |
 |---|---|---|
 | `RequestSummary` | `description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName` | Mostrar y buscar en las bandejas sin pedir el detalle de cada solicitud |
-| `RequestDetail` | `allowedActions`, `comments`, `evidences`, `solution`, `rating` | Botones de flujo, pestañas del detalle y tarjeta de satisfacción |
+| `RequestDetail` | `allowedActions`, `comments`, `evidences`, `solution`, `rating`, `autoCloseAt` | Botones de flujo, pestañas del detalle, tarjeta de satisfacción y plazo de confirmación |
 | `HistoryEntry` | `note?` | Entradas que no cambian de estado (p. ej. `Prioridad Alta → Prioridad Media`) |
 | `ClosureReason` | `AUTOMATICA` | Cierre automático a las 72 h |
 | `TransitionBody` | `closureReason?: 'NO_PROCEDE' \| 'DUPLICADA'` | Distinguir los dos cierres sin resolver; el texto libre va en `reason` |
@@ -91,6 +91,7 @@ Lo ejecuta el backend (módulo `workflow`); no hay endpoint ni acción de usuari
 
 - **Qué cierra:** las solicitudes en `RESUELTA` cuyo solicitante no confirmó ni rechazó la solución durante al menos `autoCloseHours` horas (configuración del administrador, `72` por defecto; se lee en cada ejecución). El plazo se cuenta desde la **última entrada a `RESUELTA`** registrada en el historial, no desde la creación: si el solicitante rechaza y el técnico vuelve a resolver, el plazo empieza de nuevo. Los cambios que no cambian de estado (p. ej. prioridad) no lo reinician.
 - **Resultado:** `status = CERRADA`, `closureReason = AUTOMATICA`; se conservan el técnico y `solution`. Se agrega una entrada de historial `RESUELTA → CERRADA` sin actor (`request_history.actor_id = NULL`, migración `V20261026_0400`) que las lecturas muestran con `actorName = "Sistema"` (detalle y auditoría) y `reason = "Cierre automático: el solicitante no confirmó la solución en <N> h"`.
+- **Plazo visible:** mientras la solicitud está en `RESUELTA`, `RequestDetail.autoCloseAt` informa la fecha a partir de la cual se cerrará (última entrada a `RESUELTA` + `autoCloseHours` vigente; `null` en cualquier otro estado). Así el solicitante, que no puede leer `/admin/config`, ve su plazo real; si el administrador cambia `autoCloseHours`, el valor cambia en la siguiente lectura.
 - **Calificación:** una solicitud cerrada automáticamente no se puede calificar (`POST /requests/{code}/rating` responde `409`); solo se califica tras `CONFIRMADA`.
 - **Notificaciones:** se publica el mismo evento de cambio de estado que en las transiciones de usuario. Como no hay actor, no se excluye a nadie: reciben la notificación el solicitante, el técnico asignado y los supervisores activos del área, con el texto `"La solicitud <código> se cerró automáticamente porque la solución no se confirmó a tiempo."` (ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones)).
 - **Concurrencia e idempotencia:** cada solicitud se cierra en su propia transacción, con la fila bloqueada y volviendo a comprobar el estado y el plazo. Si el solicitante confirma o rechaza al mismo tiempo, o si otra instancia del backend ya la cerró, no se hace nada. Un error en una solicitud no detiene a las demás; se reintenta en la siguiente ejecución.

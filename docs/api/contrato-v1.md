@@ -257,7 +257,8 @@ RequestDetail  = RequestSummary & { requester: { id, fullName }, area: { id, nam
                   allowedTransitions: RequestStatus[], allowedActions: WorkflowAction[],
                   comments: [{ id, authorName, text, createdAt }],
                   evidences: [{ id, fileName, kind: 'IMG' | 'PDF', sizeBytes }],
-                  solution: string | null, rating: { score, comment: string | null } | null }
+                  solution: string | null, rating: { score, comment: string | null } | null,
+                  autoCloseAt: string | null }
 ClosureReason  = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
 WorkflowAction = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
 Page<T>        = { items: T[], page, size, total, totalPages }
@@ -273,6 +274,7 @@ Otros campos del detalle:
 - `solution`: comentario de solución del técnico; se guarda al pasar a `RESUELTA`, se conserva al cerrar y se borra si el solicitante la rechaza.
 - `history[].note`: solo en cambios que no cambian de estado; el cambio de prioridad registra `Prioridad Alta → Prioridad Media` y en `reason` el nuevo vencimiento (hora de Lima). El nuevo `dueAt` es la fecha de registro más las horas del SLA de la nueva prioridad.
 - `comments` y `evidences`: los mismos datos que `GET /requests/{code}/comments` y `GET /requests/{code}/evidences`.
+- `autoCloseAt`: solo cuando `status = RESUELTA` (en otro caso `null`). Fecha ISO-8601 (UTC) a partir de la cual el backend puede cerrar automáticamente la solicitud: última entrada a `RESUELTA` + `autoCloseHours` vigente. Lo ve cualquier usuario que vea la solicitud, así el solicitante conoce su plazo sin leer `/admin/config`. El cierre ocurre en la siguiente ejecución del proceso posterior a esa hora.
 - `rating`: `null` hasta que el solicitante califica. Calificar no cambia el estado; la solicitud ya se cerró con la transición `RESUELTA → CERRADA`.
 - `closureReason = 'AUTOMATICA'`: cierre automático por falta de confirmación. El backend cierra las solicitudes que permanecen en `RESUELTA` al menos `autoCloseHours` horas (configuración del administrador, `72` por defecto) contadas desde la última entrada a `RESUELTA` según el historial. La entrada de historial la registra el sistema: `actorName` es `Sistema` y `reason` es `Cierre automático: el solicitante no confirmó la solución en <N> h`. Una solicitud cerrada así no se puede calificar (`409`). Detalles en [`ui-extensions.md`](ui-extensions.md#cierre-automático).
 - `history[].actorName`: nombre del usuario que hizo el cambio, o `Sistema` cuando lo hizo el backend (cierre automático). Lo mismo aplica a `AuditEvent.actorName`.
