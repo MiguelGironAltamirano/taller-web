@@ -116,4 +116,13 @@ code=$(curl -s -o "$WORK_DIR/requests.json" -w '%{http_code}' -H "Authorization:
 grep -q '"code":"SOL-' "$WORK_DIR/requests.json" || fail "no demo requests (db/seed-demo not applied?)"
 echo "    demo requests OK"
 
+step "GET /api/v1/notifications requires a session and lists the notifications of $DEMO_EMAIL"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/notifications")
+[[ "$code" == "401" ]] || fail "notifications without a token answered $code (expected 401)"
+code=$(curl -s -o "$WORK_DIR/notifications.json" -w '%{http_code}' -H "Authorization: Bearer $token" \
+  "$BASE_URL/api/v1/notifications")
+[[ "$code" == "200" ]] || fail "notifications answered $code: $(cat "$WORK_DIR/notifications.json")"
+grep -q '"requestCode":"SOL-' "$WORK_DIR/notifications.json" || fail "no demo notifications: $(head -c 300 "$WORK_DIR/notifications.json")"
+echo "    notifications OK"
+
 step "Smoke test passed"
