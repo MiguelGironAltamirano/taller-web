@@ -21,7 +21,7 @@ Cookie `refresh_token`: `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; M
 | Método y ruta | Acceso | Respuesta |
 |---|---|---|
 | `GET /catalogs` | Token | `200` `Catalogs` |
-| `GET /users/technicians?areaId={id}` | Rol `SUPERVISOR` | `200` `[ { id, fullName } ]` técnicos activos del área |
+| `GET /users/technicians?areaId={id}` | Rol `SUPERVISOR` (solo su área) | `200` `[ { id, fullName, activeRequests } ]` técnicos activos del área; `activeRequests` cuenta sus solicitudes `ASIGNADA` y `EN_ATENCION` |
 
 ## Solicitudes
 
@@ -30,7 +30,9 @@ Cookie `refresh_token`: `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; M
 | `POST /requests` | Rol `SOLICITANTE` | `{ categoryId, locationId, description, priorityId }` | `201` `RequestDetail` · `400` |
 | `GET /requests?status=&page=0&size=20` | Token | — | `200` `Page<RequestSummary>` filtrado por rol |
 | `GET /requests/{code}` | Token, con visibilidad | — | `200` `RequestDetail` · `404` si no existe o no es visible |
-| `POST /requests/{code}/transitions` | Token, según la tabla de transiciones | `{ to, reason?, technicianId? }` | `200` `RequestDetail` · `400` falta un dato obligatorio · `403` rol no autorizado · `409` transición inválida |
+| `POST /requests/{code}/transitions` | Token, según la tabla de transiciones | `{ to, reason?, technicianId?, closureReason? }` | `200` `RequestDetail` · `400` falta un dato obligatorio · `403` rol no autorizado · `409` transición inválida |
+| `PATCH /requests/{code}/priority` | Rol `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `400` prioridad inexistente o igual a la actual · `403` · `404` · `409` si está `RESUELTA` o `CERRADA` |
+| `POST /requests/{code}/rating` | Rol `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con `rating` · `400` · `403` · `404` · `409` si no está `CERRADA` por confirmación o ya fue calificada |
 
 Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNICO` las asignadas a él; `ADMINISTRADOR` todas.
 
@@ -190,12 +192,28 @@ StateInfo     = { order, status: RequestStatus, description }
 TokenResponse = { accessToken, expiresIn, user: UserSummary }
 Catalogs      = { areas: [{ id, name }], categories: [{ id, name, areaId }],
                   priorities: [{ id, name, slaHours }], locations: [{ id, name, kind, parentId }] }
-RequestSummary = { code, categoryName, locationName, priorityName, status, createdAt, dueAt, overdue }
-RequestDetail  = RequestSummary & { description, requester: { id, fullName }, area: { id, name },
-                  technician: { id, fullName } | null, closureReason: string | null,
-                  history: [{ fromStatus, toStatus, actorName, reason, createdAt }],
-                  allowedTransitions: RequestStatus[] }
+RequestSummary = { code, categoryName, locationName, priorityName, status, createdAt, dueAt, overdue,
+                  description, requesterName, areaName, technicianName, facultyName, pavilionName, roomName }
+RequestDetail  = RequestSummary & { requester: { id, fullName }, area: { id, name },
+                  technician: { id, fullName } | null, closureReason: ClosureReason | null,
+                  history: [{ fromStatus, toStatus, actorName, reason, createdAt, note: string | null }],
+                  allowedTransitions: RequestStatus[], allowedActions: WorkflowAction[],
+                  comments: [{ id, authorName, text, createdAt }],
+                  evidences: [{ id, fileName, kind: 'IMG' | 'PDF', sizeBytes }],
+                  solution: string | null, rating: { score, comment: string | null } | null }
+ClosureReason  = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
+WorkflowAction = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
 Page<T>        = { items: T[], page, size, total }
 ```
 
 `allowedTransitions` lo calcula el servidor para el usuario que consulta; el frontend solo muestra botones para esos estados.
+
+`allowedActions` también lo calcula el servidor: son las acciones de interfaz detrás de las transiciones que el usuario puede ejecutar (`noproc` y `dup` para el cierre sin resolver) más `prio`, que se ofrece al supervisor del área mientras la solicitud no esté `RESUELTA` ni `CERRADA`. La respuesta del solicitante a una solución (confirmar o rechazar) se lee de `allowedTransitions`.
+
+Otros campos del detalle:
+
+- `solution`: comentario de solución del técnico; se guarda al pasar a `RESUELTA`, se conserva al cerrar y se borra si el solicitante la rechaza.
+- `history[].note`: solo en cambios que no cambian de estado; el cambio de prioridad registra `Prioridad Alta → Prioridad Media` y en `reason` el nuevo vencimiento (hora de Lima). El nuevo `dueAt` es la fecha de registro más las horas del SLA de la nueva prioridad.
+- `comments` y `evidences`: los mismos datos que `GET /requests/{code}/comments` y `GET /requests/{code}/evidences`.
+- `rating`: `null` hasta que el solicitante califica. Calificar no cambia el estado; la solicitud ya se cerró con la transición `RESUELTA → CERRADA`.
+- `closureReason = 'AUTOMATICA'`: reservado para el cierre automático por falta de confirmación (el proceso que lo aplica aún no existe).

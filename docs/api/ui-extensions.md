@@ -4,7 +4,14 @@ Complementa [`contrato-v1.md`](contrato-v1.md) (contrato del MVP). Todo lo de es
 
 > **Nota (2026-10-17):** el contrato completo de comentarios, evidencias, notificaciones y cambio de contraseña (módulo AngelCarrasco) está en [`collaboration-notifications-v1.md`](collaboration-notifications-v1.md). Los endpoints correspondientes en la tabla de abajo ya están acordados; se reproduce aquí solo para referencia cruzada.
 
-**Ya implementado en el backend** (módulos `catalog` y `requests`): los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, y `size` hasta 500 en `GET /requests` (el frontend pide la lista completa). `allowedTransitions` existe pero es siempre `[]` hasta que el módulo de workflow lo calcule. **Todo lo demás de este documento sigue sin existir en el backend.**
+**Ya implementado en el backend** (módulos `catalog`, `requests`, `workflow`, `collaboration` y `satisfaction`; ver [`contrato-v1.md`](contrato-v1.md#solicitudes)):
+
+- Los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, y `size` hasta 500 en `GET /requests`.
+- En `RequestDetail`: `allowedTransitions` y `allowedActions` calculados por usuario, `comments`, `evidences`, `solution` y `rating`.
+- `HistoryEntry.note`, `ClosureReason.AUTOMATICA` (valor y persistencia; el cierre automático en sí sigue pendiente), `TransitionBody.closureReason` y `activeRequests` en `GET /users/technicians`.
+- `PATCH /requests/{code}/priority` y `POST /requests/{code}/rating`.
+
+`CreateRequestBody.evidences` no se implementa: los adjuntos se suben con `POST /requests/{code}/evidences` después de crear la solicitud.
 
 Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `application/problem+json` con `errors: { campo: mensaje }`, `404` cuando el recurso no es visible).
 
@@ -26,9 +33,9 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
-| `PATCH /requests/{code}/priority` | `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `409` si ya está resuelta o cerrada |
+| `PATCH /requests/{code}/priority` | `SUPERVISOR` del área | `{ priorityId }` | **Implementado.** `200` `RequestDetail` con `dueAt` recalculado · `409` si ya está resuelta o cerrada · `400` si la prioridad no existe o es la actual |
 | `POST /requests/{code}/comments` | Token, con visibilidad | `{ text }` (1–1000) | `201` `CommentDto` (el comentario creado); el frontend recarga la lista con `GET /comments`. Notifica a la otra parte. Ver [`collaboration-notifications-v1.md §3`](collaboration-notifications-v1.md#3-comentarios) |
-| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con la calificación (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6) · `409` si no está `CERRADA` por confirmación o ya fue calificada |
+| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con la calificación (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6) · `409` si no está `CERRADA` por confirmación o ya fue calificada. **Implementado** (comentario opcional, máx. 500 caracteres) |
 | `PUT /auth/password` | Token | `{ currentPassword, newPassword }` | `204` · `400` con `errors` |
 | `GET /notifications` | Token | — | `200` `[ { id, text, createdAt, read, requestCode } ]` |
 | `PATCH /notifications/{id}/read` | Token | — | `204` |
@@ -63,7 +70,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 - ~~Subida y descarga real de evidencias~~ **Resuelto:** ver [`collaboration-notifications-v1.md §4`](collaboration-notifications-v1.md#4-evidencias). Subida multipart `POST /requests/{code}/evidences`; descarga autenticada `GET /requests/{code}/evidences/{id}`.
 - ~~Cambio de contraseña~~ **Resuelto:** ver [`collaboration-notifications-v1.md §2`](collaboration-notifications-v1.md#2-cambio-de-contraseña).
 - ~~Notificaciones~~ **Resuelto:** ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones).
-- Cierre automático a las 72 h y marca `AUTOMATICA` (lo ejecuta el backend, módulo Lita). El mecanismo de notificación para este evento está previsto en el puerto `NotificationService`; ver `collaboration-notifications-v1.md §5`.
+- Cierre automático a las 72 h (lo ejecuta el backend, módulo Lita). El valor `AUTOMATICA` ya existe y se persiste; falta el proceso que cierra. El mecanismo de notificación para este evento está previsto en el puerto `NotificationService`; ver `collaboration-notifications-v1.md §5`.
 - Filtros avanzados y paginación del listado en el servidor: hoy el front pide hasta 500 solicitudes y filtra en el cliente.
 - Exportación a PDF de reportes y dashboard.
 
@@ -72,4 +79,4 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 - Orden de validación: `409` (transición fuera de la tabla del spec §6) → `403` (el usuario no puede ejecutarla) → `400` (datos faltantes o inválidos).
 - `closureReason` (`NO_PROCEDE` | `DUPLICADA`) distingue el cierre sin resolver; también se acepta el valor en `reason` al estilo del contrato original.
 - `GET /users/technicians?areaId=` (solo supervisor, de su propia área) devuelve además `activeRequests` (asignadas + en atención).
-- El detalle expone `allowedTransitions` calculadas por usuario; el frontend deriva los botones (`allowedActions`) a partir de ellas.
+- El detalle expone `allowedTransitions` y `allowedActions` calculadas por usuario; el frontend usa `allowedActions` para los botones y solo las deriva de `allowedTransitions` si una respuesta no las trae.
