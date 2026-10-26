@@ -54,8 +54,8 @@ export type HistoryEntry = {
   actorName: string
   reason: string | null
   createdAt: string
-  /** EXTENSIÓN: texto libre para entradas que no cambian de estado (reasignación, prioridad). */
-  note?: string
+  /** EXTENSIÓN: describe los cambios que no cambian de estado (p. ej. prioridad); `null` en los cambios de estado. */
+  note?: string | null
 }
 
 export type WorkflowActionId = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
@@ -71,7 +71,8 @@ export type RequestDetail = RequestSummary & {
   closureReason: ClosureReason | null
   history: HistoryEntry[]
   allowedTransitions: RequestStatus[]
-  // EXTENSIÓN de otros módulos (workflow, collaboration, satisfaction): opcionales hasta que existan en el backend.
+  // EXTENSIÓN (workflow, collaboration, satisfaction): el backend ya las envía siempre; siguen opcionales para
+  // tolerar respuestas antiguas. `rating` es `null` hasta que el solicitante califica.
   allowedActions?: WorkflowActionId[]
   comments?: CommentDto[]
   evidences?: EvidenceDto[]

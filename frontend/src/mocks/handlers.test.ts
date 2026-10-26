@@ -246,6 +246,9 @@ describe('flujo de estados', () => {
     const changed = await apiPatch<RequestDetail>(`/requests/${code}/priority`, { priorityId: critical.id })
     expect((Date.parse(changed.dueAt) - Date.parse(changed.createdAt)) / 3_600_000).toBe(8)
     expect(changed.priorityName).toBe('Crítica')
+    expect(changed.history.at(-1)?.note).toBe('Prioridad Alta → Prioridad Crítica')
+    // Elegir la misma prioridad no es un cambio (igual que el backend).
+    expect(await status(apiPatch(`/requests/${code}/priority`, { priorityId: critical.id }))).toBe(400)
   })
 
   it('el solicitante puede rechazar una solución y vuelve a En atención', async () => {
@@ -256,6 +259,7 @@ describe('flujo de estados', () => {
     expect(await status(transition(resolved.code, { to: 'EN_ATENCION', reason: 'corto' }))).toBe(400)
     const back = await transition(resolved.code, { to: 'EN_ATENCION', reason: 'Sigue la fuga en el techo' })
     expect(back.status).toBe('EN_ATENCION')
+    expect(back.solution).toBeNull()
   })
 
   it('genera notificaciones al cambiar de estado', async () => {

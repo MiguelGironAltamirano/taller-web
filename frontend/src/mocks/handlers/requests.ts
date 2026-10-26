@@ -205,6 +205,8 @@ export const requestHandlers = [
           break
         case 'reject':
           r.status = 'EN_ATENCION'
+          // Como en el backend: la solución rechazada deja de ser la propuesta.
+          r.solution = null
           pushHistory(r, { from, to: r.status, actor, reason: `Solución rechazada: ${reason}` })
           if (r.technicianId) notify([r.technicianId], `La solución de ${code} fue rechazada por el solicitante.`, code)
           toRequester(`Tu solicitud ${code} volvió a En atención por rechazo de la solución.`)
@@ -232,9 +234,13 @@ export const requestHandlers = [
       const r = findByCode(String(params.code))
       if (!r || !inScope(r, user)) return notFound()
       const body = (await request.json()) as ChangePriorityBody
+      // Mismo orden que el backend: 409 (resuelta o cerrada) antes que 400 (prioridad inválida o sin cambio).
+      if (r.status === 'RESUELTA' || r.status === 'CERRADA') return problem(409, 'Transición inválida', 'La solicitud ya no admite cambios.')
       const priority = db.priorities.find((p) => p.id === body.priorityId)
       if (!priority) return problem(400, 'Datos no válidos', 'Prioridad inexistente.', { priorityId: 'Selecciona una prioridad.' })
-      if (r.status === 'RESUELTA' || r.status === 'CERRADA') return problem(409, 'Transición inválida', 'La solicitud ya no admite cambios.')
+      if (priority.id === r.priorityId) {
+        return problem(400, 'Datos no válidos', 'La prioridad no cambió.', { priorityId: 'Elige una prioridad distinta de la actual' })
+      }
       const previous = db.priorities.find((p) => p.id === r.priorityId)!
       r.priorityId = priority.id
       r.dueAt = computeDueAt(r.createdAt, priority.slaHours)
@@ -309,6 +315,9 @@ export const requestHandlers = [
       const body = (await request.json()) as RateBody
       if (!Number.isInteger(body.score) || body.score < 1 || body.score > 5) {
         return problem(400, 'Datos no válidos', 'La calificación debe ser de 1 a 5.', { score: 'Califica de 1 a 5 estrellas.' })
+      }
+      if ((body.comment?.trim().length ?? 0) > 500) {
+        return problem(400, 'Datos no válidos', 'El comentario es demasiado largo.', { comment: 'El comentario no puede superar los 500 caracteres' })
       }
       r.rating = { score: body.score, comment: body.comment?.trim() || null }
       return HttpResponse.json(detailOf(r, user))
