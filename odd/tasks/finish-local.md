@@ -29,7 +29,7 @@ El frontend ya consume endpoints que el backend no implementa (triage, dashboard
 
 Ola 1 (en paralelo, un worktree por paquete):
 
-- [ ] FL1 — triage: `POST /triage/suggestions`, CRUD `/admin/triage-rules` — ruta: delegada (worktree `wt-triage`)
+- [x] FL1 — triage: `POST /triage/suggestions`, CRUD `/admin/triage-rules` — ruta: delegada (worktree `wt-triage`). Integrada en `e159b46` (commits `8540473`..`7acc18c`; conflicto en `ui-extensions.md` resuelto a mano). Evidencia en su rama: `./mvnw verify` 398/398, frontend 179/179. Pendiente trasladado: FL6 conecta `triageSuggestions` y FL8 agrega reglas demo.
 - [ ] FL2 — requests-ext: calificación, cambio de prioridad, campos extra de `RequestDetail` y `RequestSummary`, `activeRequests` de técnicos — ruta: delegada (`wt-requests-ext`)
 - [x] FL3 — admin-ops: `GET /admin/audit`, `GET/PUT /admin/config` y puerto de configuración del sistema — ruta: delegada (`wt-admin-ops`). Integrada en `a4f0e63` (commits `4a3d297`, `52336ab`, `5f628a9`). Evidencia en su rama: `./mvnw verify` 391/391, frontend 175/175, lint, typecheck y build OK. Puerto de lectura: `shared.application.SystemSettingsProvider#current()` (fila única tipada `system_settings`); historial vía `requests.application.RequestHistoryQuery`.
 - [ ] FL4 — dashboard: `GET /dashboard/indicators`, `GET /dashboard/team` sobre el puerto `RequestAnalyticsQuery` — ruta: delegada (`wt-dashboard`)
@@ -37,7 +37,7 @@ Ola 1 (en paralelo, un worktree por paquete):
 
 Ola 2 (tras integrar la ola 1):
 
-- [ ] FL6 — cierre automático a las 72 h (`AUTOMATICA`, lee `autoCloseHours`, notifica)
+- [ ] FL6 — cierre automático a las 72 h (`AUTOMATICA`, lee `autoCloseHours`, notifica) y `SuggestTriage` respeta `triageSuggestions` vía `SystemSettingsProvider`
 - [ ] FL7 — filtros avanzados y paginación del listado en el servidor
 - [ ] FL8 — datos demo `seed-dev` para todas las tablas
 
