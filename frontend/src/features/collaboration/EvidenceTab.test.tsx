@@ -30,6 +30,7 @@ const mockRequest: RequestDetailView = {
   evidences: [],
   solution: null,
   rating: null,
+  autoCloseAt: null,
   allowedActions: [],
 }
 

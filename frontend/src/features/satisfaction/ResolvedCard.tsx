@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ApiError } from '../../shared/api/client'
 import type { RequestDetailView } from '../../shared/domain'
+import { dateLong } from '../../shared/lib/format'
 import { Alert, Button, Modal, ModalActions, StarRating, Textarea, useToast } from '../../shared/ui'
 import { useConfirmSolution, useRejectSolution } from './api'
 
@@ -8,8 +9,8 @@ const REJECT_MIN = 10
 
 /**
  * Tarjeta "¿Quedó resuelto?" para el solicitante dueño de una solicitud Resuelta.
- * Confirmar cierra la solicitud; la calificación de 1 a 5 es opcional (spec §6). Si no responde en 72 h se cierra
- * sola, sin calificación.
+ * Confirmar cierra la solicitud; la calificación de 1 a 5 es opcional (spec §6). Si no responde antes de
+ * `autoCloseAt` (plazo que configura el administrador y calcula el backend) se cierra sola, sin calificación.
  */
 export function ResolvedCard({ request }: { request: RequestDetailView }) {
   const toast = useToast()
@@ -72,7 +73,11 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
           Rechazar solución
         </Button>
       </div>
-      <div className="text-xs text-muted">Si no respondes en 72 horas, la solicitud se cerrará automáticamente.</div>
+      <div className="text-xs text-muted">
+        {request.autoCloseAt
+          ? `Si no respondes antes del ${dateLong(request.autoCloseAt)}, la solicitud se cerrará automáticamente.`
+          : 'Si no respondes, la solicitud se cerrará automáticamente.'}
+      </div>
 
       <Modal open={rejecting} onClose={() => setRejecting(false)} title="Rechazar solución" onSubmit={submitReject} width="min(440px,92%)">
         <div className="text-muted">La solicitud volverá a En atención. Indica qué falta resolver.</div>
