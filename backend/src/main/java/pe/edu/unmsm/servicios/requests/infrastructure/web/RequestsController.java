@@ -1,6 +1,7 @@
 package pe.edu.unmsm.servicios.requests.infrastructure.web;
 
 import java.net.URI;
+import java.util.List;
 
 import jakarta.validation.Valid;
 
@@ -21,9 +22,10 @@ import pe.edu.unmsm.servicios.requests.application.ChangePriority;
 import pe.edu.unmsm.servicios.requests.application.CreateRequest;
 import pe.edu.unmsm.servicios.requests.application.GetRequest;
 import pe.edu.unmsm.servicios.requests.application.ListRequests;
-import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
+import pe.edu.unmsm.servicios.requests.application.RequestListCriteria;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.ChangePriorityBody;
+import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.CountsResponse;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.CreateRequestBody;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.DetailResponse;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.PageResponse;
@@ -58,11 +60,28 @@ class RequestsController {
 		return ResponseEntity.created(URI.create("/api/v1/requests/" + created.code())).body(detail);
 	}
 
+	/**
+	 * Filtered, ordered and paged inbox. Parameters arrive as text and are validated together by
+	 * {@link RequestListCriteria#parse}, so every invalid one is reported in a single 400.
+	 */
 	@GetMapping
-	PageResponse list(@RequestParam(required = false) RequestStatus status,
-			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+	PageResponse list(@RequestParam(required = false) List<String> status,
+			@RequestParam(required = false) String areaId, @RequestParam(required = false) String categoryId,
+			@RequestParam(required = false) String priorityId, @RequestParam(required = false) String technicianId,
+			@RequestParam(required = false) String unassigned, @RequestParam(required = false) String overdue,
+			@RequestParam(required = false) String q, @RequestParam(required = false) String from,
+			@RequestParam(required = false) String to, @RequestParam(required = false) String sort,
+			@RequestParam(required = false) String page, @RequestParam(required = false) String size,
 			@AuthenticationPrincipal Jwt jwt) {
-		return PageResponse.from(listRequests.execute(CurrentUser.from(jwt), status, page, size));
+		RequestListCriteria criteria = RequestListCriteria.parse(new RequestListCriteria.Params(status, areaId,
+				categoryId, priorityId, technicianId, unassigned, overdue, q, from, to, sort, page, size));
+		return PageResponse.from(listRequests.execute(CurrentUser.from(jwt), criteria));
+	}
+
+	/** Counters of the inbox over everything the user can see (see docs/api/ui-extensions.md). */
+	@GetMapping("/counts")
+	CountsResponse counts(@AuthenticationPrincipal Jwt jwt) {
+		return CountsResponse.from(listRequests.counts(CurrentUser.from(jwt)));
 	}
 
 	@GetMapping("/{code}")
