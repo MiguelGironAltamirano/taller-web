@@ -43,7 +43,7 @@ Ola 2 (tras integrar la ola 1):
 
 Ola 3:
 
-- [ ] FL9a — correcciones de integración: notificaciones con JWT real, alineación de datos demo con el cierre automático (actor nulo), `autoCloseAt` en `RequestDetail` en lugar de "72 horas" fijo — ruta: delegada (`wt-fixes`)
+- [x] FL9a — correcciones de integración: notificaciones con JWT real, datos demo alineados con el cierre automático (actor nulo), `autoCloseAt` en `RequestDetail` en lugar de "72 horas" fijo — ruta: delegada (`wt-fixes`). Integrada en `7122479` (commits `b43bb11`, `368a4d5`, `d460eae`, `ce5fb2f`). Evidencia en su rama: `./mvnw verify` 574/574, frontend 198/198, flujo completo por curl a través de nginx OK, `infra/smoke.sh` OK. FL9 lanzada en `wt-e2e`.
 - [ ] FL9 — pruebas de punta a punta con Playwright contra el stack de Compose sin mocks, accesibilidad con axe
 - [ ] FL10 — guía de levantamiento y documentos de contrato actualizados; verificación final
 
