@@ -37,7 +37,7 @@ Ola 1 (en paralelo, un worktree por paquete):
 
 Ola 2 (tras integrar la ola 1):
 
-- [ ] FL6 — cierre automático a las 72 h (`AUTOMATICA`, lee `autoCloseHours`, notifica) y `SuggestTriage` respeta `triageSuggestions` vía `SystemSettingsProvider`
+- [x] FL6 — cierre automático a las 72 h (`AUTOMATICA`, lee `autoCloseHours`, notifica) y `SuggestTriage` respeta `triageSuggestions` vía `SystemSettingsProvider` — ruta: delegada (`wt-autoclose`). Integrada en `a6099f1` (commits `0599526`..`6750a05`, sin conflictos). Evidencia en su rama: `./mvnw verify` 539/539. El cierre lo registra el sistema con `actor_id` nulo (`V20261026_0400`), mostrado como `Sistema`. Pendiente: `ResolvedCard.tsx` muestra "72 horas" fijo porque el solicitante no puede leer `/admin/config`.
 - [ ] FL7 — filtros avanzados y paginación del listado en el servidor
 - [ ] FL8 — datos demo `seed-dev` para todas las tablas
 
