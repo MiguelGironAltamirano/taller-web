@@ -12,6 +12,13 @@ class NotificationTextTest {
 	}
 
 	@Test
+	void formatAutomaticClosureText() {
+		String text = NotificationText.forAutomaticClosure("SOL-2026-000001");
+		assertThat(text).isEqualTo(
+				"La solicitud SOL-2026-000001 se cerró automáticamente porque la solución no se confirmó a tiempo.");
+	}
+
+	@Test
 	void formatAssignmentText() {
 		String text = NotificationText.forAssignment("SOL-2026-000001");
 		assertThat(text).isEqualTo("Se te asignó la solicitud SOL-2026-000001.");

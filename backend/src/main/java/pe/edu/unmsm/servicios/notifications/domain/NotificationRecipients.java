@@ -10,7 +10,8 @@ public final class NotificationRecipients {
 	private NotificationRecipients() {
 	}
 
-	public static List<Long> forTransition(long requesterId, Long technicianId, List<Long> areaSupervisorIds, long actorId) {
+	/** Everybody involved except the actor; a change made by the system ({@code actorId} null) excludes nobody. */
+	public static List<Long> forTransition(long requesterId, Long technicianId, List<Long> areaSupervisorIds, Long actorId) {
 		Set<Long> recipients = new LinkedHashSet<>();
 		recipients.add(requesterId);
 		if (technicianId != null) {
@@ -23,7 +24,7 @@ public final class NotificationRecipients {
 		return new ArrayList<>(recipients);
 	}
 
-	public static List<Long> forAssignment(long newTechnicianId, long actorId) {
+	public static List<Long> forAssignment(long newTechnicianId, Long actorId) {
 		Set<Long> recipients = new LinkedHashSet<>();
 		recipients.add(newTechnicianId);
 		recipients.remove(actorId);
