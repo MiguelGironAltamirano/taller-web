@@ -62,7 +62,7 @@ public class CloseUnconfirmedRequest {
 		RequestHistoryEntry entry = new RequestHistoryEntry(request.status(), outcome.to(), null,
 				outcome.historyTechnicianId(), outcome.reason(), now);
 		ServiceRequest result = requests.update(updated, entry);
-		eventPublisher.publishEvent(TransitionEvents.of(result, null));
+		eventPublisher.publishEvent(TransitionEvents.of(request.status(), result, null));
 		return Optional.of(result);
 	}
 

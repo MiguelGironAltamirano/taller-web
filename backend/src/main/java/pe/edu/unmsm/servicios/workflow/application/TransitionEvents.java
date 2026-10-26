@@ -10,10 +10,11 @@ final class TransitionEvents {
 	private TransitionEvents() {
 	}
 
-	/** {@code actorId} is null when the system made the change. */
-	static RequestTransitionedEvent of(ServiceRequest result, Long actorId) {
+	/** {@code from} is the status before the change; {@code actorId} is null when the system made the change. */
+	static RequestTransitionedEvent of(RequestStatus from, ServiceRequest result, Long actorId) {
 		return new RequestTransitionedEvent(result.code(), result.id(), result.requesterId(), result.areaId(),
-				result.technicianId(), actorId, result.status().name(), result.status() == RequestStatus.ASIGNADA);
+				result.technicianId(), actorId, from.name(), result.status().name(),
+				result.status() == RequestStatus.ASIGNADA);
 	}
 
 }

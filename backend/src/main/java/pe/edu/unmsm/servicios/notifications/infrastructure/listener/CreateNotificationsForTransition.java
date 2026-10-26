@@ -38,9 +38,11 @@ public class CreateNotificationsForTransition {
 
 			boolean assignment = event.isAssignment() && event.technicianId() != null;
 			if (assignment) {
-				// Notificación específica de asignación al técnico
+				// Notificación específica de asignación (o reasignación) al técnico
 				List<Long> assignmentRecipients = NotificationRecipients.forAssignment(event.technicianId(), event.actorId());
-				String assignmentText = NotificationText.forAssignment(event.code());
+				String assignmentText = event.isReassignment()
+						? NotificationText.forReassignment(event.code())
+						: NotificationText.forAssignment(event.code());
 				notificationService.notify(assignmentRecipients, assignmentText, event.requestId());
 			}
 

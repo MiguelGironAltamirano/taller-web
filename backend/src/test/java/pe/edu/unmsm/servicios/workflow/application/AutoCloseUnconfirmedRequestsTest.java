@@ -120,6 +120,7 @@ class AutoCloseUnconfirmedRequestsTest {
 			assertThat(event.code()).isEqualTo("SOL-2026-000001");
 			assertThat(event.requesterId()).isEqualTo(4);
 			assertThat(event.technicianId()).isEqualTo(3L);
+			assertThat(event.fromStatus()).isEqualTo("RESUELTA");
 			assertThat(event.toStatus()).isEqualTo("CERRADA");
 			assertThat(event.bySystem()).isTrue();
 			assertThat(event.isAssignment()).isFalse();

@@ -30,7 +30,9 @@ class NotificationsApiTests {
 	private static final String STUDENT = "estudiante@unmsm.edu.pe"; // id 4
 	private static final String SUPERVISOR = "supervisor.mantenimiento@unmsm.edu.pe"; // id 2, area 1
 	private static final String TECHNICIAN = "tecnico.mantenimiento@unmsm.edu.pe"; // id 3, area 1
+	private static final String SECOND_TECHNICIAN = "segundo.tecnico@unmsm.edu.pe"; // area 1, inserted by the test
 	private static final String VALID = "El tomacorriente del aula no funciona desde ayer";
+	private static final String DEMO_HASH = "$2b$10$hOCLn2iSSfARxF.PH/fQoeUJGY3u2dOY7aug6hnxrdiqia2rKKXvy";
 
 	@LocalServerPort
 	private int port;
@@ -103,6 +105,36 @@ class NotificationsApiTests {
 		HttpResponse<String> student = list(api.login(STUDENT));
 		assertThat(ApiClient.<List<String>>read(student, "$[*].text")).containsExactly(
 				"La solicitud " + code + " pasó a Asignada.", "La solicitud " + code + " pasó a En evaluación.");
+	}
+
+	@Test
+	@DisplayName("Reassignment notifies the new technician with the reassignment text")
+	void reassignmentNotifiesNewTechnicianWithReassignmentText() throws Exception {
+		long secondTechnicianId = insertSecondTechnician();
+		String code = createRequest(STUDENT);
+		transition(SUPERVISOR, code, "{\"to\":\"EN_EVALUACION\"}");
+		transition(SUPERVISOR, code, "{\"to\":\"ASIGNADA\",\"technicianId\":3}");
+		transition(SUPERVISOR, code,
+				"{\"to\":\"ASIGNADA\",\"technicianId\":" + secondTechnicianId + ",\"reason\":\"Carga de trabajo\"}");
+
+		HttpResponse<String> second = list(api.login(SECOND_TECHNICIAN));
+		assertThat(ApiClient.<List<String>>read(second, "$[*].text"))
+				.containsExactly("Se te reasignó la solicitud " + code + ".");
+
+		// The previous technician keeps only the original assignment notification.
+		HttpResponse<String> previous = list(api.login(TECHNICIAN));
+		assertThat(ApiClient.<List<String>>read(previous, "$[*].text"))
+				.containsExactly("Se te asignó la solicitud " + code + ".");
+	}
+
+	/** Inserts the second area-1 technician if missing (same data as the workflow tests) and returns its id. */
+	private long insertSecondTechnician() {
+		jdbc.update("insert ignore into users (full_name, email, password_hash, role, requester_type, area_id, "
+				+ "active, created_at) values (?, ?, ?, 'TECNICO', null, 1, true, utc_timestamp(6))",
+				"Segundo Técnico", SECOND_TECHNICIAN, DEMO_HASH);
+		jdbc.update("update users set full_name = 'Segundo Técnico', role = 'TECNICO', requester_type = null, "
+				+ "area_id = 1, active = true where email = ?", SECOND_TECHNICIAN);
+		return jdbc.queryForObject("select id from users where email = ?", Long.class, SECOND_TECHNICIAN);
 	}
 
 	@Test

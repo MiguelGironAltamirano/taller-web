@@ -59,7 +59,7 @@ public class TransitionRequest {
 				outcome.historyTechnicianId(), outcome.reason(), now);
 		ServiceRequest result = requests.update(updated, entry);
 		if (eventPublisher != null) {
-			eventPublisher.publishEvent(TransitionEvents.of(result, actor.id()));
+			eventPublisher.publishEvent(TransitionEvents.of(request.status(), result, actor.id()));
 		}
 		return result;
 	}
