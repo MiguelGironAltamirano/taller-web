@@ -30,7 +30,7 @@ El frontend ya consume endpoints que el backend no implementa (triage, dashboard
 Ola 1 (en paralelo, un worktree por paquete):
 
 - [x] FL1 — triage: `POST /triage/suggestions`, CRUD `/admin/triage-rules` — ruta: delegada (worktree `wt-triage`). Integrada en `e159b46` (commits `8540473`..`7acc18c`; conflicto en `ui-extensions.md` resuelto a mano). Evidencia en su rama: `./mvnw verify` 398/398, frontend 179/179. Pendiente trasladado: FL6 conecta `triageSuggestions` y FL8 agrega reglas demo.
-- [ ] FL2 — requests-ext: calificación, cambio de prioridad, campos extra de `RequestDetail` y `RequestSummary`, `activeRequests` de técnicos — ruta: delegada (`wt-requests-ext`)
+- [x] FL2 — requests-ext: calificación, cambio de prioridad, campos extra de `RequestDetail` y `RequestSummary`, `activeRequests` de técnicos — ruta: delegada (`wt-requests-ext`). Integrada en `baad76f` (commits `c120f95`..`4f844fe`, sin conflictos). Evidencia en su rama: `./mvnw verify` 428/428, frontend 173/173. `requests` define puertos de lectura (`AllowedActions`, `RequestCollaboration`, `RequestRatings`) que implementan los módulos dueños; `satisfaction.application.RatingQueries` para lectura de calificaciones; `ClosureReason.AUTOMATICA` listo para FL6.
 - [x] FL3 — admin-ops: `GET /admin/audit`, `GET/PUT /admin/config` y puerto de configuración del sistema — ruta: delegada (`wt-admin-ops`). Integrada en `a4f0e63` (commits `4a3d297`, `52336ab`, `5f628a9`). Evidencia en su rama: `./mvnw verify` 391/391, frontend 175/175, lint, typecheck y build OK. Puerto de lectura: `shared.application.SystemSettingsProvider#current()` (fila única tipada `system_settings`); historial vía `requests.application.RequestHistoryQuery`.
 - [x] FL4 — dashboard: `GET /dashboard/indicators`, `GET /dashboard/team` sobre el puerto `RequestAnalyticsQuery` — ruta: delegada (`wt-dashboard`). Integrada en `c307590` (commits `ed30908`..`64833cd`; conflicto de imports en `mocks/handlers/insights.ts` resuelto). Evidencia en su rama: `./mvnw verify` 426/426. Tras integrar: frontend typecheck y lint OK, 184/184 pruebas.
 - [x] FL5 — infra: healthcheck del backend, variables en Compose, prueba de humo con Compose, ejecución local de las pruebas de integración pendientes, base de Playwright — ruta: delegada (`wt-infra`). Integrada en `83db761` (commits `8ec7e6f`..`8fb991c`). Evidencia: `./mvnw verify` 377/377; `infra/smoke.sh` OK; Playwright 3/3 y axe 0 violaciones en login; frontend 173/173. Corrige el volumen de evidencias sin permisos de escritura para el usuario no root. Pendiente: ver la primera ejecución del job `smoke` en CI; nginx maestro sigue como root.
@@ -53,7 +53,7 @@ Ola 3:
 
 ## Progreso y evidencia
 
-(se completa por tarea con el commit y las verificaciones observadas)
+- Ola 1 integrada en `feature/finish-local` (2026-10-26): `./mvnw verify` 512/512 (0 fallos) y frontend lint, typecheck, build OK con 184/184 pruebas.
 
 ## Siguiente paso
 
