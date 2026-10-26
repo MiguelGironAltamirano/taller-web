@@ -329,7 +329,7 @@ export function createSeed(now: number): MockDb {
     requests,
     notifications,
     rules,
-    config: { autoCloseHours: 72, emailNotifications: true, triageSuggestions: true },
+    config: { autoCloseHours: 72, emailNotifications: false, triageSuggestions: true },
   }
 }
 
