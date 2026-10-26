@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import type { Role, SessionUser } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
 import { Avatar, Button, Icon, IconButton, useToast } from '../../shared/ui'
@@ -72,16 +72,20 @@ export function Topbar({
         </Button>
       )}
 
+      {/* Names come from content (not aria-label) so the visible badge and avatar never contradict them (WCAG 2.5.3). */}
       <button
         type="button"
-        aria-label="Notificaciones"
         aria-haspopup="dialog"
         onClick={onToggleNotifications}
         className="relative grid size-11 place-items-center rounded-lg border-0 bg-transparent text-fg hover:bg-surface2 md:size-9"
       >
         <Icon name="bell" size={20} />
+        <span className="sr-only">{unread > 0 ? `Notificaciones, ${unread} sin leer` : 'Notificaciones'}</span>
         {unread > 0 && (
-          <span className="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-on-primary">
+          <span
+            aria-hidden="true"
+            className="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-on-primary"
+          >
             {unread}
           </span>
         )}
@@ -95,17 +99,13 @@ export function Topbar({
       </IconButton>
       <button
         type="button"
-        aria-label="Menú de perfil"
         aria-haspopup="menu"
         onClick={onProfile}
         className="rounded-full border-0 bg-transparent p-0"
       >
         <Avatar name={user.name} tone="primary" />
+        <span className="sr-only">Menú de perfil</span>
       </button>
-      {/* Enlace oculto para saltar al contenido con teclado */}
-      <Link to="#main" className="sr-only focus:not-sr-only">
-        Saltar al contenido
-      </Link>
     </header>
   )
 }

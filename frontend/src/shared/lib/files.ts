@@ -2,7 +2,8 @@ export const MAX_FILES = 5
 export const MAX_FILE_BYTES = 5 * 1024 * 1024
 const ALLOWED = /\.(jpe?g|png|pdf)$/i
 
-export type PickedFile = { name: string; size: number; isPdf: boolean; previewUrl: string | null }
+/** A file chosen in the dropzone: the File itself (to upload it) plus what the list shows. */
+export type PickedFile = { file: File; name: string; size: number; isPdf: boolean; previewUrl: string | null }
 
 /**
  * Valida y agrega archivos respetando las reglas de evidencias (spec §5.1):
@@ -25,7 +26,7 @@ export function addFiles(current: PickedFile[], incoming: File[]): { files: Pick
       break
     }
     const isPdf = /\.pdf$/i.test(file.name)
-    files.push({ name: file.name, size: file.size, isPdf, previewUrl: isPdf ? null : URL.createObjectURL(file) })
+    files.push({ file, name: file.name, size: file.size, isPdf, previewUrl: isPdf ? null : URL.createObjectURL(file) })
   }
   return { files, error }
 }

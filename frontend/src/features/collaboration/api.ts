@@ -28,6 +28,22 @@ export function useUploadEvidence(code: string) {
   })
 }
 
+/**
+ * Uploads the evidences picked while registering a request, one at a time (the server checks the per-request
+ * limit in order). A failed file does not stop the rest; the number of failures is returned so the form can warn.
+ */
+export async function uploadEvidences(code: string, files: File[]): Promise<number> {
+  let failed = 0
+  for (const file of files) {
+    try {
+      await apiUploadFile<EvidenceDto>(`/requests/${code}/evidences`, file)
+    } catch {
+      failed += 1
+    }
+  }
+  return failed
+}
+
 export function useAddComment(code: string) {
   const client = useQueryClient()
   return useMutation({

@@ -58,3 +58,11 @@ describe('ResolvedCard', () => {
     expect(screen.getByText('Si no respondes, la solicitud se cerrará automáticamente.')).toBeInTheDocument()
   })
 })
+
+describe('ResolvedCard accesibilidad', () => {
+  it('es una región con nombre, para llegar a ella con la navegación por regiones', () => {
+    renderCard(resolved)
+
+    expect(screen.getByRole('region', { name: '¿Quedó resuelto?' })).toBeInTheDocument()
+  })
+})

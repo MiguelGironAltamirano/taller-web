@@ -87,8 +87,6 @@ export type CreateRequestBody = {
   locationId: number
   description: string
   priorityId: number
-  /** EXTENSIÓN: metadatos de las evidencias adjuntas (la subida real va aparte). */
-  evidences?: { fileName: string; sizeBytes: number }[]
 }
 
 export type TransitionBody = {

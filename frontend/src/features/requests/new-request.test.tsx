@@ -1,10 +1,17 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handlers, resetMockData } from '../../mocks/handlers'
 import { server } from '../../test/msw-server'
 import { renderApp } from '../../test/render-app'
+
+// jsdom's FormData does not survive Node's fetch (content-length mismatch), so multipart uploads are observed here.
+const { uploadFile } = vi.hoisted(() => ({ uploadFile: vi.fn() }))
+vi.mock('../../shared/api/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/api/client')>()),
+  apiUploadFile: uploadFile,
+}))
 
 /** Sesión de la solicitante (la cookie de renovación simulada devuelve su usuario). */
 const refreshAsRequester = http.post('*/api/v1/auth/refresh', () =>
@@ -40,6 +47,8 @@ describe('Nueva solicitud', () => {
   beforeEach(() => {
     resetMockData()
     createCalls = 0
+    uploadFile.mockReset()
+    uploadFile.mockResolvedValue({ id: 1, fileName: 'informe.pdf', kind: 'PDF', sizeBytes: 8 })
     server.use(refreshAsRequester, countCreates, ...handlers)
   })
 
@@ -54,6 +63,29 @@ describe('Nueva solicitud', () => {
 
     await user.click(screen.getByRole('link', { name: /Mis solicitudes/ }))
     expect(await screen.findByText(code)).toBeInTheDocument()
+  })
+
+  it('sube las evidencias adjuntas a la solicitud recién registrada', async () => {
+    renderApp('/solicitudes/nueva')
+    const user = await fillValidForm('El tomacorriente del aula no funciona desde ayer')
+    await user.upload(screen.getByLabelText(/Arrastra archivos/), new File(['%PDF-1.4'], 'informe.pdf', { type: 'application/pdf' }))
+    await user.click(screen.getByRole('button', { name: 'Registrar solicitud' }))
+
+    expect(await screen.findByRole('heading', { name: 'Solicitud registrada' })).toBeInTheDocument()
+    const code = (await screen.findByText(/^SOL-\d{4}-\d{6}$/)).textContent!
+    expect(uploadFile).toHaveBeenCalledTimes(1)
+    expect(uploadFile).toHaveBeenCalledWith(`/requests/${code}/evidences`, expect.objectContaining({ name: 'informe.pdf' }))
+  })
+
+  it('avisa si una evidencia no se pudo subir, sin perder la solicitud registrada', async () => {
+    uploadFile.mockRejectedValueOnce(new Error('Error de red'))
+    renderApp('/solicitudes/nueva')
+    const user = await fillValidForm('El tomacorriente del aula no funciona desde ayer')
+    await user.upload(screen.getByLabelText(/Arrastra archivos/), new File(['%PDF-1.4'], 'informe.pdf', { type: 'application/pdf' }))
+    await user.click(screen.getByRole('button', { name: 'Registrar solicitud' }))
+
+    expect(await screen.findByRole('heading', { name: 'Solicitud registrada' })).toBeInTheDocument()
+    expect(await screen.findByText(/no pudimos adjuntar 1 evidencia/)).toBeInTheDocument()
   })
 
   it('no envía el formulario con la descripción fuera de rango', async () => {

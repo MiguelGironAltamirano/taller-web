@@ -16,9 +16,15 @@ export const dateLong = (ms: number) =>
 /** `16 de octubre de 2026` */
 export const dateFull = (ms: number) => fmt(ms, { day: 'numeric', month: 'long', year: 'numeric' })
 
-/** Etiqueta de grupo por antigüedad: Hoy, Ayer o Anteriores. */
+/** Número de día calendario en Lima (días desde la época), para comparar fechas sin la hora. */
+function limaDayNumber(ms: number): number {
+  const [year, month, day] = new Date(ms).toLocaleDateString('en-CA', { timeZone: TIME_ZONE }).split('-').map(Number)
+  return Date.UTC(year, month - 1, day) / 86_400_000
+}
+
+/** Etiqueta de grupo por día calendario de Lima: Hoy, Ayer o Anteriores. */
 export function dayGroup(ms: number, now: number): 'Hoy' | 'Ayer' | 'Anteriores' {
-  const days = Math.floor((now - ms) / 86_400_000)
+  const days = limaDayNumber(now) - limaDayNumber(ms)
   return days < 1 ? 'Hoy' : days < 2 ? 'Ayer' : 'Anteriores'
 }
 
