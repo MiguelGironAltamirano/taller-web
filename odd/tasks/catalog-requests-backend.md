@@ -13,7 +13,7 @@ El frontend ya existía contra una API simulada. El esquema y la semilla estaban
 
 ## Scope
 In: `GET /api/v1/catalogs`, `POST /api/v1/requests`, `GET /api/v1/requests`, `GET /api/v1/requests/{codigo}`.
-Out: transiciones de estado (Angela), comentarios y evidencias (AngelCarrasco), técnicos (`GET /users/technicians`), filtros avanzados del servidor.
+Out: transiciones de estado (Angela), comentarios y evidencias (AngelCarrasco), técnicos (`GET /users/technicians`). Los filtros avanzados del servidor se añadieron después (FL7).
 
 ## Tasks
 - [x] `catalog`: dominio, `CatalogLookup` (puerta para otros módulos), `GetCatalogs` y `GET /catalogs` — solo áreas y categorías activas
@@ -23,7 +23,7 @@ Out: transiciones de estado (Angela), comentarios y evidencias (AngelCarrasco), 
 - [x] Pruebas unitarias (dominio y casos de uso con dobles) y de integración con MySQL real (Testcontainers)
 - [x] Verificación manual de punta a punta: backend real + frontend sin mocks en Chrome
 - [ ] Revisión de otro integrante y PR a `dev`
-- [ ] Filtros avanzados (fechas, área) del listado
+- [x] Filtros avanzados, orden y paginación del listado en el servidor (FL7, rama `feature/fl-filters`): `RequestListCriteria` valida `status` múltiple, `areaId`, `categoryId`, `priorityId`, `technicianId`, `unassigned`, `overdue`, `q`, `from`/`to`, `sort` (`newest`, `oldest`, `due`, `priority`), `page` y `size` (1–500) con `400` por campo; `GET /requests/counts`; índices `V20261026_0500`. Evidencia: `RequestListCriteriaTest` (10), `GetAndListRequestsTest` (11), `RequestListFiltersApiTests` (13) y `RequestsApiTests` (22) en verde; frontend migrado (bandeja paginada en el servidor, contadores, mocks MSW con la misma semántica)
 - [ ] Sustituir `NoAllowedTransitions` cuando exista el módulo de workflow
 
 ## Decisions
@@ -31,7 +31,8 @@ Out: transiciones de estado (Angela), comentarios y evidencias (AngelCarrasco), 
 - **Año del código:** zona horaria de Lima, no UTC (el 31 de diciembre a las 23:30 en Lima sigue siendo el año que termina).
 - **Lectura con SQL y escritura con JPA:** el listado y el detalle son una consulta con joins que ya trae los nombres; el catálogo es de solo lectura. Las escrituras de solicitudes usan entidades JPA con control de concurrencia optimista para los cambios de estado futuros.
 - **Visibilidad del listado:** `RequestScope` replica en SQL la regla `AccessPolicy.canViewRequest`; un supervisor sin área o un rol desconocido no ven nada.
-- **Paginación:** `size` entre 1 y 500 y `page` desde 0, acotados en lugar de rechazados; el frontend pide hasta 500 para mostrar contadores por estado sin esperas.
+- **Paginación:** `size` entre 1 y 500 y `page` desde 0. Inicialmente se acotaban en silencio; desde FL7 un valor fuera de rango responde `400` con `errors` por parámetro, porque ajustar en silencio ocultaba errores del cliente y el resto de filtros ya se valida así.
+- **Filtros del listado (FL7):** se conserva el sobre `Page` (`items`, `page`, `size`, `total`) y se añade `totalPages`, un cambio aditivo que no rompe a los consumidores; los parámetros llegan como texto y `RequestListCriteria.parse` los valida juntos para informar todos los errores en un solo `400`. Cada filtro es un fragmento SQL fijo con `?`; el orden sale de una lista cerrada (`RequestSort`) con desempate por `id`; `%` y `_` de la búsqueda son literales (escape `!`). Los filtros se suman al alcance del rol con AND, así que nunca amplían la visibilidad. Los contadores de la bandeja viven en `GET /requests/counts` porque dejan de poder calcularse con una sola página.
 - **Vencida:** una solicitud abierta (hasta `EN_ATENCION`) pasada su fecha de vencimiento; las `RESUELTA` y `CERRADA` nunca.
 - **`allowedTransitions`:** puerto vacío por ahora; el frontend solo muestra botones para lo que el servidor devuelva.
 

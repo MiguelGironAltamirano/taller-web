@@ -405,17 +405,22 @@ class RequestsApiTests {
 		HttpResponse<String> paged = api.get("/api/v1/requests?page=1&size=2", api.login(STUDENT));
 		assertThat(ApiClient.<Integer>read(paged, "$.total")).isEqualTo(3);
 		assertThat(ApiClient.<Integer>read(paged, "$.size")).isEqualTo(2);
+		assertThat(ApiClient.<Integer>read(paged, "$.totalPages")).isEqualTo(2);
 	}
 
 	@Test
-	void sizeIsCappedAndNegativePageIsTreatedAsFirst() throws Exception {
+	void outOfRangePagingIsRejectedInsteadOfClamped() throws Exception {
 		createCode(STUDENT, ELECTRICITY);
+		String token = api.login(STUDENT);
 
-		HttpResponse<String> response = api.get("/api/v1/requests?page=-4&size=100000", api.login(STUDENT));
+		HttpResponse<String> response = api.get("/api/v1/requests?page=-4&size=100000", token);
 
-		assertThat(response.statusCode()).isEqualTo(200);
-		assertThat(ApiClient.<Integer>read(response, "$.page")).isZero();
-		assertThat(ApiClient.<Integer>read(response, "$.size")).isEqualTo(500);
+		ApiClient.assertProblem(response, 400);
+		assertThat(ApiClient.<String>read(response, "$.errors.page")).isNotBlank();
+		assertThat(ApiClient.<String>read(response, "$.errors.size")).isNotBlank();
+		assertThat(api.get("/api/v1/requests?size=500", token).statusCode()).isEqualTo(200);
+		ApiClient.assertProblem(api.get("/api/v1/requests?size=501", token), 400);
+		ApiClient.assertProblem(api.get("/api/v1/requests?size=0", token), 400);
 	}
 
 	@Test

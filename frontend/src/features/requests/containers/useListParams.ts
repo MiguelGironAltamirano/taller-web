@@ -5,6 +5,9 @@ import type { ListFilters, ListSort, ListView } from '../lib/filters'
 const VIEWS: ListView[] = ['all', 'venc', 'open', 'confirm', 'critsa']
 const SORTS: ListSort[] = ['due', 'new', 'prio']
 
+/** Categoría, prioridad y técnico viajan por id; cualquier otro valor (enlaces antiguos por nombre) se ignora. */
+const idParam = (value: string | null) => (value && /^[1-9]\d*$/.test(value) ? value : '')
+
 export type ListParams = {
   filters: ListFilters
   mode: 'table' | 'kanban'
@@ -27,9 +30,9 @@ export function useListParams() {
     return {
       filters: {
         q: params.get('q') ?? '',
-        category: params.get('cat') ?? '',
-        priority: params.get('prio') ?? '',
-        technician: params.get('tech') ?? '',
+        category: idParam(params.get('cat')),
+        priority: idParam(params.get('prio')),
+        technician: idParam(params.get('tech')),
         status: params.get('status') ?? '',
         view: VIEWS.includes(view) ? view : 'all',
         sort: SORTS.includes(sort) ? sort : 'due',

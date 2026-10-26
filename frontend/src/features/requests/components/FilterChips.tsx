@@ -1,10 +1,18 @@
 import { Icon } from '../../../shared/ui'
 import { OVERDUE_STATUS, VIEW_LABELS, type ListFilters } from '../lib/filters'
 
-type Props = { filters: ListFilters; onChange: (patch: Partial<ListFilters>) => void; onClear: () => void }
+/** Nombres visibles de los filtros que viajan por id (categoría, prioridad y técnico). */
+export type FilterLabels = { category?: string; priority?: string; technician?: string }
+
+type Props = {
+  filters: ListFilters
+  labels: FilterLabels
+  onChange: (patch: Partial<ListFilters>) => void
+  onClear: () => void
+}
 
 /** Chips removibles con los filtros activos y "Limpiar filtros". */
-export function FilterChips({ filters, onChange, onClear }: Props) {
+export function FilterChips({ filters, labels, onChange, onClear }: Props) {
   const chips: { label: string; remove: () => void }[] = []
   if (filters.status) {
     chips.push({
@@ -12,11 +20,11 @@ export function FilterChips({ filters, onChange, onClear }: Props) {
       remove: () => onChange({ status: '' }),
     })
   }
-  if (filters.category) chips.push({ label: `Categoría: ${filters.category}`, remove: () => onChange({ category: '' }) })
+  if (filters.category) chips.push({ label: `Categoría: ${labels.category ?? filters.category}`, remove: () => onChange({ category: '' }) })
   if (filters.q) chips.push({ label: `Texto: ${filters.q}`, remove: () => onChange({ q: '' }) })
   if (filters.view !== 'all') chips.push({ label: `Vista: ${VIEW_LABELS[filters.view]}`, remove: () => onChange({ view: 'all' }) })
-  if (filters.priority) chips.push({ label: `Prioridad: ${filters.priority}`, remove: () => onChange({ priority: '' }) })
-  if (filters.technician) chips.push({ label: `Técnico: ${filters.technician}`, remove: () => onChange({ technician: '' }) })
+  if (filters.priority) chips.push({ label: `Prioridad: ${labels.priority ?? filters.priority}`, remove: () => onChange({ priority: '' }) })
+  if (filters.technician) chips.push({ label: `Técnico: ${labels.technician ?? filters.technician}`, remove: () => onChange({ technician: '' }) })
 
   if (chips.length === 0) return null
   return (

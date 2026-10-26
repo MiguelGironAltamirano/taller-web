@@ -1,7 +1,9 @@
 package pe.edu.unmsm.servicios.requests.infrastructure.web;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,9 +12,11 @@ import pe.edu.unmsm.servicios.requests.application.CommentView;
 import pe.edu.unmsm.servicios.requests.application.EvidenceView;
 import pe.edu.unmsm.servicios.requests.application.HistoryView;
 import pe.edu.unmsm.servicios.requests.application.PageView;
+import pe.edu.unmsm.servicios.requests.application.RequestCountsView;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
 import pe.edu.unmsm.servicios.requests.application.RequestSummaryView;
 import pe.edu.unmsm.servicios.requests.domain.RequestAction;
+import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 
 public final class RequestDtos {
 
@@ -113,11 +117,25 @@ public final class RequestDtos {
 
 	}
 
-	record PageResponse(List<SummaryResponse> items, int page, int size, long total) {
+	/** {@code total} is kept from v1; {@code totalPages} lets clients render the pager without arithmetic. */
+	record PageResponse(List<SummaryResponse> items, int page, int size, long total, int totalPages) {
 
 		static PageResponse from(PageView<RequestSummaryView> page) {
 			return new PageResponse(page.items().stream().map(SummaryResponse::from).toList(), page.page(),
-					page.size(), page.total());
+					page.size(), page.total(), page.totalPages());
+		}
+
+	}
+
+	/** {@code GET /requests/counts}: every status is present, with zero when there is none. */
+	record CountsResponse(long total, long overdue, Map<String, Long> byStatus) {
+
+		static CountsResponse from(RequestCountsView counts) {
+			Map<String, Long> byStatus = new LinkedHashMap<>();
+			for (RequestStatus status : RequestStatus.values()) {
+				byStatus.put(status.name(), counts.byStatus().get(status));
+			}
+			return new CountsResponse(counts.total(), counts.overdue(), byStatus);
 		}
 
 	}

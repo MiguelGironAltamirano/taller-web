@@ -28,13 +28,33 @@ Cookie `refresh_token`: `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; M
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
 | `POST /requests` | Rol `SOLICITANTE` | `{ categoryId, locationId, description, priorityId }` | `201` `RequestDetail` · `400` |
-| `GET /requests?status=&page=0&size=20` | Token | — | `200` `Page<RequestSummary>` filtrado por rol |
+| `GET /requests?status=&areaId=&categoryId=&priorityId=&technicianId=&unassigned=&overdue=&q=&from=&to=&sort=&page=0&size=20` | Token | — | `200` `Page<RequestSummary>` filtrado por rol y por los parámetros (ver [Listado de solicitudes](#listado-de-solicitudes)) · `400` parámetro inválido |
+| `GET /requests/counts` | Token | — | `200` `RequestCounts` sobre todo lo visible para el usuario |
 | `GET /requests/{code}` | Token, con visibilidad | — | `200` `RequestDetail` · `404` si no existe o no es visible |
 | `POST /requests/{code}/transitions` | Token, según la tabla de transiciones | `{ to, reason?, technicianId?, closureReason? }` | `200` `RequestDetail` · `400` falta un dato obligatorio · `403` rol no autorizado · `409` transición inválida |
 | `PATCH /requests/{code}/priority` | Rol `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `400` prioridad inexistente o igual a la actual · `403` · `404` · `409` si está `RESUELTA` o `CERRADA` |
 | `POST /requests/{code}/rating` | Rol `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con `rating` · `400` · `403` · `404` · `409` si no está `CERRADA` por confirmación o ya fue calificada |
 
 Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNICO` las asignadas a él; `ADMINISTRADOR` todas.
+
+### Listado de solicitudes
+
+`GET /requests` filtra, ordena y pagina en el servidor. Todos los parámetros son opcionales y se combinan con AND; la regla de visibilidad del rol se aplica siempre, de modo que un filtro solo puede reducir el resultado (por ejemplo, un `SOLICITANTE` que envía `technicianId` sigue viendo únicamente sus solicitudes, y un `SUPERVISOR` que envía otra `areaId` obtiene una página vacía).
+
+| Parámetro | Valor | Semántica |
+|---|---|---|
+| `status` | Uno o varios `RequestStatus`, repetidos (`status=A&status=B`) o separados por comas (`status=A,B`) | El estado es alguno de los indicados |
+| `areaId`, `categoryId`, `priorityId`, `technicianId` | Entero positivo | Igualdad con el área, la categoría, la prioridad o el técnico asignado |
+| `unassigned` | `true` / `false` | `true`: sin técnico asignado. No se combina con `technicianId` (`400`) |
+| `overdue` | `true` / `false` | Misma regla que el campo `overdue`: no llegó a `RESUELTA` ni `CERRADA` y `dueAt` ya pasó. `false` devuelve las que no están vencidas |
+| `q` | Texto de hasta 100 caracteres; se recorta | Aparece en el código, la descripción, el nombre del solicitante, la categoría o el ambiente. No distingue mayúsculas ni tildes (colación de MySQL); `%` y `_` se tratan como caracteres literales |
+| `from`, `to` | Instante ISO-8601 en UTC (`2026-10-01T05:00:00Z`) | Fecha de registro: `from` inclusivo, `to` exclusivo; `from` debe ser anterior a `to` |
+| `sort` | `newest` (por defecto), `oldest`, `due`, `priority` | `newest`/`oldest`: por fecha de registro. `due`: primero las pendientes y, dentro de cada grupo, la fecha límite más próxima. `priority`: de mayor a menor prioridad y luego las más recientes. Cada orden termina en un desempate estable, así las páginas no se solapan |
+| `page` | Entero ≥ 0 (por defecto `0`) | Página, empezando en cero. Una página posterior a la última devuelve `items` vacío con el `total` real |
+| `size` | Entero entre 1 y 500 (por defecto `20`) | Elementos por página |
+
+- Un valor inválido (estado u orden desconocido, id no numérico, booleano distinto de `true`/`false`, fecha mal formada, `page` negativa, `size` fuera de rango, rango de fechas invertido) responde `400` `ProblemDetail` con `errors` por parámetro, todos a la vez. `page` y `size` fuera de rango ya no se ajustan en silencio.
+- `GET /requests/counts` devuelve los contadores de la bandeja sobre todo lo visible para el usuario, sin otros filtros: `total`, `overdue` y `byStatus` con los seis estados (cero si no hay ninguna).
 
 Transiciones (`to`, quién, requisito):
 
@@ -240,7 +260,8 @@ RequestDetail  = RequestSummary & { requester: { id, fullName }, area: { id, nam
                   solution: string | null, rating: { score, comment: string | null } | null }
 ClosureReason  = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
 WorkflowAction = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
-Page<T>        = { items: T[], page, size, total }
+Page<T>        = { items: T[], page, size, total, totalPages }
+RequestCounts  = { total, overdue, byStatus: { [RequestStatus]: number } }
 ```
 
 `allowedTransitions` lo calcula el servidor para el usuario que consulta; el frontend solo muestra botones para esos estados.

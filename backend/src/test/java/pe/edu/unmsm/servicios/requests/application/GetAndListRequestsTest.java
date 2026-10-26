@@ -45,18 +45,24 @@ class GetAndListRequestsTest {
 			"ADMINISTRADOR");
 
 	private final List<RequestScope> scopes = new ArrayList<>();
-	private int lastPage;
-	private int lastSize;
+	private RequestListCriteria lastCriteria;
+	private Instant lastNow;
 
 	private final RequestQueries queries = new RequestQueries() {
 
 		@Override
-		public PageView<RequestSummaryView> search(RequestScope scope, RequestStatus status, int page, int size,
-				Instant now) {
+		public PageView<RequestSummaryView> search(RequestScope scope, RequestListCriteria criteria, Instant now) {
 			scopes.add(scope);
-			lastPage = page;
-			lastSize = size;
-			return new PageView<>(List.of(SUMMARY), page, size, 1);
+			lastCriteria = criteria;
+			lastNow = now;
+			return new PageView<>(List.of(SUMMARY), criteria.page(), criteria.size(), 1);
+		}
+
+		@Override
+		public RequestCountsView count(RequestScope scope, Instant now) {
+			scopes.add(scope);
+			lastNow = now;
+			return new RequestCountsView(1, 0, java.util.Map.of(RequestStatus.ASIGNADA, 1L));
 		}
 
 		@Override
@@ -131,10 +137,10 @@ class GetAndListRequestsTest {
 
 	@Test
 	void listScopeFollowsTheRoleOfTheUser() {
-		list.execute(OWNER, null, 0, 20);
-		list.execute(SUPERVISOR, null, 0, 20);
-		list.execute(TECHNICIAN, null, 0, 20);
-		list.execute(ADMIN, null, 0, 20);
+		list.execute(OWNER, RequestListCriteria.firstPage());
+		list.execute(SUPERVISOR, RequestListCriteria.firstPage());
+		list.execute(TECHNICIAN, RequestListCriteria.firstPage());
+		list.execute(ADMIN, RequestListCriteria.firstPage());
 
 		assertThat(scopes).extracting(RequestScope::role)
 				.containsExactly("SOLICITANTE", "SUPERVISOR", "TECNICO", "ADMINISTRADOR");
@@ -144,14 +150,33 @@ class GetAndListRequestsTest {
 	}
 
 	@Test
-	void listClampsPageAndSize() {
-		list.execute(ADMIN, null, -3, 0);
-		assertThat(lastPage).isZero();
-		assertThat(lastSize).isEqualTo(1);
+	void listPassesTheCriteriaAndTheClockToTheQuery() {
+		RequestListCriteria criteria = new RequestListCriteria(null, null, 2L, null, null, true, true, "aula", null,
+				null, RequestSort.DUE, 3, 50);
 
-		list.execute(ADMIN, null, 2, 100000);
-		assertThat(lastPage).isEqualTo(2);
-		assertThat(lastSize).isEqualTo(ListRequests.MAX_PAGE_SIZE);
+		PageView<RequestSummaryView> page = list.execute(ADMIN, criteria);
+
+		assertThat(lastCriteria).isSameAs(criteria);
+		assertThat(lastNow).isEqualTo(NOW);
+		assertThat(page.page()).isEqualTo(3);
+		assertThat(page.totalPages()).isEqualTo(1);
+	}
+
+	@Test
+	void countersUseTheScopeOfTheUserAndIncludeEveryStatus() {
+		RequestCountsView counts = list.counts(TECHNICIAN);
+
+		assertThat(scopes).extracting(RequestScope::role).containsExactly("TECNICO");
+		assertThat(lastNow).isEqualTo(NOW);
+		assertThat(counts.byStatus()).hasSize(RequestStatus.values().length)
+				.containsEntry(RequestStatus.ASIGNADA, 1L).containsEntry(RequestStatus.CERRADA, 0L);
+	}
+
+	@Test
+	void totalPagesRoundsUp() {
+		assertThat(new PageView<>(List.of(), 0, 20, 0).totalPages()).isZero();
+		assertThat(new PageView<>(List.of(), 0, 20, 20).totalPages()).isEqualTo(1);
+		assertThat(new PageView<>(List.of(), 0, 20, 21).totalPages()).isEqualTo(2);
 	}
 
 }

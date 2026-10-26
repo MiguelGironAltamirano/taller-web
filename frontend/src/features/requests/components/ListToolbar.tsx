@@ -1,12 +1,15 @@
-import { PRIORITIES } from '../../../shared/domain'
 import { Icon, Segmented, Select } from '../../../shared/ui'
 import { VIEW_LABELS, type ListFilters, type ListSort, type ListView } from '../lib/filters'
 
+/** Opción de un filtro: `value` es el id que se envía al servidor y `label` lo que se muestra. */
+export type FilterOption = { value: string; label: string }
+
 type Props = {
   filters: ListFilters
-  categories: string[]
+  categories: FilterOption[]
+  priorities: FilterOption[]
   /** Solo el supervisor filtra por técnico. */
-  technicians: string[] | null
+  technicians: FilterOption[] | null
   /** Rol con tablero kanban (técnico, supervisor, administrador). */
   canKanban: boolean
   mode: 'table' | 'kanban'
@@ -19,7 +22,7 @@ type Props = {
 const SORT_LABELS: Record<ListSort, string> = { due: 'Vencimiento', new: 'Más recientes', prio: 'Prioridad' }
 
 /** Barra de herramientas del listado: búsqueda, filtros, vistas guardadas, orden, modo y densidad. */
-export function ListToolbar({ filters, categories, technicians, canKanban, mode, density, onChange, onMode, onDensity }: Props) {
+export function ListToolbar({ filters, categories, priorities, technicians, canKanban, mode, density, onChange, onMode, onDensity }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="relative min-w-0 flex-[1_1_220px]">
@@ -31,7 +34,7 @@ export function ListToolbar({ filters, categories, technicians, canKanban, mode,
           aria-label="Buscar"
           value={filters.q}
           onChange={(e) => onChange({ q: e.target.value })}
-          placeholder="Buscar por código o texto"
+          placeholder="Buscar por código, texto, solicitante o ambiente"
           className="h-9 w-full rounded-lg border border-line bg-surface pl-[34px] pr-2.5 max-md:h-11"
         />
       </div>
@@ -43,8 +46,8 @@ export function ListToolbar({ filters, categories, technicians, canKanban, mode,
       >
         <option value="">Todas las categorías</option>
         {categories.map((c) => (
-          <option key={c} value={c}>
-            {c}
+          <option key={c.value} value={c.value}>
+            {c.label}
           </option>
         ))}
       </Select>
@@ -79,9 +82,9 @@ export function ListToolbar({ filters, categories, technicians, canKanban, mode,
         className="h-9 w-auto max-md:h-11"
       >
         <option value="">Toda prioridad</option>
-        {PRIORITIES.map((p) => (
-          <option key={p} value={p}>
-            {p}
+        {priorities.map((p) => (
+          <option key={p.value} value={p.value}>
+            {p.label}
           </option>
         ))}
       </Select>
@@ -94,8 +97,8 @@ export function ListToolbar({ filters, categories, technicians, canKanban, mode,
         >
           <option value="">Todos los técnicos</option>
           {technicians.map((t) => (
-            <option key={t} value={t}>
-              {t}
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </Select>

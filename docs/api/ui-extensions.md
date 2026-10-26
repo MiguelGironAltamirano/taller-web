@@ -6,7 +6,7 @@ Complementa [`contrato-v1.md`](contrato-v1.md) (contrato del MVP). Todo lo de es
 
 **Ya implementado en el backend** (módulos `catalog`, `requests`, `workflow`, `collaboration` y `satisfaction`; ver [`contrato-v1.md`](contrato-v1.md#solicitudes)):
 
-- Los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, y `size` hasta 500 en `GET /requests`.
+- Los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, `size` hasta 500 en `GET /requests`, `totalPages` en `Page` y `GET /requests/counts`.
 - En `RequestDetail`: `allowedTransitions` y `allowedActions` calculados por usuario, `comments`, `evidences`, `solution` y `rating`.
 - `HistoryEntry.note`, `ClosureReason.AUTOMATICA` (con el proceso de [cierre automático](#cierre-automático)), `TransitionBody.closureReason` y `activeRequests` en `GET /users/technicians`.
 - `PATCH /requests/{code}/priority` y `POST /requests/{code}/rating`.
@@ -82,7 +82,7 @@ La configuración se guarda en la tabla `system_settings` (una sola fila tipada,
 - ~~Cambio de contraseña~~ **Resuelto:** ver [`collaboration-notifications-v1.md §2`](collaboration-notifications-v1.md#2-cambio-de-contraseña).
 - ~~Notificaciones~~ **Resuelto:** ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones).
 - ~~Cierre automático a las 72 h~~ **Resuelto:** ver [Cierre automático](#cierre-automático).
-- Filtros avanzados y paginación del listado en el servidor: hoy el front pide hasta 500 solicitudes y filtra en el cliente.
+- ~~Filtros avanzados y paginación del listado en el servidor~~ **Resuelto:** ver [`contrato-v1.md` · Listado de solicitudes](contrato-v1.md#listado-de-solicitudes). `GET /requests` filtra (estado múltiple, área, categoría, prioridad, técnico, sin asignar, vencidas, texto y rango de fechas), ordena con una lista cerrada y pagina; `GET /requests/counts` da los contadores de la bandeja. La bandeja del frontend consulta página a página; Inicio, calendario, reportes y la paleta de comandos siguen pidiendo hasta 500 porque agregan sobre todo lo visible (candidatos a endpoints de agregación propios).
 - Exportación a PDF de reportes y dashboard.
 
 ## Cierre automático

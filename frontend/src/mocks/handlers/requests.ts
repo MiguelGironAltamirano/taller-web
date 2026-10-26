@@ -3,7 +3,6 @@ import type {
   ChangePriorityBody,
   CreateCommentBody,
   CreateRequestBody,
-  Page,
   RateBody,
   RequestStatus,
   TransitionBody,
@@ -12,7 +11,8 @@ import { statusToState } from '../../shared/api/mappers'
 import { computeDueAt } from '../../features/workflow/lib/sla'
 import { codeOf, getDb, type MockRequest, type MockUser } from '../db'
 import { forbidden, notFound, problem, secured } from '../http'
-import { areaIdOf, detailOf, findByCode, inScope, notify, summaryOf } from '../views'
+import { countRequests, listRequests, parseListQuery } from '../requestList'
+import { areaIdOf, detailOf, findByCode, inScope, notify } from '../views'
 
 const actorLabel = (u: MockUser) =>
   u.role === 'SUPERVISOR' ? `${u.fullName} (Supervisor)` : u.role === 'ADMINISTRADOR' ? `${u.fullName} (Administrador)` : u.fullName
@@ -54,17 +54,16 @@ export const requestHandlers = [
   http.get(
     '*/api/v1/requests',
     secured(null, ({ request, user }) => {
-      const url = new URL(request.url)
-      const status = url.searchParams.get('status')
-      const page = Math.max(0, Number(url.searchParams.get('page') ?? 0))
-      const size = Math.min(500, Math.max(1, Number(url.searchParams.get('size') ?? 20)))
-      const all = getDb()
-        .requests.filter((r) => inScope(r, user) && (!status || r.status === status))
-        .sort((a, b) => a.dueAt - b.dueAt)
-        .map((r) => summaryOf(r))
-      const body: Page<ReturnType<typeof summaryOf>> = { items: all.slice(page * size, page * size + size), page, size, total: all.length }
-      return HttpResponse.json(body)
+      const parsed = parseListQuery(new URL(request.url).searchParams)
+      if ('errors' in parsed) return problem(400, 'Bad Request', 'La solicitud contiene datos inválidos', parsed.errors)
+      return HttpResponse.json(listRequests(user, parsed.query))
     }),
+  ),
+
+  // Antes de `/requests/:code` para que "counts" no se tome como un código.
+  http.get(
+    '*/api/v1/requests/counts',
+    secured(null, ({ user }) => HttpResponse.json(countRequests(user))),
   ),
 
   http.post(
