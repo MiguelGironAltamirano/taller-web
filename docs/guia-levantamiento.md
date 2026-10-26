@@ -100,7 +100,7 @@ Si agregas `--wait` a `up -d --build`, el comando termina cuando todos los servi
 
 ### Prueba de humo
 
-`infra/smoke.sh` construye y levanta un stack aislado con los usuarios y los datos de demostración, espera a que esté sano, comprueba `GET /api/v1/system/info` y la interfaz en `/` a través de nginx, inicia sesión con `estudiante@unmsm.edu.pe`, verifica que `GET /api/v1/requests` devuelva sus solicitudes de demostración y finalmente elimina el stack con sus volúmenes. No usa tu `infra/.env`: genera un archivo de entorno temporal con secretos aleatorios. El CI la ejecuta después de las pruebas del backend y del frontend.
+`infra/smoke.sh` construye y levanta un stack aislado con los usuarios y los datos de demostración, espera a que esté sano, comprueba `GET /api/v1/system/info` y la interfaz en `/` a través de nginx, inicia sesión con `estudiante@unmsm.edu.pe`, verifica que `GET /api/v1/requests` devuelva sus solicitudes de demostración y que `GET /api/v1/notifications` exija sesión (401 sin token) y liste sus notificaciones, y finalmente elimina el stack con sus volúmenes. No usa tu `infra/.env`: genera un archivo de entorno temporal con secretos aleatorios. El CI la ejecuta (dentro de `infra/e2e.sh`, ver la sección 8) después de las pruebas del backend y del frontend.
 
 ```bash
 bash infra/smoke.sh
@@ -209,32 +209,49 @@ Si `pnpm` falla con "no se reconoce como un comando interno o externo", tu `pnpm
 | Frontend: pruebas | `cd frontend && pnpm test` |
 | Frontend: lint | `cd frontend && pnpm lint` |
 | Frontend: tipos | `cd frontend && pnpm typecheck` |
-| Frontend: E2E (Playwright) | `cd frontend && pnpm e2e` |
+| E2E contra el stack real (Playwright) | `bash infra/e2e.sh` |
 | Frontend: tipos de E2E | `cd frontend && pnpm typecheck:e2e` |
 
 Las pruebas de integración del backend usan Testcontainers, por lo que Docker debe estar en ejecución.
 
 ### Pruebas E2E
 
-Las pruebas E2E (`frontend/e2e/*.e2e.ts`) usan Playwright contra el stack real de Docker Compose (sin API simulada) con los usuarios de demostración, e incluyen un análisis de accesibilidad con axe (WCAG 2.1 AA) de la pantalla de login. Por ahora no se ejecutan en el CI.
+Las pruebas E2E (`frontend/e2e/*.e2e.ts`) usan Playwright contra el stack real de Docker Compose (sin API simulada), con los usuarios y los datos de demostración. Un solo comando las ejecuta de principio a fin, desde la raíz del repositorio:
 
 ```bash
-# 1. Navegador (solo la primera vez)
-cd frontend
-pnpm exec playwright install chromium
-
-# 2. Stack con datos de demostración que queda en ejecución (desde la raíz del repositorio)
-SMOKE_KEEP_STACK=1 bash infra/smoke.sh
-
-# 3. Pruebas
-cd frontend
-pnpm e2e
-
-# 4. Limpieza (desde la raíz del repositorio)
-docker compose -p taller-web-smoke -f infra/docker-compose.yml down -v
+bash infra/e2e.sh
 ```
 
-La URL base es `http://localhost:8089` y se cambia con `E2E_BASE_URL` (por ejemplo, `E2E_BASE_URL=http://localhost:8088 pnpm e2e` para usar el stack de la sección 5, siempre que tenga `db/seed-dev`). Las trazas y capturas de los fallos quedan en `frontend/test-results/`.
+El script instala las dependencias del frontend y Chromium (la primera vez), construye y levanta un stack aislado con `db/seed-dev` y `db/seed-demo` mediante `infra/smoke.sh` (que espera a que todo esté sano y hace la prueba de humo), ejecuta `pnpm e2e` contra él y **siempre** elimina el stack con sus volúmenes, también si algo falla o se interrumpe con Ctrl+C. Los argumentos extra pasan a Playwright, por ejemplo `bash infra/e2e.sh requester` o `bash infra/e2e.sh --headed`.
+
+| Variable | Uso |
+|---|---|
+| `E2E_PORT` | Puerto publicado por nginx (por defecto `8090`) |
+| `E2E_PROJECT` | Nombre del proyecto de Compose (por defecto `taller-web-e2e`) |
+| `E2E_KEEP_STACK=1` | Deja el stack en ejecución al terminar; el script imprime el comando para eliminarlo |
+| `E2E_SKIP_BUILD=1` | Reutiliza las imágenes ya construidas |
+| `E2E_INSTALL_DEPS=1` | Instala también las librerías del sistema que necesita Chromium (lo usa el CI) |
+
+Qué cubren (26 pruebas, unos 15 s una vez levantado el stack):
+
+| Archivo | Recorridos |
+|---|---|
+| `requester.e2e.ts` | Registrar una solicitud aceptando la sugerencia de triage y con una evidencia; filtros, búsqueda y paginación de "Mis solicitudes" en el servidor; detalle con historial y comentarios; confirmar y calificar una solicitud resuelta; rechazar la solución |
+| `supervisor.e2e.ts` | Filtros de la bandeja del área; pasar a evaluación, asignar técnico (con su carga) y cambiar la prioridad (nota en el historial); indicadores del dashboard en 7 días, 30 días y el mes comparados con la API; página de equipo |
+| `technician.e2e.ts` | Iniciar la atención y resolver con una solución; contador y lista de notificaciones, marcar una y todas como leídas |
+| `admin.e2e.ts` | Usuarios (alta con contraseña temporal y desactivación); catálogos (área y categoría); reglas de triage (alta, probador, edición, activación y baja); búsqueda en auditoría; cambio de `autoCloseHours` reflejado en el plazo de cierre automático que ve el solicitante |
+| `auth.e2e.ts` | Cerrar sesión; cambiar la contraseña de una cuenta nueva creada por el administrador |
+| `a11y.e2e.ts`, `smoke.e2e.ts` | Análisis con axe (WCAG 2.1 A/AA) de las páginas principales de cada rol y del detalle; login de cada rol |
+
+Cada prueba crea los datos que modifica (con un marcador único) y restaura la configuración que cambia, así que la suite se puede repetir sobre el mismo stack. Las trazas, capturas y el informe de los fallos quedan en `frontend/test-results/` y `frontend/playwright-report/`. En el CI se ejecuta en el job `smoke` después de las pruebas del backend y del frontend.
+
+Contra un stack que ya está en ejecución (por ejemplo el de la sección 5, siempre que tenga `db/seed-dev` y `db/seed-demo`):
+
+```bash
+cd frontend
+pnpm exec playwright install chromium   # solo la primera vez
+E2E_BASE_URL=http://localhost:8088 pnpm e2e
+```
 
 ## 9. Flujo de Git
 
