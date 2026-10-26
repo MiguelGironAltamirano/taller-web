@@ -134,6 +134,40 @@ class DemoSeedTests {
 				       < utc_timestamp(6) - interval s.auto_close_hours hour""")).isZero();
 	}
 
+	/**
+	 * Automatic closures look exactly like the ones the closure job writes (StateMachine.autoClose and
+	 * AutoCloseUnconfirmedRequests): no actor (shown as 'Sistema'), the job's reason with the configured hours, applied
+	 * no earlier than that many hours after the resolution, and the automatic-closure notification text.
+	 */
+	@Test
+	void automaticClosuresMatchWhatTheClosureJobWrites() {
+		assertThat(count("select count(*) from service_requests where closure_reason = 'AUTOMATICA'")).isPositive();
+		assertThat(count("""
+				select count(*) from service_requests r
+				  join request_history h on h.request_id = r.id and h.to_status = 'CERRADA'
+				  join system_settings s on s.id = 1
+				 where r.closure_reason = 'AUTOMATICA'
+				   and (h.actor_id is not null
+				        or h.reason <> concat('Cierre automático: el solicitante no confirmó la solución en ',
+				                              s.auto_close_hours, ' h')
+				        or h.created_at < (select max(rh.created_at) from request_history rh
+				                            where rh.request_id = r.id and rh.to_status = 'RESUELTA')
+				                          + interval s.auto_close_hours hour)""")).isZero();
+		assertThat(count("""
+				select count(*) from request_history h join service_requests r on r.id = h.request_id
+				 where h.actor_id is null and not (h.to_status = 'CERRADA' and r.closure_reason = 'AUTOMATICA')"""))
+			.as("only the system closure has no actor").isZero();
+		assertThat(count("""
+				select count(*) from notifications n join service_requests r on r.id = n.request_id
+				 where r.closure_reason = 'AUTOMATICA' and n.text like '%pasó a Cerrada.'""")).isZero();
+		assertThat(count("""
+				select count(*) from notifications n join service_requests r on r.id = n.request_id
+				 where r.closure_reason = 'AUTOMATICA'
+				   and n.text = concat('La solicitud ', r.code,
+				                       ' se cerró automáticamente porque la solución no se confirmó a tiempo.')"""))
+			.isPositive();
+	}
+
 	@Test
 	void codesContinueTheSequenceSoNewRequestsNeverCollide() {
 		List<String> all = jdbc.queryForList("select code from service_requests", String.class);
