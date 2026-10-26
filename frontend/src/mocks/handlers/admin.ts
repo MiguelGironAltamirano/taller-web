@@ -381,7 +381,7 @@ export const adminHandlers = [
             createdAt: iso(h.createdAt),
             actorName: h.actorName,
             requestCode: codeOf(r),
-            detail: `${from} → ${to} · ${h.reason ?? ''}`,
+            detail: h.reason ? `${from} → ${to} · ${h.reason}` : `${from} → ${to}`,
           })
         }
       }

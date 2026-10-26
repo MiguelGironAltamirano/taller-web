@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../shared/api/client'
 import type {
   AdminUser,
+  AppConfig,
+  AuditEvent,
   Catalogs,
   CreateRequestBody,
   Page,
@@ -356,6 +358,23 @@ describe('administración', () => {
     expect(await status(apiPost('/admin/locations', { ...body, room: 'aula 305' }))).toBe(409)
     expect(await status(apiDelete(`/admin/locations/${room.parentId}`))).toBe(409)
     expect(await status(apiDelete(`/admin/locations/${room.id}`))).toBe(200)
+  })
+
+  it('configuración: valores por defecto como en el backend y horas mayores a 0', async () => {
+    await loginAs(ADMIN)
+    expect(await apiGet<AppConfig>('/admin/config')).toEqual({ autoCloseHours: 72, emailNotifications: false, triageSuggestions: true })
+    expect(await status(apiPut('/admin/config', { autoCloseHours: 0, emailNotifications: false, triageSuggestions: true }))).toBe(400)
+    const saved = await apiPut<AppConfig>('/admin/config', { autoCloseHours: 48, emailNotifications: true, triageSuggestions: false })
+    expect(saved.autoCloseHours).toBe(48)
+  })
+
+  it('auditoría: máximo 40 eventos, más recientes primero y sin separador vacío', async () => {
+    await loginAs(ADMIN)
+    const events = await apiGet<AuditEvent[]>('/admin/audit', { q: '' })
+    expect(events.length).toBeGreaterThan(0)
+    expect(events.length).toBeLessThanOrEqual(40)
+    expect([...events].sort((a, b) => b.createdAt.localeCompare(a.createdAt))).toEqual(events)
+    expect(events.every((e) => !e.detail.endsWith('· '))).toBe(true)
   })
 
   it('el administrador no puede desactivarse ni cambiar su propio rol', async () => {
