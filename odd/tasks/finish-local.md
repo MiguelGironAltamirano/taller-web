@@ -33,7 +33,7 @@ Ola 1 (en paralelo, un worktree por paquete):
 - [ ] FL2 — requests-ext: calificación, cambio de prioridad, campos extra de `RequestDetail` y `RequestSummary`, `activeRequests` de técnicos — ruta: delegada (`wt-requests-ext`)
 - [ ] FL3 — admin-ops: `GET /admin/audit`, `GET/PUT /admin/config` y puerto de configuración del sistema — ruta: delegada (`wt-admin-ops`)
 - [ ] FL4 — dashboard: `GET /dashboard/indicators`, `GET /dashboard/team` sobre el puerto `RequestAnalyticsQuery` — ruta: delegada (`wt-dashboard`)
-- [ ] FL5 — infra: healthcheck del backend, variables en Compose, prueba de humo con Compose, ejecución local de las pruebas de integración pendientes, base de Playwright — ruta: delegada (`wt-infra`)
+- [x] FL5 — infra: healthcheck del backend, variables en Compose, prueba de humo con Compose, ejecución local de las pruebas de integración pendientes, base de Playwright — ruta: delegada (`wt-infra`). Integrada en `83db761` (commits `8ec7e6f`..`8fb991c`). Evidencia: `./mvnw verify` 377/377; `infra/smoke.sh` OK; Playwright 3/3 y axe 0 violaciones en login; frontend 173/173. Corrige el volumen de evidencias sin permisos de escritura para el usuario no root. Pendiente: ver la primera ejecución del job `smoke` en CI; nginx maestro sigue como root.
 
 Ola 2 (tras integrar la ola 1):
 
