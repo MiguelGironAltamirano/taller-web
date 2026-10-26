@@ -22,8 +22,10 @@ export function TeamPage() {
         {team.length > 0 && (
           <GridTable columns={COLUMNS} minWidth="680px" label="Carga por técnico" heads={['Técnico', 'Asignadas', 'En atención', 'Vencidas', 'Carga']}>
             {team.map((t) => {
-              const pct = Math.min(100, (t.assigned / t.capacity) * 100)
-              const color = t.assigned >= 5 ? 'var(--bad)' : t.assigned >= 3 ? 'var(--warn)' : 'var(--good)'
+              // The load is every open request of the technician: assigned plus in attention.
+              const load = t.assigned + t.inProgress
+              const pct = Math.min(100, (load / t.capacity) * 100)
+              const color = pct >= 100 ? 'var(--bad)' : pct >= 60 ? 'var(--warn)' : 'var(--good)'
               return (
                 <GridRow key={t.id} columns={COLUMNS} className="min-h-12">
                   <div className="flex min-w-0 items-center gap-2">
@@ -36,7 +38,7 @@ export function TeamPage() {
                   <div className="flex items-center gap-2">
                     <ProgressBar value={pct} color={color} label={`Carga de ${t.fullName}`} className="flex-1" />
                     <span className="whitespace-nowrap text-xs text-muted">
-                      {t.assigned} de {t.capacity}
+                      {load} de {t.capacity}
                     </span>
                   </div>
                 </GridRow>

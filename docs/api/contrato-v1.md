@@ -146,11 +146,11 @@ Reglas:
 
 ## Dashboard (indicadores)
 
-> Estado: acordado, **por implementar** en el backend (release candidate, semanas 10–12). El frontend ya lo consume contra la API simulada con estas mismas formas.
+> Estado: **implementado** en el backend (módulo `dashboard`). La API simulada del frontend aplica las mismas reglas.
 
 | Método y ruta | Acceso | Respuesta |
 |---|---|---|
-| `GET /dashboard/indicators?range=7\|30\|mes&areaId=` | Roles `SUPERVISOR` y `ADMINISTRADOR` | `200` `DashboardIndicators` · `400` `range` inválido · `403` otro rol |
+| `GET /dashboard/indicators?range=7\|30\|mes&areaId=` | Roles `SUPERVISOR` y `ADMINISTRADOR` | `200` `DashboardIndicators` · `400` `range` inválido, o `areaId` inexistente o inactiva (con `errors`) · `403` otro rol |
 | `GET /dashboard/team` | Rol `SUPERVISOR` | `200` `[ { id, fullName, assigned, inProgress, overdue, capacity } ]` · `403` otro rol |
 
 Alcance y periodo:
@@ -181,7 +181,20 @@ Además:
 - `slaCompliancePct`: de las atendidas, porcentaje que llegó a `RESUELTA` antes de `dueAt`, con un decimal; `0` si no hay atendidas.
 - `dueSoon`: hasta 10 `RequestSummary` del alcance que hoy no están `RESUELTA` ni `CERRADA` y vencen en las próximas 24 horas, ordenadas por `dueAt` (no depende del periodo).
 - `GET /dashboard/team`: técnicos activos del área del supervisor, con sus solicitudes en `ASIGNADA` (`assigned`), en `EN_ATENCION` (`inProgress`) y abiertas con `dueAt` pasado (`overdue`); `capacity` es la carga de referencia por técnico, configurable con `app.dashboard.technician-capacity` (por defecto `8`).
-- El módulo `dashboard` lee las solicitudes y su historial mediante un puerto de consulta del módulo `requests` (por acordar con su responsable al implementarlo); no escribe en sus tablas.
+- `series` de cada KPI: el mismo cálculo del KPI aplicado a las solicitudes registradas cada día (por ejemplo, `resolvedPct` del día es el porcentaje de las registradas ese día que ya fueron atendidas). Los conteos se devuelven como números (`4.0` equivale a `4`).
+- Una solicitud que llegó a `RESUELTA` y luego se reabrió cuenta como pendiente, no como atendida, mientras no vuelva a `RESUELTA` o `CERRADA`; su tiempo de atención se mide siempre hasta la **primera** resolución.
+- `dueSoon` incluye las que vencen en `(ahora, ahora + 24 h]`, ordenadas por `dueAt`.
+- `GET /dashboard/team` ordena los técnicos por nombre. La carga que muestra el frontend es `assigned + inProgress` frente a `capacity`.
+- Un `SUPERVISOR` sin área asignada recibe `403` en ambos endpoints.
+
+Lectura de datos (sin acceso a tablas de otros módulos):
+
+- El módulo `requests` publica el puerto de solo lectura `RequestAnalyticsQuery` (`requests.application`), implementado en `requests.infrastructure.persistence.JdbcRequestAnalyticsQuery`:
+  - `List<RequestAnalyticsRow> registeredBetween(Long areaId, Instant from, Instant to)`: solicitudes registradas en `[from, to)`.
+  - `List<RequestAnalyticsRow> openRequests(Long areaId)`: solicitudes que hoy no están `RESUELTA` ni `CERRADA`.
+  - `areaId` `null` significa todas las áreas; el puerto no aplica reglas de visibilidad, las decide quien lo usa.
+- `RequestAnalyticsRow = (code, status, categoryName, priorityName, areaId, areaName, technicianId, technicianName, locationName, createdAt, dueAt, firstResolvedAt)`, donde `firstResolvedAt` es la primera vez que pasó a `RESUELTA` según el historial. Expone `isOpen()`, `isOverdue(now)` (la misma regla `Sla.isOverdue` de `GET /requests`) y `wasAttended()`.
+- El módulo `dashboard` obtiene los nombres de áreas y el orden de prioridades con `CatalogLookup`, y los técnicos activos con `TechnicianDirectory` (módulo `workflow`). Todos los cálculos se hacen en Java puro (`dashboard.domain`) con un `Clock` inyectable; no escribe en ninguna tabla.
 
 ## Reglas de acceso reutilizables
 
