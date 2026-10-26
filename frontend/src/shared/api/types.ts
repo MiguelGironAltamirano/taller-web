@@ -78,6 +78,8 @@ export type RequestDetail = RequestSummary & {
   evidences?: EvidenceDto[]
   solution?: string | null
   rating?: RatingDto | null
+  /** EXTENSIÓN: solo en `RESUELTA`; ISO-8601 desde el que el backend puede cerrar la solicitud automáticamente. */
+  autoCloseAt?: string | null
 }
 
 export type CreateRequestBody = {

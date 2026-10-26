@@ -1,12 +1,15 @@
 package pe.edu.unmsm.servicios.requests.application;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.shared.domain.AccessPolicy;
+import pe.edu.unmsm.servicios.shared.application.SystemSettingsProvider;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 
 /**
@@ -20,15 +23,17 @@ public class GetRequest {
 	private final AllowedActions allowedActions;
 	private final RequestCollaboration collaboration;
 	private final RequestRatings ratings;
+	private final SystemSettingsProvider settings;
 	private final Clock clock;
 
 	public GetRequest(RequestQueries queries, AllowedTransitions allowedTransitions, AllowedActions allowedActions,
-			RequestCollaboration collaboration, RequestRatings ratings, Clock clock) {
+			RequestCollaboration collaboration, RequestRatings ratings, SystemSettingsProvider settings, Clock clock) {
 		this.queries = queries;
 		this.allowedTransitions = allowedTransitions;
 		this.allowedActions = allowedActions;
 		this.collaboration = collaboration;
 		this.ratings = ratings;
+		this.settings = settings;
 		this.clock = clock;
 	}
 
@@ -40,7 +45,19 @@ public class GetRequest {
 				.orElseThrow(() -> new RequestNotFoundException(code));
 		return detail.withPermissions(allowedTransitions.forUser(user, detail), actionsFor(user, detail))
 				.withCollaboration(collaboration.comments(detail.id()), collaboration.evidences(detail.id()))
-				.withRating(ratings.forRequest(detail.id()).orElse(null));
+				.withRating(ratings.forRequest(detail.id()).orElse(null))
+				.withAutoCloseAt(autoCloseAt(detail));
+	}
+
+	/**
+	 * The earliest moment the closure job may close a RESUELTA request: its latest resolution plus the hours the
+	 * administrator configured now (the job reads the same setting on every run). The requester may not read the
+	 * settings, so the detail tells them.
+	 */
+	private Instant autoCloseAt(RequestDetailView detail) {
+		return detail.resolvedAt()
+				.map(resolved -> resolved.plus(Duration.ofHours(settings.current().autoCloseHours())))
+				.orElse(null);
 	}
 
 	/** The workflow actions plus the priority change, which this module owns (see {@link ChangePriority}). */

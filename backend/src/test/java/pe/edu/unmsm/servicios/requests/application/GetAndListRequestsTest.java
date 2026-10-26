@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
+import pe.edu.unmsm.servicios.shared.domain.SystemSettings;
 
 class GetAndListRequestsTest {
 
@@ -44,6 +46,22 @@ class GetAndListRequestsTest {
 	private static final AuthenticatedUser ADMIN = new AuthenticatedUser(1, "ad@unmsm.edu.pe", "Admin",
 			"ADMINISTRADOR");
 
+	// Resolved, rejected by the requester and resolved again: the deadline counts from the latest resolution.
+	private static final RequestDetailView RESOLVED = new RequestDetailView(2L, new RequestSummaryView(
+			"SOL-2026-000002", "Electricidad", "Facultad → Pabellón → Aula 101", "Alta", RequestStatus.RESUELTA,
+			NOW.minus(Duration.ofHours(10)), NOW, false, "El tomacorriente del aula no funciona", "Estudiante Demo",
+			"Mantenimiento", "Técnico Demo", "Facultad", "Pabellón", "Aula 101"), 4, 1, 3L, null, "Se cambió",
+			List.of(new HistoryView(null, RequestStatus.REGISTRADA, "Estudiante Demo", "Solicitud creada",
+					NOW.minus(Duration.ofHours(10)), null),
+					new HistoryView(RequestStatus.EN_ATENCION, RequestStatus.RESUELTA, "Técnico Demo", "Solución: x",
+							NOW.minus(Duration.ofHours(5)), null),
+					new HistoryView(RequestStatus.RESUELTA, RequestStatus.EN_ATENCION, "Estudiante Demo", "Sigue",
+							NOW.minus(Duration.ofHours(4)), null),
+					new HistoryView(RequestStatus.EN_ATENCION, RequestStatus.RESUELTA, "Técnico Demo", "Solución: y",
+							NOW.minus(Duration.ofHours(2)), null)));
+
+	private int autoCloseHours = 48;
+
 	private final List<RequestScope> scopes = new ArrayList<>();
 	private RequestListCriteria lastCriteria;
 	private Instant lastNow;
@@ -67,7 +85,8 @@ class GetAndListRequestsTest {
 
 		@Override
 		public Optional<RequestDetailView> findDetail(String code, Instant now) {
-			return DETAIL.summary().code().equals(code) ? Optional.of(DETAIL) : Optional.empty();
+			return Optional.ofNullable(code.equals(DETAIL.summary().code()) ? DETAIL
+					: code.equals(RESOLVED.summary().code()) ? RESOLVED : null);
 		}
 
 	};
@@ -85,7 +104,28 @@ class GetAndListRequestsTest {
 					return List.of(new EvidenceView(9, "foto.jpg", "IMG", 2048));
 				}
 
-			}, requestId -> Optional.of(new RatingView(5, "Excelente")), CLOCK);
+			}, requestId -> Optional.of(new RatingView(5, "Excelente")),
+			() -> new SystemSettings(autoCloseHours, false, true), CLOCK);
+
+	@Test
+	void aResolvedRequestCarriesTheAutomaticClosureDeadlineOfItsLatestResolution() {
+		RequestDetailView detail = get.execute(OWNER, "SOL-2026-000002");
+
+		assertThat(detail.autoCloseAt()).isEqualTo(NOW.minus(Duration.ofHours(2)).plus(Duration.ofHours(48)));
+	}
+
+	@Test
+	void theDeadlineFollowsTheCurrentSettingOfTheAdministrator() {
+		autoCloseHours = 24;
+
+		assertThat(get.execute(OWNER, "SOL-2026-000002").autoCloseAt())
+				.isEqualTo(NOW.minus(Duration.ofHours(2)).plus(Duration.ofHours(24)));
+	}
+
+	@Test
+	void aRequestThatIsNotResolvedHasNoDeadline() {
+		assertThat(get.execute(OWNER, "SOL-2026-000001").autoCloseAt()).isNull();
+	}
 
 	@Test
 	void theDetailCarriesTheRatingOfTheSatisfactionModule() {

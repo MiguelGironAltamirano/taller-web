@@ -74,7 +74,8 @@ public final class RequestDtos {
 			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
 			String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
 			List<HistoryResponse> history, List<String> allowedTransitions, List<String> allowedActions,
-			List<CommentResponse> comments, List<EvidenceResponse> evidences, String solution, RatingResponse rating) {
+			List<CommentResponse> comments, List<EvidenceResponse> evidences, String solution, RatingResponse rating,
+			Instant autoCloseAt) {
 
 		public static DetailResponse from(RequestDetailView d) {
 			RequestSummaryView s = d.summary();
@@ -90,7 +91,8 @@ public final class RequestDtos {
 					d.allowedActions().stream().map(RequestAction::apiName).toList(),
 					d.comments().stream().map(CommentResponse::from).toList(),
 					d.evidences().stream().map(EvidenceResponse::from).toList(), d.solution(),
-					d.rating() == null ? null : new RatingResponse(d.rating().score(), d.rating().comment()));
+					d.rating() == null ? null : new RatingResponse(d.rating().score(), d.rating().comment()),
+					d.autoCloseAt());
 		}
 
 	}

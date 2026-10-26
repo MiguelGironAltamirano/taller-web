@@ -95,6 +95,8 @@ export type RequestDetailView = RequestRow & {
   evidences: EvidenceItem[]
   solution: string | null
   rating: { score: number; comment: string } | null
+  /** Momento (ms) desde el que la solicitud Resuelta se cierra sola si nadie responde; null en otro estado. */
+  autoCloseAt: number | null
   allowedActions: WorkflowActionId[]
 }
 

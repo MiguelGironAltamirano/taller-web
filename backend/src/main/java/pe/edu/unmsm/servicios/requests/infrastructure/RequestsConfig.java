@@ -18,6 +18,7 @@ import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestRatings;
 import pe.edu.unmsm.servicios.requests.application.RequestRepository;
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
+import pe.edu.unmsm.servicios.shared.application.SystemSettingsProvider;
 
 @Configuration
 class RequestsConfig {
@@ -35,8 +36,8 @@ class RequestsConfig {
 	 */
 	@Bean
 	GetRequest getRequest(RequestQueries queries, AllowedTransitions allowedTransitions, AllowedActions allowedActions,
-			RequestCollaboration collaboration, RequestRatings ratings, Clock clock) {
-		return new GetRequest(queries, allowedTransitions, allowedActions, collaboration, ratings, clock);
+			RequestCollaboration collaboration, RequestRatings ratings, SystemSettingsProvider settings, Clock clock) {
+		return new GetRequest(queries, allowedTransitions, allowedActions, collaboration, ratings, settings, clock);
 	}
 
 	@Bean

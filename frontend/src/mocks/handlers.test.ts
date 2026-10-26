@@ -193,6 +193,8 @@ describe('flujo de estados', () => {
     expect((await transition(code, { to: 'EN_ATENCION' })).status).toBe('EN_ATENCION')
     const resolved = await transition(code, { to: 'RESUELTA', reason: 'Se cambió el tomacorriente' })
     expect(resolved.solution).toBe('Se cambió el tomacorriente')
+    expect(assigned.autoCloseAt).toBeNull()
+    expect(Date.parse(resolved.autoCloseAt!) - Date.parse(resolved.history.at(-1)!.createdAt)).toBe(72 * 3_600_000)
 
     await loginAs(SOLICITANTE)
     const closed = await transition(code, { to: 'CERRADA' })

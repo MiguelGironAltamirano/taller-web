@@ -3,6 +3,8 @@ package pe.edu.unmsm.servicios.requests.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -114,6 +116,37 @@ class RequestDetailExtensionsApiTests {
 		assertThat(ApiClient.<Object>read(response, "$.history[0].note")).isNull();
 		assertThat(ApiClient.<List<Object>>read(response, "$.comments")).isEmpty();
 		assertThat(ApiClient.<List<Object>>read(response, "$.evidences")).isEmpty();
+	}
+
+	// ───── autoCloseAt ─────
+
+	private void transition(String user, String code, String json) throws Exception {
+		HttpResponse<String> response = api.post("/api/v1/requests/" + code + "/transitions", json, api.login(user));
+		assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+	}
+
+	@Test
+	void aResolvedRequestTellsWhenItWillBeClosedAutomatically() throws Exception {
+		String code = createRequest();
+		assertThat(ApiClient.<Object>read(detail(STUDENT, code), "$.autoCloseAt")).isNull();
+		transition(SUPERVISOR, code, "{\"to\":\"EN_EVALUACION\"}");
+		transition(SUPERVISOR, code, "{\"to\":\"ASIGNADA\",\"technicianId\":3}");
+		transition(TECHNICIAN, code, "{\"to\":\"EN_ATENCION\"}");
+		transition(TECHNICIAN, code, "{\"to\":\"RESUELTA\",\"reason\":\"Se cambió el tomacorriente\"}");
+		Integer previousHours = jdbc.queryForObject("select auto_close_hours from system_settings where id = 1",
+				Integer.class);
+		try {
+			jdbc.update("update system_settings set auto_close_hours = 48 where id = 1");
+
+			HttpResponse<String> response = detail(STUDENT, code);
+
+			List<String> created = ApiClient.read(response, "$.history[*].createdAt");
+			assertThat(Instant.parse(ApiClient.read(response, "$.autoCloseAt", String.class)))
+					.isEqualTo(Instant.parse(created.getLast()).plus(Duration.ofHours(48)));
+		}
+		finally {
+			jdbc.update("update system_settings set auto_close_hours = ? where id = 1", previousHours);
+		}
 	}
 
 	// ───── comments and evidences (collaboration module) ─────
