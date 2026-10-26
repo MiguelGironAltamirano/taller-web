@@ -8,6 +8,9 @@ import org.springframework.context.annotation.Configuration;
 import pe.edu.unmsm.servicios.admin.application.AdminUserRepository;
 import pe.edu.unmsm.servicios.admin.application.AreaDirectory;
 import pe.edu.unmsm.servicios.admin.application.CatalogAdminStore;
+import pe.edu.unmsm.servicios.admin.application.ListAuditEvents;
+import pe.edu.unmsm.servicios.admin.application.ManageSystemSettings;
+import pe.edu.unmsm.servicios.admin.application.SystemSettingsStore;
 import pe.edu.unmsm.servicios.admin.application.ManageCatalogs;
 import pe.edu.unmsm.servicios.admin.application.CreateManagedUser;
 import pe.edu.unmsm.servicios.admin.application.ListManagedUsers;
@@ -16,6 +19,7 @@ import pe.edu.unmsm.servicios.admin.application.TemporaryPasswordGenerator;
 import pe.edu.unmsm.servicios.admin.application.UpdateManagedUser;
 import pe.edu.unmsm.servicios.auth.application.PasswordHasher;
 import pe.edu.unmsm.servicios.auth.application.RefreshTokenRepository;
+import pe.edu.unmsm.servicios.requests.application.RequestHistoryQuery;
 
 @Configuration
 class AdminConfig {
@@ -43,6 +47,17 @@ class AdminConfig {
 	@Bean
 	SetUserActive setUserActive(AdminUserRepository users, RefreshTokenRepository refreshTokens, Clock clock) {
 		return new SetUserActive(users, refreshTokens, clock);
+	}
+
+	@Bean
+	ManageSystemSettings manageSystemSettings(SystemSettingsStore store) {
+		return new ManageSystemSettings(store);
+	}
+
+	/** {@link RequestHistoryQuery} is provided by the requests module, which owns the change history. */
+	@Bean
+	ListAuditEvents listAuditEvents(RequestHistoryQuery history) {
+		return new ListAuditEvents(history);
 	}
 
 }
