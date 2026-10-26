@@ -3,6 +3,8 @@ import { accounts } from './demoUsers.ts'
 import { actors, advance, catalog, createRequest, login, openTab, uniqueTag } from './support.ts'
 
 const CODE = /SOL-\d{4}-\d{6}/
+/** A valid 1×1 PNG, enough for the server-side type check of evidences. */
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')
 
 test.describe('Requester', () => {
   test('registers a request applying the triage suggestion and finds it in "Mis solicitudes"', async ({ page }) => {
@@ -25,6 +27,8 @@ test.describe('Requester', () => {
     await page.getByLabel('Facultad *').selectOption('Facultad de Ingeniería de Sistemas e Informática')
     await page.getByLabel('Pabellón *').selectOption('Pabellón Principal')
     await page.getByLabel('Ambiente *').selectOption('Aula 101')
+    await page.getByLabel(/Arrastra archivos/).setInputFiles({ name: 'foco.png', mimeType: 'image/png', buffer: PNG_1X1 })
+    await expect(page.getByRole('region', { name: 'Resumen' })).toContainText('1 adjunto(s)')
     await page.getByRole('button', { name: 'Registrar solicitud' }).click()
 
     await expect(page.getByRole('heading', { name: 'Solicitud registrada' })).toBeVisible()
@@ -36,6 +40,10 @@ test.describe('Requester', () => {
     await expect(detail).toContainText('Registrada')
     await expect(detail).toContainText('Alta · 24 h')
     await expect(detail).toContainText('Mantenimiento')
+    // The evidence picked in the form was uploaded to the new request.
+    await expect(page.getByRole('tab', { name: /^Evidencias/ })).toContainText('1')
+    await openTab(page, 'Evidencias')
+    await expect(page.getByRole('tabpanel')).toContainText('foco.png')
 
     await page.getByRole('link', { name: /^Mis solicitudes/ }).click()
     await page.getByRole('searchbox', { name: 'Buscar' }).fill(tag)

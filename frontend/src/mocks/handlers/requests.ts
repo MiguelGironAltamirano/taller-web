@@ -82,7 +82,6 @@ export const requestHandlers = [
       if (description.length < 20 || description.length > 2000) {
         errors.description = 'La descripción debe tener entre 20 y 2000 caracteres.'
       }
-      if ((body.evidences?.length ?? 0) > 5) errors.evidences = 'Máximo 5 archivos.'
       if (Object.keys(errors).length) return problem(400, 'Datos no válidos', 'Revisa los campos marcados.', errors)
 
       const now = Date.now()
@@ -104,12 +103,8 @@ export const requestHandlers = [
         solution: null,
         rating: null,
         comments: [],
-        evidences: (body.evidences ?? []).map((e) => ({
-          id: ++db.nextId,
-          fileName: e.fileName,
-          kind: /\.pdf$/i.test(e.fileName) ? ('PDF' as const) : ('IMG' as const),
-          sizeBytes: e.sizeBytes,
-        })),
+        // Evidences arrive afterwards through POST /requests/{code}/evidences, as in the real API.
+        evidences: [],
         history: [],
       }
       pushHistory(created, { from: null, to: 'REGISTRADA', actor: user.fullName, reason: 'Solicitud creada' })
@@ -298,6 +293,27 @@ export const requestHandlers = [
       const r = findByCode(String(params.code))
       if (!r || !inScope(r, user)) return notFound()
       return HttpResponse.json(r.evidences)
+    }),
+  ),
+
+  http.post(
+    '*/api/v1/requests/:code/evidences',
+    secured(null, async ({ request, params, user }) => {
+      const r = findByCode(String(params.code))
+      if (!r || !inScope(r, user)) return notFound()
+      const file = (await request.formData()).get('file')
+      if (!(file instanceof File) || !/\.(jpe?g|png|pdf)$/i.test(file.name)) {
+        return problem(400, 'Datos no válidos', 'Solo se permiten JPG, PNG o PDF.', { file: 'Solo se permiten JPG, PNG o PDF.' })
+      }
+      if (r.evidences.length >= 5) return problem(409, 'Límite alcanzado', 'La solicitud ya tiene 5 evidencias.')
+      const evidence = {
+        id: ++getDb().nextId,
+        fileName: file.name,
+        kind: /\.pdf$/i.test(file.name) ? ('PDF' as const) : ('IMG' as const),
+        sizeBytes: file.size,
+      }
+      r.evidences.push(evidence)
+      return HttpResponse.json(evidence, { status: 201 })
     }),
   ),
 
