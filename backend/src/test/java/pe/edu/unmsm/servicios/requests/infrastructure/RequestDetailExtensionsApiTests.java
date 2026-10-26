@@ -112,6 +112,31 @@ class RequestDetailExtensionsApiTests {
 
 		assertThat(ApiClient.<Object>read(response, "$.solution")).isNull();
 		assertThat(ApiClient.<Object>read(response, "$.history[0].note")).isNull();
+		assertThat(ApiClient.<List<Object>>read(response, "$.comments")).isEmpty();
+		assertThat(ApiClient.<List<Object>>read(response, "$.evidences")).isEmpty();
+	}
+
+	// ───── comments and evidences (collaboration module) ─────
+
+	@Test
+	void theDetailIncludesTheCommentsAndEvidencesOfTheRequest() throws Exception {
+		String code = createRequest();
+		HttpResponse<String> comment = api.post("/api/v1/requests/" + code + "/comments",
+				"{\"text\":\"Adjunto la foto del tomacorriente\"}", api.login(STUDENT));
+		assertThat(comment.statusCode()).as(comment.body()).isEqualTo(201);
+		jdbc.update("insert into evidences (request_id, uploader_id, file_name, stored_name, kind, size_bytes, "
+				+ "created_at) select id, requester_id, 'foto.jpg', '00000000-0000-0000-0000-000000000001', 'IMG', "
+				+ "2048, utc_timestamp(6) from service_requests where code = ?", code);
+
+		HttpResponse<String> response = detail(SUPERVISOR, code);
+
+		assertThat(ApiClient.<List<String>>read(response, "$.comments[*].text"))
+				.containsExactly("Adjunto la foto del tomacorriente");
+		assertThat(ApiClient.<String>read(response, "$.comments[0].authorName")).isEqualTo("Estudiante Demo");
+		assertThat(ApiClient.<String>read(response, "$.comments[0].createdAt")).isNotBlank();
+		assertThat(ApiClient.<String>read(response, "$.evidences[0].fileName")).isEqualTo("foto.jpg");
+		assertThat(ApiClient.<String>read(response, "$.evidences[0].kind")).isEqualTo("IMG");
+		assertThat(ApiClient.<Integer>read(response, "$.evidences[0].sizeBytes")).isEqualTo(2048);
 	}
 
 	// ───── PATCH /requests/{code}/priority ─────

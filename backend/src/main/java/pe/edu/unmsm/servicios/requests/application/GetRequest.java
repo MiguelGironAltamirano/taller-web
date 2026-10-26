@@ -9,18 +9,24 @@ import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.shared.domain.AccessPolicy;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 
+/**
+ * The detail of a request for the user who asks. The ports are implemented by the modules that own each part:
+ * workflow (transitions and actions) and collaboration (comments and evidences).
+ */
 public class GetRequest {
 
 	private final RequestQueries queries;
 	private final AllowedTransitions allowedTransitions;
 	private final AllowedActions allowedActions;
+	private final RequestCollaboration collaboration;
 	private final Clock clock;
 
 	public GetRequest(RequestQueries queries, AllowedTransitions allowedTransitions, AllowedActions allowedActions,
-			Clock clock) {
+			RequestCollaboration collaboration, Clock clock) {
 		this.queries = queries;
 		this.allowedTransitions = allowedTransitions;
 		this.allowedActions = allowedActions;
+		this.collaboration = collaboration;
 		this.clock = clock;
 	}
 
@@ -30,7 +36,8 @@ public class GetRequest {
 				.filter(view -> AccessPolicy.canViewRequest(user, view.requesterId(), view.areaId(),
 						view.technicianId()))
 				.orElseThrow(() -> new RequestNotFoundException(code));
-		return detail.withPermissions(allowedTransitions.forUser(user, detail), actionsFor(user, detail));
+		return detail.withPermissions(allowedTransitions.forUser(user, detail), actionsFor(user, detail))
+				.withCollaboration(collaboration.comments(detail.id()), collaboration.evidences(detail.id()));
 	}
 
 	/** The workflow actions plus the priority change, which this module owns (see {@link ChangePriority}). */

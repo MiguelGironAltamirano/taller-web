@@ -13,6 +13,7 @@ import pe.edu.unmsm.servicios.requests.application.CreateRequest;
 import pe.edu.unmsm.servicios.requests.application.GetRequest;
 import pe.edu.unmsm.servicios.requests.application.ListRequests;
 import pe.edu.unmsm.servicios.requests.application.RequestCodeGenerator;
+import pe.edu.unmsm.servicios.requests.application.RequestCollaboration;
 import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestRepository;
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
@@ -28,12 +29,12 @@ class RequestsConfig {
 
 	/**
 	 * {@link AllowedTransitions} and {@link AllowedActions} are provided by the workflow module, which owns the
-	 * state machine.
+	 * state machine; {@link RequestCollaboration} by the collaboration module.
 	 */
 	@Bean
 	GetRequest getRequest(RequestQueries queries, AllowedTransitions allowedTransitions, AllowedActions allowedActions,
-			Clock clock) {
-		return new GetRequest(queries, allowedTransitions, allowedActions, clock);
+			RequestCollaboration collaboration, Clock clock) {
+		return new GetRequest(queries, allowedTransitions, allowedActions, collaboration, clock);
 	}
 
 	@Bean

@@ -6,6 +6,8 @@ import java.util.List;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import pe.edu.unmsm.servicios.requests.application.CommentView;
+import pe.edu.unmsm.servicios.requests.application.EvidenceView;
 import pe.edu.unmsm.servicios.requests.application.HistoryView;
 import pe.edu.unmsm.servicios.requests.application.PageView;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
@@ -68,7 +70,7 @@ public final class RequestDtos {
 			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
 			String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
 			List<HistoryResponse> history, List<String> allowedTransitions, List<String> allowedActions,
-			String solution) {
+			List<CommentResponse> comments, List<EvidenceResponse> evidences, String solution) {
 
 		public static DetailResponse from(RequestDetailView d) {
 			RequestSummaryView s = d.summary();
@@ -81,7 +83,27 @@ public final class RequestDtos {
 					technician, d.closureReason() == null ? null : d.closureReason().name(),
 					d.history().stream().map(HistoryResponse::from).toList(),
 					d.allowedTransitions().stream().map(Enum::name).toList(),
-					d.allowedActions().stream().map(RequestAction::apiName).toList(), d.solution());
+					d.allowedActions().stream().map(RequestAction::apiName).toList(),
+					d.comments().stream().map(CommentResponse::from).toList(),
+					d.evidences().stream().map(EvidenceResponse::from).toList(), d.solution());
+		}
+
+	}
+
+	/** {@code CommentDto} of the contract (same shape as {@code GET /requests/{code}/comments}). */
+	public record CommentResponse(long id, String authorName, String text, Instant createdAt) {
+
+		static CommentResponse from(CommentView c) {
+			return new CommentResponse(c.id(), c.authorName(), c.text(), c.createdAt());
+		}
+
+	}
+
+	/** {@code EvidenceDto} of the contract (same shape as {@code GET /requests/{code}/evidences}). */
+	public record EvidenceResponse(long id, String fileName, String kind, long sizeBytes) {
+
+		static EvidenceResponse from(EvidenceView e) {
+			return new EvidenceResponse(e.id(), e.fileName(), e.kind(), e.sizeBytes());
 		}
 
 	}

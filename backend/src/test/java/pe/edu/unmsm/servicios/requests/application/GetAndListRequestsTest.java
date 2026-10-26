@@ -67,7 +67,27 @@ class GetAndListRequestsTest {
 	};
 
 	private final GetRequest get = new GetRequest(queries, (user, view) -> List.of(RequestStatus.EN_ATENCION),
-			(user, view) -> List.of(RequestAction.REASSIGN), CLOCK);
+			(user, view) -> List.of(RequestAction.REASSIGN), new RequestCollaboration() {
+
+				@Override
+				public List<CommentView> comments(long requestId) {
+					return List.of(new CommentView(7, "Técnico Demo", "Voy en camino", NOW));
+				}
+
+				@Override
+				public List<EvidenceView> evidences(long requestId) {
+					return List.of(new EvidenceView(9, "foto.jpg", "IMG", 2048));
+				}
+
+			}, CLOCK);
+
+	@Test
+	void theDetailCarriesTheCommentsAndEvidencesOfTheCollaborationModule() {
+		RequestDetailView detail = get.execute(OWNER, "SOL-2026-000001");
+
+		assertThat(detail.comments()).extracting(CommentView::text).containsExactly("Voy en camino");
+		assertThat(detail.evidences()).extracting(EvidenceView::fileName).containsExactly("foto.jpg");
+	}
 	private final ListRequests list = new ListRequests(queries, CLOCK);
 
 	@Test
