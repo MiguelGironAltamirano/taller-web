@@ -188,6 +188,22 @@ class TriageApiTests {
 	}
 
 	@Test
+	void nothingIsSuggestedWhileTheAdministratorHasSuggestionsTurnedOff() throws Exception {
+		createRule("\"proyector\"", 5, 2);
+		assertThat(read(suggest("El proyector no enciende"), "$.categoryId", Long.class)).isEqualTo(5L);
+
+		setTriageSuggestions(false);
+		try {
+			assertNoSuggestion(suggest("El proyector no enciende"));
+		}
+		finally {
+			setTriageSuggestions(true);
+		}
+
+		assertThat(read(suggest("El proyector no enciende"), "$.categoryId", Long.class)).isEqualTo(5L);
+	}
+
+	@Test
 	void theDescriptionIsValidated() throws Exception {
 		HttpResponse<String> blank = suggest("   ");
 		assertProblem(blank, 400);
@@ -202,6 +218,12 @@ class TriageApiTests {
 				"{\"name\":\"" + name + "\",\"areaId\":1}", admin);
 		assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
 		return read(response, "$.id", Long.class);
+	}
+
+	private void setTriageSuggestions(boolean enabled) throws Exception {
+		HttpResponse<String> response = api.send("PUT", "/api/v1/admin/config",
+				"{\"autoCloseHours\":72,\"emailNotifications\":false,\"triageSuggestions\":" + enabled + "}", admin);
+		assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
 	}
 
 	private void deactivateCategory(long id) throws Exception {
