@@ -43,7 +43,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 
 ### Administración (`ADMINISTRADOR`)
 
-> Usuarios (`/admin/users*`), estados (`/admin/states`) y catálogos (`/admin/areas`, `/admin/categories`, `/admin/priorities`, `/admin/locations`) ya están acordados e implementados según [`contrato-v1.md`](contrato-v1.md#administración-usuarios-y-estados) (usuarios con contraseña temporal; áreas y categorías se desactivan en lugar de borrarse). Las filas de abajo para esas rutas quedan como referencia histórica.
+> Usuarios (`/admin/users*`), estados (`/admin/states`) y catálogos (`/admin/areas`, `/admin/categories`, `/admin/priorities`, `/admin/locations`) ya están acordados e implementados según [`contrato-v1.md`](contrato-v1.md#administración-usuarios-y-estados) (usuarios con contraseña temporal; áreas y categorías se desactivan en lugar de borrarse). Auditoría (`/admin/audit`) y configuración (`/admin/config`) también están implementadas según [`contrato-v1.md`](contrato-v1.md#administración-auditoría-y-configuración). Las filas de abajo para esas rutas quedan como referencia histórica.
 
 | Método y ruta | Cuerpo | Notas |
 |---|---|---|
@@ -55,8 +55,19 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 | `POST /admin/locations`, `DELETE /admin/locations/{id}` | `{ faculty, pavilion, room }` | Crea los niveles que falten; `409` si hay solicitudes en el ambiente |
 | `GET /admin/states` | — | Solo lectura (spec §5) |
 | `GET /admin/triage-rules`, `POST`, `PUT /{id}`, `DELETE /{id}` | `{ keywords[], categoryId, priorityId, active? }` | Gestión de reglas de triage |
-| `GET /admin/audit?q=` | — | Eventos derivados del historial de cambios (máx. 40) |
-| `GET /admin/config`, `PUT /admin/config` | `{ autoCloseHours, emailNotifications, triageSuggestions }` | `autoCloseHours` entero mayor a 0 |
+| `GET /admin/audit?q=` | — | **Implementado.** Eventos derivados del historial de cambios (máx. 40, más recientes primero) |
+| `GET /admin/config`, `PUT /admin/config` | `{ autoCloseHours, emailNotifications, triageSuggestions }` | **Implementado.** `autoCloseHours` entero mayor a 0 |
+
+#### Lectura de la configuración desde otros módulos
+
+La configuración se guarda en la tabla `system_settings` (una sola fila tipada, migración `V20261026_0300`) y la administra el módulo `admin`. Los demás módulos la leen mediante un puerto compartido, sin depender de clases de `admin`:
+
+- Puerto: `pe.edu.unmsm.servicios.shared.application.SystemSettingsProvider`, con el método `SystemSettings current()`.
+- Valor: `pe.edu.unmsm.servicios.shared.domain.SystemSettings` (`autoCloseHours`, `emailNotifications`, `triageSuggestions`; `autoCloseHours` siempre es mayor a 0).
+- Uso: inyectar `SystemSettingsProvider` en el constructor del caso de uso o del job (por ejemplo, el cierre automático de `workflow` usa `current().autoCloseHours()` y las sugerencias de triage consultan `current().triageSuggestions()`). En las pruebas unitarias basta con una lambda: `() -> new SystemSettings(72, false, true)`.
+- Cada llamada lee el valor vigente en la base de datos; no se debe guardar en caché para que los cambios del administrador se apliquen de inmediato.
+- Se ubica en `shared` porque las reglas de ArchUnit permiten que cualquier capa `application` dependa de `shared.application`, y así ningún módulo depende de la infraestructura ni de los casos de uso de `admin`. La única implementación es `JdbcSystemSettingsStore` (infraestructura de `admin`).
+- Agregar un parámetro nuevo implica una migración que añada la columna, el campo en `SystemSettings` y su validación en `ManageSystemSettings`.
 
 ## Pendiente de definir
 

@@ -99,6 +99,26 @@ Reglas:
 - `POST /admin/locations` reutiliza la facultad y el pabellón si ya existen con ese nombre y crea los niveles que falten.
 - Solo se eliminan ambientes sin solicitudes; si su pabellón y su facultad quedan sin hijos ni solicitudes, también se eliminan.
 
+## Administración: auditoría y configuración
+
+Acceso: solo rol `ADMINISTRADOR` (`403` otro rol, `401` sin token).
+
+| Método y ruta | Cuerpo | Respuesta |
+|---|---|---|
+| `GET /admin/audit?q=` | — | `200` `AuditEvent[]` |
+| `GET /admin/config` | — | `200` `AppConfig` |
+| `PUT /admin/config` | `AppConfig` | `200` `AppConfig` · `400` con `errors.<campo>` |
+
+`AuditEvent`: `{ id, createdAt, actorName, requestCode, detail }`. `AppConfig`: `{ autoCloseHours, emailNotifications, triageSuggestions }`.
+
+Reglas:
+
+- La auditoría se deriva del historial de cambios de las solicitudes (`request_history`): como máximo 40 eventos, del más reciente al más antiguo. `id` es el del registro de historial.
+- `detail` tiene la forma `<estado origen> → <estado destino> · <motivo>`, con las etiquetas de estado en español (`Registrada`, `En evaluación`, `Asignada`, `En atención`, `Resuelta`, `Cerrada`). El origen de la creación es `—` y el tramo ` · <motivo>` se omite cuando no hay motivo.
+- `q` (opcional) filtra por nombre del actor, código de solicitud o motivo (sin distinguir mayúsculas ni tildes, colación de MySQL), o por la etiqueta del estado de origen o destino. `%` y `_` se tratan como caracteres literales. Vacío lista todo.
+- `autoCloseHours` es un entero mayor a 0; `emailNotifications` y `triageSuggestions` son obligatorios. Valores iniciales: `72`, `false`, `true`.
+- Cada cambio de configuración registra quién lo hizo y cuándo (`updated_by`, `updated_at`).
+
 ## Triage
 
 > Estado: acordado, **por implementar** en el backend (release candidate, semanas 10–12). El frontend ya lo consume contra la API simulada con estas mismas formas.
