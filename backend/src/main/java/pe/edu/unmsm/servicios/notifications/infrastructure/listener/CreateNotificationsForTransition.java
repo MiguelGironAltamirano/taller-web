@@ -50,7 +50,9 @@ public class CreateNotificationsForTransition {
 					supervisorIds,
 					event.actorId()
 			);
-			String text = NotificationText.forTransition(event.code(), statusToLabel(event.toStatus()));
+			String text = event.bySystem() && "CERRADA".equals(event.toStatus())
+					? NotificationText.forAutomaticClosure(event.code())
+					: NotificationText.forTransition(event.code(), statusToLabel(event.toStatus()));
 			notificationService.notify(recipients, text, event.requestId());
 		} catch (Exception e) {
 			log.error("Failed to generate notifications for transition event on {}: {}", event.code(), e.getMessage(), e);

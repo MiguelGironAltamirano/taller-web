@@ -119,6 +119,7 @@ Reglas:
 - `detail` tiene la forma `<estado origen> → <estado destino> · <motivo>`, con las etiquetas de estado en español (`Registrada`, `En evaluación`, `Asignada`, `En atención`, `Resuelta`, `Cerrada`). El origen de la creación es `—` y el tramo ` · <motivo>` se omite cuando no hay motivo.
 - `q` (opcional) filtra por nombre del actor, código de solicitud o motivo (sin distinguir mayúsculas ni tildes, colación de MySQL), o por la etiqueta del estado de origen o destino. `%` y `_` se tratan como caracteres literales. Vacío lista todo.
 - `autoCloseHours` es un entero mayor a 0; `emailNotifications` y `triageSuggestions` son obligatorios. Valores iniciales: `72`, `false`, `true`.
+- Efecto inmediato (se leen en cada uso): `autoCloseHours` define el plazo del cierre automático y, con `triageSuggestions = false`, `POST /triage/suggestions` responde siempre `200` con `null`.
 - Cada cambio de configuración registra quién lo hizo y cuándo (`updated_by`, `updated_at`).
 
 ## Triage
@@ -127,7 +128,7 @@ Reglas:
 
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
-| `POST /triage/suggestions` | Rol `SOLICITANTE` | `{ description }` | `200` `{ categoryId, priorityId }`, o `200` con cuerpo `null` si ninguna regla coincide · `400` |
+| `POST /triage/suggestions` | Rol `SOLICITANTE` | `{ description }` | `200` `{ categoryId, priorityId }`, o `200` con cuerpo `null` si ninguna regla coincide o si el administrador desactivó las sugerencias (`triageSuggestions = false`) · `400` |
 | `GET /admin/triage-rules` | Rol `ADMINISTRADOR` | — | `200` `[TriageRule]` ordenadas por `id` |
 | `POST /admin/triage-rules` | Rol `ADMINISTRADOR` | `TriageRuleBody` | `201` `TriageRule` · `400` |
 | `PUT /admin/triage-rules/{id}` | Rol `ADMINISTRADOR` | `TriageRuleBody` | `200` `TriageRule` · `400` · `404` |
@@ -252,4 +253,5 @@ Otros campos del detalle:
 - `history[].note`: solo en cambios que no cambian de estado; el cambio de prioridad registra `Prioridad Alta → Prioridad Media` y en `reason` el nuevo vencimiento (hora de Lima). El nuevo `dueAt` es la fecha de registro más las horas del SLA de la nueva prioridad.
 - `comments` y `evidences`: los mismos datos que `GET /requests/{code}/comments` y `GET /requests/{code}/evidences`.
 - `rating`: `null` hasta que el solicitante califica. Calificar no cambia el estado; la solicitud ya se cerró con la transición `RESUELTA → CERRADA`.
-- `closureReason = 'AUTOMATICA'`: reservado para el cierre automático por falta de confirmación (el proceso que lo aplica aún no existe).
+- `closureReason = 'AUTOMATICA'`: cierre automático por falta de confirmación. El backend cierra las solicitudes que permanecen en `RESUELTA` al menos `autoCloseHours` horas (configuración del administrador, `72` por defecto) contadas desde la última entrada a `RESUELTA` según el historial. La entrada de historial la registra el sistema: `actorName` es `Sistema` y `reason` es `Cierre automático: el solicitante no confirmó la solución en <N> h`. Una solicitud cerrada así no se puede calificar (`409`). Detalles en [`ui-extensions.md`](ui-extensions.md#cierre-automático).
+- `history[].actorName`: nombre del usuario que hizo el cambio, o `Sistema` cuando lo hizo el backend (cierre automático). Lo mismo aplica a `AuditEvent.actorName`.

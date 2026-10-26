@@ -375,6 +375,27 @@ class StateMachineTest {
 		assertThat(StateMachine.allowedActions(ADMIN, subject(REGISTRADA))).isEmpty();
 	}
 
+	// ───── Automatic closure (by the system, not by a user) ─────
+
+	@Test
+	void anUnconfirmedSolutionIsClosedAutomaticallyKeepingTheTechnician() {
+		TransitionOutcome outcome = StateMachine.autoClose(subject(RESUELTA), 72);
+
+		assertThat(outcome.to()).isEqualTo(CERRADA);
+		assertThat(outcome.closureReason()).isEqualTo(ClosureReason.AUTOMATICA);
+		assertThat(outcome.technicianId()).isEqualTo(3L);
+		assertThat(outcome.historyTechnicianId()).isNull();
+		assertThat(outcome.solution()).isNull();
+		assertThat(outcome.reason()).isEqualTo("Cierre automático: el solicitante no confirmó la solución en 72 h");
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "REGISTRADA", "EN_EVALUACION", "ASIGNADA", "EN_ATENCION", "CERRADA" })
+	void onlyAResolvedRequestIsClosedAutomatically(RequestStatus from) {
+		assertThatThrownBy(() -> StateMachine.autoClose(subject(from), 72))
+				.isInstanceOf(InvalidTransitionException.class);
+	}
+
 	@Test
 	void errorsAreImmutableCopies() {
 		Map<String, String> errors = new java.util.HashMap<>(Map.of("reason", "x"));

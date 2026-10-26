@@ -17,12 +17,15 @@ import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 @Repository
 class JdbcRequestHistoryQuery implements RequestHistoryQuery {
 
+	/** Entries made by the system (automatic closure) have no actor and are shown as {@code Sistema}. */
+	private static final String ACTOR_NAME = "coalesce(actor.full_name, 'Sistema')";
+
 	private static final String SELECT = """
-			select h.id, h.created_at, actor.full_name as actor_name, r.code, h.from_status, h.to_status, h.reason
+			select h.id, h.created_at, %s as actor_name, r.code, h.from_status, h.to_status, h.reason
 			  from request_history h
 			  join service_requests r on r.id = h.request_id
-			  join users actor on actor.id = h.actor_id
-			""";
+			  left join users actor on actor.id = h.actor_id
+			""".formatted(ACTOR_NAME);
 
 	private final JdbcTemplate jdbc;
 
@@ -38,7 +41,7 @@ class JdbcRequestHistoryQuery implements RequestHistoryQuery {
 			List<String> conditions = new ArrayList<>();
 			if (!criteria.text().isEmpty()) {
 				String pattern = "%" + escapeLike(criteria.text()) + "%";
-				conditions.add("actor.full_name like ? escape '!'");
+				conditions.add(ACTOR_NAME + " like ? escape '!'");
 				conditions.add("r.code like ? escape '!'");
 				conditions.add("h.reason like ? escape '!'");
 				args.add(pattern);

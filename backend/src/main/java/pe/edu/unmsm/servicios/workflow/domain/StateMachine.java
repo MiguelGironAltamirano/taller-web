@@ -84,6 +84,19 @@ public final class StateMachine {
 		return outcome;
 	}
 
+	/**
+	 * The closure the system applies when the requester neither confirmed nor rejected the solution within
+	 * {@code hours} (spec: automatic closure at 72 h). It is not part of the user transition table: no user may
+	 * request it, and a rating is only possible after a closure by confirmation.
+	 */
+	public static TransitionOutcome autoClose(WorkflowSubject subject, int hours) {
+		if (subject.status() != RequestStatus.RESUELTA) {
+			throw new InvalidTransitionException(subject.status(), RequestStatus.CERRADA);
+		}
+		return new TransitionOutcome(RequestStatus.CERRADA, subject.technicianId(), ClosureReason.AUTOMATICA,
+				"Cierre automático: el solicitante no confirmó la solución en " + hours + " h", null);
+	}
+
 	/** The statuses this user may move the request to (the data each one needs is checked when it is attempted). */
 	public static List<RequestStatus> allowedTransitions(AuthenticatedUser actor, WorkflowSubject subject) {
 		Set<RequestStatus> allowed = new LinkedHashSet<>();

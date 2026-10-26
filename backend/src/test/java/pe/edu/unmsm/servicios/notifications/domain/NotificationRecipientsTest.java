@@ -25,6 +25,13 @@ class NotificationRecipientsTest {
 	}
 
 	@Test
+	void aChangeMadeByTheSystemNotifiesEveryParticipant() {
+		List<Long> recipients = NotificationRecipients.forTransition(10L, 20L, List.of(30L, 31L), null);
+
+		assertThat(recipients).containsExactly(10L, 20L, 30L, 31L);
+	}
+
+	@Test
 	void assignmentNotifiesOnlyNewTechnicianExcludingSupervisor() {
 		List<Long> recipients = NotificationRecipients.forAssignment(25L, 2L);
 		assertThat(recipients).containsExactly(25L);

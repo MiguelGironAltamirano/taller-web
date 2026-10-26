@@ -129,9 +129,10 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 
 	private List<HistoryView> history(long requestId) {
 		return jdbc.query("""
-				select h.from_status, h.to_status, actor.full_name as actor_name, h.reason, h.note, h.created_at
+				select h.from_status, h.to_status, coalesce(actor.full_name, 'Sistema') as actor_name, h.reason, h.note,
+				       h.created_at
 				  from request_history h
-				  join users actor on actor.id = h.actor_id
+				  left join users actor on actor.id = h.actor_id
 				 where h.request_id = ?
 				 order by h.created_at, h.id
 				""", (rs, row) -> {
