@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { ApiError } from '../../shared/api/client'
 import type { RequestDetailView } from '../../shared/domain'
 import { dateLong } from '../../shared/lib/format'
@@ -21,6 +21,7 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState('')
+  const titleId = useId()
 
   const confirm = async () => {
     try {
@@ -49,8 +50,8 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
   }
 
   return (
-    <section className="flex flex-col gap-2.5 rounded-xl border border-ok-fg bg-surface p-4">
-      <h2 className="m-0 text-[15px] font-semibold">¿Quedó resuelto?</h2>
+    <section aria-labelledby={titleId} className="flex flex-col gap-2.5 rounded-xl border border-ok-fg bg-surface p-4">
+      <h2 id={titleId} className="m-0 text-[15px] font-semibold">¿Quedó resuelto?</h2>
       <div className="rounded-lg bg-ok-bg px-3 py-2.5 text-ok-fg">
         <b>Solución propuesta:</b> {request.solution}
       </div>

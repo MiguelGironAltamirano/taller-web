@@ -43,6 +43,7 @@ export function Sidebar({ user, role, collapsed, counts, onProfile }: SidebarPro
           )}
         >
           <Avatar name={user.name} tone="primary" />
+          {collapsed && <span className="sr-only">Menú de perfil</span>}
           {!collapsed && (
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-[13px] font-semibold">{user.name}</span>
