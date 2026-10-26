@@ -8,9 +8,9 @@ import type {
 } from '../../shared/api/types'
 import { suggestTriage } from '../../features/triage/lib/suggest'
 import { PRIORITIES, type Priority } from '../../shared/domain'
-import { getDb, HOUR } from '../db'
-import { iso, notFound, secured } from '../http'
-import { areaIdOf, inScope, summaryOf } from '../views'
+import { getDb, HOUR, type MockRequest } from '../db'
+import { iso, notFound, problem, secured } from '../http'
+import { areaIdOf, summaryOf } from '../views'
 
 const DAY = 24 * HOUR
 
@@ -69,7 +69,28 @@ export const triageHandlers = [
   ),
 ]
 
-const DELTAS = [12, -8, 15, 4, -6, -20]
+// ───── Dashboard: same rules as the backend (docs/api/contrato-v1.md, "Dashboard (indicadores)") ─────
+
+/** America/Lima is UTC-5 all year (no daylight saving time). */
+const LIMA_OFFSET = 5 * HOUR
+const TECHNICIAN_CAPACITY = 8
+const DUE_SOON_LIMIT = 10
+
+/** Day number of an instant counted in Lima, so periods start at Lima midnight. */
+const limaDay = (ms: number) => Math.floor((ms - LIMA_OFFSET) / DAY)
+const round1 = (n: number) => Math.round(n * 10) / 10
+const percentage = (part: number, total: number) => (total ? round1((part * 100) / total) : 0)
+const isOpen = (r: MockRequest) => r.status !== 'RESUELTA' && r.status !== 'CERRADA'
+
+/** First time it reached RESUELTA, only while it is still resolved or closed. */
+const attendedAt = (r: MockRequest) => (isOpen(r) ? null : (r.history.find((h) => h.toStatus === 'RESUELTA')?.createdAt ?? null))
+
+function rangeDays(range: string, now: number): number | null {
+  if (range === '7') return 7
+  if (range === '30') return 30
+  if (range === 'mes') return new Date(now - LIMA_OFFSET).getUTCDate()
+  return null
+}
 
 export const dashboardHandlers = [
   http.get(
@@ -77,57 +98,71 @@ export const dashboardHandlers = [
     secured(['SUPERVISOR', 'ADMINISTRADOR'], ({ request, user }) => {
       const db = getDb()
       const params = new URL(request.url).searchParams
-      const range = params.get('range') ?? '30'
       const now = Date.now()
-      const dayOfMonth = new Date(now).getDate()
-      const days = range === '7' ? 7 : range === 'mes' ? Math.max(1, dayOfMonth) : 30
+      const days = rangeDays(params.get('range') || '30', now)
+      if (days === null) return problem(400, 'Bad Request', 'La consulta contiene parámetros inválidos', { range: 'El rango debe ser 7, 30 o mes' })
       const areaId = user.role === 'SUPERVISOR' ? user.areaId : Number(params.get('areaId')) || null
-
-      const base = db.requests.filter((r) => inScope(r, user) && (!areaId || areaIdOf(r) === areaId))
-      const inRange = base.filter((r) => r.createdAt >= now - days * DAY)
-      const summaries = inRange.map((r) => summaryOf(r, now))
-      const done = inRange.filter((r) => r.status === 'RESUELTA' || r.status === 'CERRADA')
-      const total = inRange.length
-      const overdue = summaries.filter((s) => s.overdue).length
-      const avgHours = done.length
-        ? Math.round(done.reduce((acc, r) => acc + (r.history[r.history.length - 1].createdAt - r.createdAt) / HOUR, 0) / done.length)
-        : 0
-
-      const buckets = days === 7 ? 7 : 15
-      const bucketDays = days / buckets
-      const series = Array<number>(buckets).fill(0)
-      for (const r of inRange) {
-        const i = Math.min(buckets - 1, buckets - 1 - Math.floor((now - r.createdAt) / DAY / bucketDays))
-        if (i >= 0) series[i]++
+      const area = areaId ? db.areas.find((a) => a.id === areaId) : null
+      if (areaId && !area && user.role === 'ADMINISTRADOR') {
+        return problem(400, 'Bad Request', 'La consulta contiene parámetros inválidos', { areaId: 'El área no existe o está inactiva' })
       }
-      const spark = (k: number) => series.map((v, j) => Math.max(0, v + ((j * (k + 2)) % 3) - 1))
-      const kpi = (value: number, k: number): KpiValue => ({ value, deltaPct: DELTAS[k], series: spark(k) })
 
-      const count = <T extends string>(pick: (s: (typeof summaries)[number]) => T) => {
-        const m = new Map<T, number>()
+      const scope = db.requests.filter((r) => !areaId || areaIdOf(r) === areaId)
+      const firstDay = limaDay(now) - days + 1
+      const dayIndex = (r: MockRequest) => limaDay(r.createdAt) - firstDay
+      const current = scope.filter((r) => dayIndex(r) >= 0 && dayIndex(r) < days)
+      const previous = scope.filter((r) => dayIndex(r) >= -days && dayIndex(r) < 0)
+      const byDay = Array.from({ length: days }, (_, i) => current.filter((r) => dayIndex(r) === i))
+
+      const isOverdue = (r: MockRequest) => summaryOf(r, now).overdue
+      const attended = (list: MockRequest[]) => list.filter((r) => attendedAt(r) !== null)
+      const metrics: Record<keyof DashboardIndicators['kpis'], (list: MockRequest[]) => number> = {
+        registered: (list) => list.length,
+        pending: (list) => list.filter(isOpen).length,
+        attended: (list) => attended(list).length,
+        resolvedPct: (list) => percentage(attended(list).length, list.length),
+        avgAttentionHours: (list) => {
+          const done = attended(list)
+          return done.length ? round1(done.reduce((acc, r) => acc + (attendedAt(r)! - r.createdAt) / HOUR, 0) / done.length) : 0
+        },
+        overdue: (list) => list.filter(isOverdue).length,
+      }
+      const kpi = (metric: (list: MockRequest[]) => number): KpiValue => {
+        const value = metric(current)
+        const before = metric(previous)
+        return { value, deltaPct: before ? round1(((value - before) / before) * 100) : 0, series: byDay.map(metric) }
+      }
+
+      const summaries = current.map((r) => summaryOf(r, now))
+      const count = (pick: (s: (typeof summaries)[number]) => string) => {
+        const m = new Map<string, number>()
         for (const s of summaries) m.set(pick(s), (m.get(pick(s)) ?? 0) + 1)
-        return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }))
+        return [...m.entries()]
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([label, value]) => ({ label, value }))
       }
+      const done = attended(current)
 
       const body: DashboardIndicators = {
         rangeDays: days,
-        areaName: areaId ? (db.areas.find((a) => a.id === areaId)?.name ?? null) : null,
+        areaName: area?.name ?? null,
         kpis: {
-          registered: kpi(total, 0),
-          pending: kpi(inRange.filter((r) => r.status !== 'RESUELTA' && r.status !== 'CERRADA').length, 1),
-          attended: kpi(done.length, 2),
-          resolvedPct: kpi(total ? Math.round((done.length / total) * 100) : 0, 3),
-          avgAttentionHours: kpi(avgHours, 4),
-          overdue: kpi(overdue, 5),
+          registered: kpi(metrics.registered),
+          pending: kpi(metrics.pending),
+          attended: kpi(metrics.attended),
+          resolvedPct: kpi(metrics.resolvedPct),
+          avgAttentionHours: kpi(metrics.avgAttentionHours),
+          overdue: kpi(metrics.overdue),
         },
-        byCategory: count((s) => s.categoryName).slice(0, 6),
+        byCategory: count((s) => s.categoryName),
         byPriority: PRIORITIES.map((label) => ({ label, value: summaries.filter((s) => s.priorityName === label).length })),
-        byTechnician: count((s) => s.technicianName ?? 'Sin asignar').slice(0, 6),
-        timeline: series,
-        slaCompliancePct: total ? Math.round(((total - overdue) / total) * 100) : 100,
-        dueSoon: base
-          .filter((r) => r.status !== 'RESUELTA' && r.status !== 'CERRADA' && r.dueAt > now && r.dueAt < now + DAY)
+        byTechnician: count((s) => s.technicianName ?? 'Sin asignar'),
+        timeline: byDay.map((list) => list.length),
+        slaCompliancePct: percentage(done.filter((r) => attendedAt(r)! < r.dueAt).length, done.length),
+        dueSoon: scope
+          .filter((r) => isOpen(r) && r.dueAt > now && r.dueAt <= now + DAY)
           .sort((a, b) => a.dueAt - b.dueAt)
+          .slice(0, DUE_SOON_LIMIT)
           .map((r) => summaryOf(r, now)),
       }
       return HttpResponse.json(body)
@@ -140,16 +175,17 @@ export const dashboardHandlers = [
       const db = getDb()
       const now = Date.now()
       const items: TeamMemberLoad[] = db.users
-        .filter((u) => u.role === 'TECNICO' && u.areaId === user.areaId)
+        .filter((u) => u.role === 'TECNICO' && u.active && u.areaId === user.areaId)
+        .sort((a, b) => a.fullName.localeCompare(b.fullName))
         .map((u) => {
-          const mine = db.requests.filter((r) => r.technicianId === u.id && r.status !== 'RESUELTA' && r.status !== 'CERRADA')
+          const mine = db.requests.filter((r) => r.technicianId === u.id && isOpen(r) && areaIdOf(r) === user.areaId)
           return {
             id: u.id,
             fullName: u.fullName,
-            assigned: mine.length,
+            assigned: mine.filter((r) => r.status === 'ASIGNADA').length,
             inProgress: mine.filter((r) => r.status === 'EN_ATENCION').length,
             overdue: mine.filter((r) => r.dueAt < now).length,
-            capacity: 6,
+            capacity: TECHNICIAN_CAPACITY,
           }
         })
       return HttpResponse.json(items)

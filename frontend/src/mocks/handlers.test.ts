@@ -4,9 +4,11 @@ import type {
   AdminUser,
   Catalogs,
   CreateRequestBody,
+  DashboardIndicators,
   Page,
   RequestDetail,
   RequestSummary,
+  TeamMemberLoad,
   TokenResponse,
 } from '../shared/api/types'
 import { sessionStore } from '../shared/session/session-store'
@@ -376,5 +378,38 @@ describe('administración', () => {
     expect(res.areaName).toBe('Mantenimiento e Infraestructura')
     expect(res.kpis.registered.value).toBeGreaterThan(0)
     expect(res.byPriority).toHaveLength(4)
+  })
+
+  it('el dashboard sigue el contrato: una serie por día, timeline coherente y dueSoon acotado', async () => {
+    await loginAs(ADMIN)
+    for (const range of ['7', '30', 'mes'] as const) {
+      const res = await apiGet<DashboardIndicators>('/dashboard/indicators', { range })
+      expect(res.areaName).toBeNull()
+      expect(res.timeline).toHaveLength(res.rangeDays)
+      for (const kpi of Object.values(res.kpis)) expect(kpi.series).toHaveLength(res.rangeDays)
+      expect(res.timeline.reduce((a, b) => a + b, 0)).toBe(res.kpis.registered.value)
+      expect(res.kpis.pending.value + res.kpis.attended.value).toBeLessThanOrEqual(res.kpis.registered.value)
+      expect(res.dueSoon.length).toBeLessThanOrEqual(10)
+    }
+    expect((await apiGet<DashboardIndicators>('/dashboard/indicators', { range: '7' })).rangeDays).toBe(7)
+  })
+
+  it('el dashboard rechaza un rango inválido o un área inexistente, y otros roles', async () => {
+    await loginAs(ADMIN)
+    expect(await status(apiGet('/dashboard/indicators', { range: '15' }))).toBe(400)
+    expect(await status(apiGet('/dashboard/indicators', { areaId: 999 }))).toBe(400)
+    expect(await status(apiGet('/dashboard/team'))).toBe(403)
+    await loginAs(TECNICO)
+    expect(await status(apiGet('/dashboard/indicators'))).toBe(403)
+  })
+
+  it('el equipo separa asignadas y en atención, con capacidad 8', async () => {
+    await loginAs(SUPERVISOR)
+    const team = await apiGet<TeamMemberLoad[]>('/dashboard/team')
+    expect(team.length).toBeGreaterThan(0)
+    for (const t of team) {
+      expect(t.capacity).toBe(8)
+      expect(t.overdue).toBeLessThanOrEqual(t.assigned + t.inProgress)
+    }
   })
 })
