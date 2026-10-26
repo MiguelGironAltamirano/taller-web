@@ -67,13 +67,19 @@ Edita `infra/.env` (no se versiona). Variables principales:
 | `APP_AUTH_REFRESH_COOKIE_SECURE` | Atributo `Secure` de la cookie de refresco (por defecto `true`). Mantenlo en `true` en todo entorno con HTTPS; usa `false` solo si sirves el stack por HTTP desde un host distinto de `localhost` |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes explícitos, separados por comas, que pueden llamar a la API desde otro origen (no se admiten comodines). Déjalo vacío cuando la interfaz y la API comparten origen a través de nginx, que es la configuración por defecto |
 
-Para cargar los usuarios de demostración, agrega:
+Para cargar los usuarios y los datos de demostración (es el valor de `infra/.env.example`):
 
 ```env
-APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev
+APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev,classpath:db/seed-demo
 ```
 
-`db/seed-dev` agrega usuarios de demostración. Úsalo **solo en local y staging, nunca en producción**. Si esas variables no aparecen en tu `infra/.env.example`, es porque el módulo de autenticación aún no está integrado en tu rama; agrégalas a mano cuando lo esté.
+| Ubicación | Contenido |
+|---|---|
+| `db/migration` | Esquema y catálogos. Es la única que se usa en producción |
+| `db/seed-dev` | Los cuatro usuarios de demostración base (uno por rol) |
+| `db/seed-demo` | Datos de demostración realistas (sección 6). Requiere `db/seed-dev` |
+
+`db/seed-dev` y `db/seed-demo` se usan **solo en local y staging, nunca en producción**. Si prefieres una base vacía con solo los usuarios, quita `classpath:db/seed-demo`. Las pruebas del backend usan `db/seed-dev` sin `db/seed-demo`, salvo `DemoSeedTests`, que valida los datos de demostración.
 
 ## 5. Stack completo con Docker
 
@@ -94,7 +100,7 @@ Si agregas `--wait` a `up -d --build`, el comando termina cuando todos los servi
 
 ### Prueba de humo
 
-`infra/smoke.sh` construye y levanta un stack aislado con los usuarios de demostración, espera a que esté sano, comprueba `GET /api/v1/system/info` y la interfaz en `/` a través de nginx, inicia sesión con `estudiante@unmsm.edu.pe` y finalmente elimina el stack con sus volúmenes. No usa tu `infra/.env`: genera un archivo de entorno temporal con secretos aleatorios. El CI la ejecuta después de las pruebas del backend y del frontend.
+`infra/smoke.sh` construye y levanta un stack aislado con los usuarios y los datos de demostración, espera a que esté sano, comprueba `GET /api/v1/system/info` y la interfaz en `/` a través de nginx, inicia sesión con `estudiante@unmsm.edu.pe`, verifica que `GET /api/v1/requests` devuelva sus solicitudes de demostración y finalmente elimina el stack con sus volúmenes. No usa tu `infra/.env`: genera un archivo de entorno temporal con secretos aleatorios. El CI la ejecuta después de las pruebas del backend y del frontend.
 
 ```bash
 bash infra/smoke.sh
@@ -121,14 +127,43 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env down -v
 
 ## 6. Usuarios de demostración
 
-Disponibles cuando el módulo de autenticación está integrado y `APP_FLYWAY_LOCATIONS` incluye `db/seed-dev`. Contraseña de todos: `Demo12345!`.
+Disponibles cuando `APP_FLYWAY_LOCATIONS` incluye `db/seed-dev`. Contraseña de todos: `Demo12345!`.
 
 | Rol | Correo |
 |---|---|
 | Administrador | `admin@unmsm.edu.pe` |
-| Supervisor | `supervisor.mantenimiento@unmsm.edu.pe` |
-| Técnico | `tecnico.mantenimiento@unmsm.edu.pe` |
-| Solicitante | `estudiante@unmsm.edu.pe` |
+| Supervisor (Mantenimiento) | `supervisor.mantenimiento@unmsm.edu.pe` |
+| Técnico (Mantenimiento) | `tecnico.mantenimiento@unmsm.edu.pe` |
+| Solicitante (estudiante) | `estudiante@unmsm.edu.pe` |
+
+### Datos de demostración (`db/seed-demo`)
+
+Con `db/seed-demo` se agregan, con la misma contraseña:
+
+| Rol | Correo |
+|---|---|
+| Supervisor (Infraestructura) | `supervisor.infraestructura@unmsm.edu.pe` |
+| Supervisora (Soporte Informático) | `supervisor.soporte@unmsm.edu.pe` |
+| Supervisor (Servicios Administrativos) | `supervisor.administrativo@unmsm.edu.pe` |
+| Técnicos | `jorge.ramirez@`, `carmen.vilchez@` (Mantenimiento), `raul.mendoza@` (Infraestructura), `diana.torres@`, `kevin.huaman@` (Soporte Informático), `patricia.lozano@` (Servicios Administrativos), todos `@unmsm.edu.pe`. `oscar.medina@unmsm.edu.pe` está inactivo |
+| Solicitante (docente) | `docente@unmsm.edu.pe` |
+| Solicitante (administrativo) | `administrativo@unmsm.edu.pe` |
+| Solicitante (estudiante) | `sofia.castillo@unmsm.edu.pe` |
+
+Además carga:
+
+- 66 solicitudes en las cuatro áreas y las siete categorías, repartidas en los últimos 60 días para que los indicadores de 7 días, 30 días y del mes muestren variaciones respecto del periodo anterior. Hay solicitudes en todos los estados, algunas vencidas y otras por vencer en las próximas 24 horas, cierres por confirmación, no procede, duplicada y cierre automático, una solución rechazada y reasignaciones.
+- El historial completo de cada solicitud con los mismos textos que genera el flujo de estados (incluidos dos cambios de prioridad), comentarios, calificaciones de satisfacción en solicitudes cerradas por confirmación y notificaciones leídas y sin leer de las dos últimas semanas.
+- Ambientes adicionales y ocho reglas de triage sobre las categorías reales (una inactiva).
+- Los códigos siguen el formato `SOL-AAAA-NNNNNN` y la secuencia queda actualizada, de modo que las solicitudes nuevas continúan la numeración.
+
+Detalles a tener en cuenta:
+
+- Es una migración repetible de Flyway (`R__demo_data.sql`): se ejecuta después de todas las migraciones versionadas, así que las migraciones de esquema futuras no la afectan.
+- Las fechas son relativas al momento de la carga (horario de oficina de Lima). Para refrescarlas, recrea la base con `down -v` y vuelve a levantar el stack.
+- Si se modifica el archivo, Flyway lo vuelve a ejecutar sin duplicar ni modificar filas existentes (cada fila tiene un identificador fijo en un rango reservado). Los cambios en filas ya cargadas solo se ven tras `down -v`.
+- Las solicitudes en estado Resuelta se resolvieron menos de 72 horas antes de la carga, por lo que el cierre automático las cerrará cuando venza su plazo, como a cualquier otra.
+- No se cargan evidencias, porque sus archivos no existirían en el volumen de almacenamiento.
 
 > Con la API simulada (`VITE_USE_MOCKS=true`, sección 7) el login muestra otras cuentas de ejemplo, definidas en `frontend/src/mocks/db.ts` (ver `frontend/README.md`); las de esta tabla son las de la base de datos real.
 
@@ -139,6 +174,12 @@ Backend (MySQL en Testcontainers; requiere Docker en ejecución):
 ```bash
 cd backend
 mise exec -- ./mvnw spring-boot:test-run
+```
+
+Así arranca solo con el esquema. Para tener los usuarios y los datos de demostración, indica las ubicaciones de Flyway al lanzarlo:
+
+```bash
+APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev,classpath:db/seed-demo mise exec -- ./mvnw spring-boot:test-run
 ```
 
 Frontend, en otra terminal (<http://localhost:5173>, con proxy de `/api` al puerto 8080):
@@ -217,3 +258,4 @@ Más detalle en [`plan/README.md`](../plan/README.md).
 | `pnpm` no se reconoce | Ejecuta `corepack enable` y abre una terminal nueva |
 | `backend` queda en `unhealthy` y `frontend` no arranca | El backend no llegó a estar listo. Revisa `docker compose -f infra/docker-compose.yml --env-file infra/.env logs backend` (suele deberse a un `APP_JWT_SECRET` ausente o corto, o a un error de migración) |
 | Los usuarios de demostración no existen | Falta `APP_FLYWAY_LOCATIONS` con `db/seed-dev` en `infra/.env`. Corrígelo y reinicia con `down -v` seguido de `up -d --build` |
+| No hay solicitudes de demostración o sus fechas son antiguas | Falta `classpath:db/seed-demo` en `APP_FLYWAY_LOCATIONS`, o la base se creó hace días. Agrégalo si falta y reinicia con `down -v` seguido de `up -d --build` |

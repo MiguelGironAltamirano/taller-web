@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test for the local Docker Compose stack.
 #
-# Builds and starts the stack with demo data (db/seed-dev), waits until every service is healthy,
+# Builds and starts the stack with demo data (db/seed-dev and db/seed-demo), waits until every service is healthy,
 # checks the API and the SPA through nginx, logs in with a demo user and tears everything down.
 # It never reads infra/.env: it generates a throwaway env file so runs are reproducible.
 #
@@ -58,7 +58,7 @@ MYSQL_USER=servicios
 MYSQL_PASSWORD=$(random_secret)
 MYSQL_ROOT_PASSWORD=$(random_secret)
 FRONTEND_PORT=$PORT
-APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev
+APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev,classpath:db/seed-demo
 APP_JWT_SECRET=$(random_secret)
 APP_EVIDENCES_STORAGE_PATH=/app/evidences
 APP_AUTH_REFRESH_COOKIE_SECURE=true
@@ -107,5 +107,13 @@ code=$(curl -s -o "$WORK_DIR/login.json" -D "$WORK_DIR/login.headers" -w '%{http
 grep -q '"accessToken":"' "$WORK_DIR/login.json" || fail "login response has no accessToken"
 grep -qi '^set-cookie: refresh_token=' "$WORK_DIR/login.headers" || fail "login did not set the refresh cookie"
 echo "    login OK (access token + refresh cookie)"
+
+step "GET /api/v1/requests returns the demo requests of $DEMO_EMAIL"
+token=$(sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p' "$WORK_DIR/login.json")
+code=$(curl -s -o "$WORK_DIR/requests.json" -w '%{http_code}' -H "Authorization: Bearer $token" \
+  "$BASE_URL/api/v1/requests")
+[[ "$code" == "200" ]] || fail "requests answered $code: $(cat "$WORK_DIR/requests.json")"
+grep -q '"code":"SOL-' "$WORK_DIR/requests.json" || fail "no demo requests (db/seed-demo not applied?)"
+echo "    demo requests OK"
 
 step "Smoke test passed"
