@@ -62,6 +62,8 @@ Edita `infra/.env` (no se versiona). Variables principales:
 | `APP_JWT_SECRET` | Secreto con el que se firman los tokens. Mínimo 32 caracteres y distinto en cada entorno. Nunca lo subas al repositorio |
 | `APP_FLYWAY_LOCATIONS` | Ubicaciones de migraciones de Flyway |
 | `APP_EVIDENCES_STORAGE_PATH` | Ruta para almacenar las evidencias adjuntas (por defecto `/app/evidences` en Docker o `./evidences` en local) |
+| `APP_WORKFLOW_AUTO_CLOSE_ENABLED` | Activa el cierre automático de solicitudes resueltas sin confirmación (por defecto `true`). El plazo en horas se configura desde la pantalla de administración |
+| `APP_WORKFLOW_AUTO_CLOSE_INTERVAL` | Cada cuánto se revisan las solicitudes por cerrar, en formato ISO-8601 (por defecto `PT15M`, 15 minutos) |
 | `APP_AUTH_REFRESH_COOKIE_SECURE` | Atributo `Secure` de la cookie de refresco (por defecto `true`). Mantenlo en `true` en todo entorno con HTTPS; usa `false` solo si sirves el stack por HTTP desde un host distinto de `localhost` |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes explícitos, separados por comas, que pueden llamar a la API desde otro origen (no se admiten comodines). Déjalo vacío cuando la interfaz y la API comparten origen a través de nginx, que es la configuración por defecto |
 

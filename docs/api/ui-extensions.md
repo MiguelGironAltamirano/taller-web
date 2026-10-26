@@ -8,7 +8,7 @@ Complementa [`contrato-v1.md`](contrato-v1.md) (contrato del MVP). Todo lo de es
 
 - Los campos añadidos a `RequestSummary` (`description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName`), que también devuelve `RequestDetail`, y `size` hasta 500 en `GET /requests`.
 - En `RequestDetail`: `allowedTransitions` y `allowedActions` calculados por usuario, `comments`, `evidences`, `solution` y `rating`.
-- `HistoryEntry.note`, `ClosureReason.AUTOMATICA` (valor y persistencia; el cierre automático en sí sigue pendiente), `TransitionBody.closureReason` y `activeRequests` en `GET /users/technicians`.
+- `HistoryEntry.note`, `ClosureReason.AUTOMATICA` (con el proceso de [cierre automático](#cierre-automático)), `TransitionBody.closureReason` y `activeRequests` en `GET /users/technicians`.
 - `PATCH /requests/{code}/priority` y `POST /requests/{code}/rating`.
 
 `CreateRequestBody.evidences` no se implementa: los adjuntos se suben con `POST /requests/{code}/evidences` después de crear la solicitud.
@@ -81,9 +81,27 @@ La configuración se guarda en la tabla `system_settings` (una sola fila tipada,
 - ~~Subida y descarga real de evidencias~~ **Resuelto:** ver [`collaboration-notifications-v1.md §4`](collaboration-notifications-v1.md#4-evidencias). Subida multipart `POST /requests/{code}/evidences`; descarga autenticada `GET /requests/{code}/evidences/{id}`.
 - ~~Cambio de contraseña~~ **Resuelto:** ver [`collaboration-notifications-v1.md §2`](collaboration-notifications-v1.md#2-cambio-de-contraseña).
 - ~~Notificaciones~~ **Resuelto:** ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones).
-- Cierre automático a las 72 h (lo ejecuta el backend, módulo Lita). El valor `AUTOMATICA` ya existe y se persiste; falta el proceso que cierra. El mecanismo de notificación para este evento está previsto en el puerto `NotificationService`; ver `collaboration-notifications-v1.md §5`.
+- ~~Cierre automático a las 72 h~~ **Resuelto:** ver [Cierre automático](#cierre-automático).
 - Filtros avanzados y paginación del listado en el servidor: hoy el front pide hasta 500 solicitudes y filtra en el cliente.
 - Exportación a PDF de reportes y dashboard.
+
+## Cierre automático
+
+Lo ejecuta el backend (módulo `workflow`); no hay endpoint ni acción de usuario.
+
+- **Qué cierra:** las solicitudes en `RESUELTA` cuyo solicitante no confirmó ni rechazó la solución durante al menos `autoCloseHours` horas (configuración del administrador, `72` por defecto; se lee en cada ejecución). El plazo se cuenta desde la **última entrada a `RESUELTA`** registrada en el historial, no desde la creación: si el solicitante rechaza y el técnico vuelve a resolver, el plazo empieza de nuevo. Los cambios que no cambian de estado (p. ej. prioridad) no lo reinician.
+- **Resultado:** `status = CERRADA`, `closureReason = AUTOMATICA`; se conservan el técnico y `solution`. Se agrega una entrada de historial `RESUELTA → CERRADA` sin actor (`request_history.actor_id = NULL`, migración `V20261026_0400`) que las lecturas muestran con `actorName = "Sistema"` (detalle y auditoría) y `reason = "Cierre automático: el solicitante no confirmó la solución en <N> h"`.
+- **Calificación:** una solicitud cerrada automáticamente no se puede calificar (`POST /requests/{code}/rating` responde `409`); solo se califica tras `CONFIRMADA`.
+- **Notificaciones:** se publica el mismo evento de cambio de estado que en las transiciones de usuario. Como no hay actor, no se excluye a nadie: reciben la notificación el solicitante, el técnico asignado y los supervisores activos del área, con el texto `"La solicitud <código> se cerró automáticamente porque la solución no se confirmó a tiempo."` (ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones)).
+- **Concurrencia e idempotencia:** cada solicitud se cierra en su propia transacción, con la fila bloqueada y volviendo a comprobar el estado y el plazo. Si el solicitante confirma o rechaza al mismo tiempo, o si otra instancia del backend ya la cerró, no se hace nada. Un error en una solicitud no detiene a las demás; se reintenta en la siguiente ejecución.
+- **Programación (propiedades de Spring):**
+
+| Propiedad | Variable de entorno | Valor por defecto | Descripción |
+|---|---|---|---|
+| `app.workflow.auto-close.enabled` | `APP_WORKFLOW_AUTO_CLOSE_ENABLED` | `true` | Activa el proceso periódico (en las pruebas está en `false`) |
+| `app.workflow.auto-close.interval` | `APP_WORKFLOW_AUTO_CLOSE_INTERVAL` | `PT15M` | Espera entre ejecuciones (duración ISO-8601). Solo define cuánto después del plazo se cierra la solicitud |
+| `app.workflow.auto-close.initial-delay` | — | `PT1M` | Espera tras el arranque antes de la primera ejecución |
+| `app.workflow.auto-close.batch-size` | — | `100` | Máximo de solicitudes cerradas por ejecución; el resto queda para la siguiente |
 
 ## Semántica de `POST /requests/{code}/transitions` (módulo workflow)
 
