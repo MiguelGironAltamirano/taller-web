@@ -13,6 +13,7 @@
 #   E2E_PORT          Host port published by nginx  (default: 8090)
 #   E2E_KEEP_STACK=1  Leave the stack running afterwards (tear down with the command printed at the end)
 #   E2E_SKIP_BUILD=1  Reuse already built images
+#   E2E_INSTALL_DEPS=1  Also install the system libraries Chromium needs (CI runners; uses sudo on Linux)
 #
 # Requirements: Docker with Compose v2, curl, and the frontend toolchain (pnpm through mise, or pnpm on PATH).
 # Playwright's Chromium is installed on first use. The HTML report and traces of failures stay in
@@ -53,7 +54,11 @@ pnpm_cmd() {
 
 step "Installing frontend dependencies and Playwright Chromium"
 pnpm_cmd install --frozen-lockfile >/dev/null
-pnpm_cmd exec playwright install chromium >/dev/null
+if [[ "${E2E_INSTALL_DEPS:-0}" == "1" ]]; then
+  pnpm_cmd exec playwright install --with-deps chromium >/dev/null
+else
+  pnpm_cmd exec playwright install chromium >/dev/null
+fi
 
 step "Starting stack '$PROJECT' on $BASE_URL with demo data"
 SMOKE_PROJECT="$PROJECT" FRONTEND_PORT="$PORT" SMOKE_KEEP_STACK=1 SMOKE_SKIP_BUILD="${E2E_SKIP_BUILD:-0}" \

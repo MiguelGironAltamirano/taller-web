@@ -49,15 +49,36 @@ jobs:
       - run: pnpm build
 
   smoke:
+    name: smoke and e2e
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - name: Build images and run the compose smoke test
-        run: bash infra/smoke.sh
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      # infra/e2e.sh builds the stack with demo data, runs infra/smoke.sh against it, then the Playwright suite,
+      # and always tears the stack down.
+      - name: Build images, run the compose smoke test and the E2E suite
+        run: bash infra/e2e.sh
         env:
-          SMOKE_PROJECT: ci-smoke
-          FRONTEND_PORT: '8089'
+          E2E_PROJECT: ci-e2e
+          E2E_PORT: '8089'
+          E2E_INSTALL_DEPS: '1'
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
