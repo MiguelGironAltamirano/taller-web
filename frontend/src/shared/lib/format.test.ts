@@ -19,6 +19,14 @@ describe('dayGroup', () => {
     expect(dayGroup(NOW - 30 * H, NOW)).toBe('Ayer')
     expect(dayGroup(NOW - 120 * H, NOW)).toBe('Anteriores')
   })
+
+  it('usa días calendario de Lima, no bloques de 24 horas', () => {
+    const earlyMorning = new Date('2026-10-16T03:00:00-05:00').getTime()
+    expect(dayGroup(new Date('2026-10-16T00:30:00-05:00').getTime(), earlyMorning)).toBe('Hoy')
+    expect(dayGroup(new Date('2026-10-15T23:00:00-05:00').getTime(), earlyMorning)).toBe('Ayer')
+    expect(dayGroup(new Date('2026-10-15T00:10:00-05:00').getTime(), earlyMorning)).toBe('Ayer')
+    expect(dayGroup(new Date('2026-10-14T23:59:00-05:00').getTime(), earlyMorning)).toBe('Anteriores')
+  })
 })
 
 describe('normalizeText', () => {
