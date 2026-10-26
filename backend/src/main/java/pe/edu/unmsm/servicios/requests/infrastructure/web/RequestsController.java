@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,11 +17,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import pe.edu.unmsm.servicios.requests.application.ChangePriority;
 import pe.edu.unmsm.servicios.requests.application.CreateRequest;
 import pe.edu.unmsm.servicios.requests.application.GetRequest;
 import pe.edu.unmsm.servicios.requests.application.ListRequests;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
+import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.ChangePriorityBody;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.CreateRequestBody;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.DetailResponse;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.PageResponse;
@@ -35,10 +38,14 @@ class RequestsController {
 	private final GetRequest getRequest;
 	private final ListRequests listRequests;
 
-	RequestsController(CreateRequest createRequest, GetRequest getRequest, ListRequests listRequests) {
+	private final ChangePriority changePriority;
+
+	RequestsController(CreateRequest createRequest, GetRequest getRequest, ListRequests listRequests,
+			ChangePriority changePriority) {
 		this.createRequest = createRequest;
 		this.getRequest = getRequest;
 		this.listRequests = listRequests;
+		this.changePriority = changePriority;
 	}
 
 	@PostMapping
@@ -61,6 +68,16 @@ class RequestsController {
 	@GetMapping("/{code}")
 	DetailResponse detail(@PathVariable String code, @AuthenticationPrincipal Jwt jwt) {
 		return DetailResponse.from(getRequest.execute(CurrentUser.from(jwt), code));
+	}
+
+	/** Supervisor of the area only; the due date is recalculated and the detail is returned (see ui-extensions). */
+	@PatchMapping("/{code}/priority")
+	@PreAuthorize("hasRole('SUPERVISOR')")
+	DetailResponse changePriority(@PathVariable String code, @Valid @RequestBody ChangePriorityBody body,
+			@AuthenticationPrincipal Jwt jwt) {
+		AuthenticatedUser user = CurrentUser.from(jwt);
+		changePriority.execute(user, code, body.priorityId());
+		return DetailResponse.from(getRequest.execute(user, code));
 	}
 
 }

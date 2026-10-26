@@ -10,6 +10,7 @@ import pe.edu.unmsm.servicios.requests.application.HistoryView;
 import pe.edu.unmsm.servicios.requests.application.PageView;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
 import pe.edu.unmsm.servicios.requests.application.RequestSummaryView;
+import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 
 public final class RequestDtos {
 
@@ -22,6 +23,10 @@ public final class RequestDtos {
 			@NotNull(message = "Selecciona un ambiente") Long locationId,
 			@NotBlank(message = "La descripción es obligatoria") String description,
 			@NotNull(message = "Selecciona una prioridad") Long priorityId) {
+	}
+
+	/** {@code { priorityId }} of {@code PATCH /requests/{code}/priority}. */
+	record ChangePriorityBody(@NotNull(message = "Selecciona una prioridad") Long priorityId) {
 	}
 
 	/** Contract summary plus the names the inboxes display (see docs/api/ui-extensions.md). */
@@ -62,7 +67,8 @@ public final class RequestDtos {
 			String status, Instant createdAt, Instant dueAt, boolean overdue, String description,
 			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
 			String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
-			List<HistoryResponse> history, List<String> allowedTransitions, String solution) {
+			List<HistoryResponse> history, List<String> allowedTransitions, List<String> allowedActions,
+			String solution) {
 
 		public static DetailResponse from(RequestDetailView d) {
 			RequestSummaryView s = d.summary();
@@ -74,7 +80,8 @@ public final class RequestDtos {
 					new PersonRef(d.requesterId(), s.requesterName()), new AreaRef(d.areaId(), s.areaName()),
 					technician, d.closureReason() == null ? null : d.closureReason().name(),
 					d.history().stream().map(HistoryResponse::from).toList(),
-					d.allowedTransitions().stream().map(Enum::name).toList(), d.solution());
+					d.allowedTransitions().stream().map(Enum::name).toList(),
+					d.allowedActions().stream().map(RequestAction::apiName).toList(), d.solution());
 		}
 
 	}

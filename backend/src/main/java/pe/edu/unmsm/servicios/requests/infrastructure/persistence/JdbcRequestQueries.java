@@ -124,7 +124,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 		long requestId = rs.getLong("id");
 		return new RequestDetailView(requestId, summary(rs, now), rs.getLong("requester_id"), rs.getLong("area_id"),
 				technician, closure == null ? null : ClosureReason.valueOf(closure), rs.getString("solution"),
-				history(requestId), List.of());
+				history(requestId));
 	}
 
 	private List<HistoryView> history(long requestId) {

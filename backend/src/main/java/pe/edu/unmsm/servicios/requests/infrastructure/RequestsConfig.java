@@ -6,13 +6,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import pe.edu.unmsm.servicios.catalog.application.CatalogLookup;
+import pe.edu.unmsm.servicios.requests.application.AllowedActions;
 import pe.edu.unmsm.servicios.requests.application.AllowedTransitions;
+import pe.edu.unmsm.servicios.requests.application.ChangePriority;
 import pe.edu.unmsm.servicios.requests.application.CreateRequest;
 import pe.edu.unmsm.servicios.requests.application.GetRequest;
 import pe.edu.unmsm.servicios.requests.application.ListRequests;
 import pe.edu.unmsm.servicios.requests.application.RequestCodeGenerator;
 import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestRepository;
+import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
 
 @Configuration
 class RequestsConfig {
@@ -23,10 +26,19 @@ class RequestsConfig {
 		return new CreateRequest(catalog, codes, requests, clock);
 	}
 
-	/** {@link AllowedTransitions} is provided by the workflow module, which owns the state machine. */
+	/**
+	 * {@link AllowedTransitions} and {@link AllowedActions} are provided by the workflow module, which owns the
+	 * state machine.
+	 */
 	@Bean
-	GetRequest getRequest(RequestQueries queries, AllowedTransitions allowedTransitions, Clock clock) {
-		return new GetRequest(queries, allowedTransitions, clock);
+	GetRequest getRequest(RequestQueries queries, AllowedTransitions allowedTransitions, AllowedActions allowedActions,
+			Clock clock) {
+		return new GetRequest(queries, allowedTransitions, allowedActions, clock);
+	}
+
+	@Bean
+	ChangePriority changePriority(RequestStateStore requests, CatalogLookup catalog, Clock clock) {
+		return new ChangePriority(requests, catalog, clock);
 	}
 
 	@Bean

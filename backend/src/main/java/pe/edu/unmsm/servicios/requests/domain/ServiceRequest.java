@@ -63,15 +63,20 @@ public record ServiceRequest(Long id, String code, long requesterId, long catego
 	 * of the new priority, as if it had been registered with it. A resolved or closed request no longer changes.
 	 */
 	public ServiceRequest withPriority(long newPriorityId, int slaHours, Instant now) {
-		if (!status.allowsPriorityChange()) {
-			throw new RequestNotModifiableException(
-					"La solicitud ya está " + status.name().toLowerCase() + " y no admite cambios de prioridad");
-		}
+		requirePriorityChangeAllowed();
 		if (newPriorityId == priorityId) {
 			throw new InvalidRequestException(Map.of("priorityId", "Elige una prioridad distinta de la actual"));
 		}
 		return new ServiceRequest(id, code, requesterId, categoryId, locationId, description, newPriorityId, status,
 				areaId, technicianId, closureReason, solution, createdAt, Sla.dueAt(createdAt, slaHours), now);
+	}
+
+	/** Fails with a conflict when the status no longer admits a priority change. */
+	public void requirePriorityChangeAllowed() {
+		if (!status.allowsPriorityChange()) {
+			throw new RequestNotModifiableException("La solicitud ya está " + (status == RequestStatus.RESUELTA
+					? "resuelta" : "cerrada") + " y no admite cambios de prioridad");
+		}
 	}
 
 }

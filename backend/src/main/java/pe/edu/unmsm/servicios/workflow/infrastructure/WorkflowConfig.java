@@ -5,12 +5,14 @@ import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import pe.edu.unmsm.servicios.requests.application.AllowedActions;
 import pe.edu.unmsm.servicios.requests.application.AllowedTransitions;
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
 import pe.edu.unmsm.servicios.requests.application.TechnicianWorkload;
 import pe.edu.unmsm.servicios.workflow.application.ListTechnicians;
 import pe.edu.unmsm.servicios.workflow.application.TechnicianDirectory;
 import pe.edu.unmsm.servicios.workflow.application.TransitionRequest;
+import pe.edu.unmsm.servicios.workflow.application.WorkflowAllowedActions;
 import pe.edu.unmsm.servicios.workflow.application.WorkflowAllowedTransitions;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -33,6 +35,12 @@ class WorkflowConfig {
 	@Bean
 	AllowedTransitions allowedTransitions() {
 		return new WorkflowAllowedTransitions();
+	}
+
+	/** The interface actions (allowedActions) behind those transitions. */
+	@Bean
+	AllowedActions allowedActions() {
+		return new WorkflowAllowedActions();
 	}
 
 }
