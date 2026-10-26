@@ -62,6 +62,8 @@ Edita `infra/.env` (no se versiona). Variables principales:
 | `APP_JWT_SECRET` | Secreto con el que se firman los tokens. Mínimo 32 caracteres y distinto en cada entorno. Nunca lo subas al repositorio |
 | `APP_FLYWAY_LOCATIONS` | Ubicaciones de migraciones de Flyway |
 | `APP_EVIDENCES_STORAGE_PATH` | Ruta para almacenar las evidencias adjuntas (por defecto `/app/evidences` en Docker o `./evidences` en local) |
+| `APP_AUTH_REFRESH_COOKIE_SECURE` | Atributo `Secure` de la cookie de refresco (por defecto `true`). Mantenlo en `true` en todo entorno con HTTPS; usa `false` solo si sirves el stack por HTTP desde un host distinto de `localhost` |
+| `APP_CORS_ALLOWED_ORIGINS` | Orígenes explícitos, separados por comas, que pueden llamar a la API desde otro origen (no se admiten comodines). Déjalo vacío cuando la interfaz y la API comparten origen a través de nginx, que es la configuración por defecto |
 
 Para cargar los usuarios de demostración, agrega:
 
@@ -78,7 +80,30 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
 ```
 
 - Aplicación: <http://localhost:8088>
-- Comprobación de salud: <http://localhost:8088/api/v1/system/info>
+- Información del sistema: <http://localhost:8088/api/v1/system/info>
+
+Cada servicio declara una comprobación de salud y el arranque sigue ese orden: `mysql` debe estar sano para iniciar `backend`, y `backend` debe estar sano para iniciar `frontend`. La del backend consulta `/actuator/health/readiness` dentro del contenedor (está definida en `backend/Dockerfile`; como la imagen no incluye `curl` ni `wget`, usa `/dev/tcp` de bash). Actuator no se expone a través de nginx. Para ver el estado:
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file infra/.env ps
+```
+
+Si agregas `--wait` a `up -d --build`, el comando termina cuando todos los servicios están sanos (o falla si alguno no lo logra).
+
+### Prueba de humo
+
+`infra/smoke.sh` construye y levanta un stack aislado con los usuarios de demostración, espera a que esté sano, comprueba `GET /api/v1/system/info` y la interfaz en `/` a través de nginx, inicia sesión con `estudiante@unmsm.edu.pe` y finalmente elimina el stack con sus volúmenes. No usa tu `infra/.env`: genera un archivo de entorno temporal con secretos aleatorios. El CI la ejecuta después de las pruebas del backend y del frontend.
+
+```bash
+bash infra/smoke.sh
+```
+
+| Variable | Uso |
+|---|---|
+| `SMOKE_PROJECT` | Nombre del proyecto de Compose (por defecto `taller-web-smoke`) |
+| `FRONTEND_PORT` | Puerto publicado por nginx (por defecto `8089`) |
+| `SMOKE_KEEP_STACK=1` | Deja el stack en ejecución al terminar con éxito, por ejemplo para las pruebas E2E. Elimínalo después con `docker compose -p <proyecto> -f infra/docker-compose.yml down -v` |
+| `SMOKE_SKIP_BUILD=1` | Reutiliza las imágenes ya construidas |
 
 Detener el stack:
 
@@ -141,8 +166,32 @@ Si `pnpm` falla con "no se reconoce como un comando interno o externo", tu `pnpm
 | Frontend: pruebas | `cd frontend && pnpm test` |
 | Frontend: lint | `cd frontend && pnpm lint` |
 | Frontend: tipos | `cd frontend && pnpm typecheck` |
+| Frontend: E2E (Playwright) | `cd frontend && pnpm e2e` |
+| Frontend: tipos de E2E | `cd frontend && pnpm typecheck:e2e` |
 
 Las pruebas de integración del backend usan Testcontainers, por lo que Docker debe estar en ejecución.
+
+### Pruebas E2E
+
+Las pruebas E2E (`frontend/e2e/*.e2e.ts`) usan Playwright contra el stack real de Docker Compose (sin API simulada) con los usuarios de demostración, e incluyen un análisis de accesibilidad con axe (WCAG 2.1 AA) de la pantalla de login. Por ahora no se ejecutan en el CI.
+
+```bash
+# 1. Navegador (solo la primera vez)
+cd frontend
+pnpm exec playwright install chromium
+
+# 2. Stack con datos de demostración que queda en ejecución (desde la raíz del repositorio)
+SMOKE_KEEP_STACK=1 bash infra/smoke.sh
+
+# 3. Pruebas
+cd frontend
+pnpm e2e
+
+# 4. Limpieza (desde la raíz del repositorio)
+docker compose -p taller-web-smoke -f infra/docker-compose.yml down -v
+```
+
+La URL base es `http://localhost:8089` y se cambia con `E2E_BASE_URL` (por ejemplo, `E2E_BASE_URL=http://localhost:8088 pnpm e2e` para usar el stack de la sección 5, siempre que tenga `db/seed-dev`). Las trazas y capturas de los fallos quedan en `frontend/test-results/`.
 
 ## 9. Flujo de Git
 
@@ -164,4 +213,5 @@ Más detalle en [`plan/README.md`](../plan/README.md).
 | `mvnw` falla con errores de saltos de línea (`bad interpreter`, `\r`) | El repositorio fuerza LF mediante `.gitattributes`, por lo que no hace falta cambiar `core.autocrlf`. Si el archivo quedó dañado, vuelve a clonar el repositorio |
 | `pnpm install --frozen-lockfile` falla por desajuste | `pnpm-lock.yaml` no coincide con `package.json`. Ejecuta `pnpm install`, revisa el cambio del lockfile y súbelo junto con tu cambio |
 | `pnpm` no se reconoce | Ejecuta `corepack enable` y abre una terminal nueva |
+| `backend` queda en `unhealthy` y `frontend` no arranca | El backend no llegó a estar listo. Revisa `docker compose -f infra/docker-compose.yml --env-file infra/.env logs backend` (suele deberse a un `APP_JWT_SECRET` ausente o corto, o a un error de migración) |
 | Los usuarios de demostración no existen | Falta `APP_FLYWAY_LOCATIONS` con `db/seed-dev` en `infra/.env`. Corrígelo y reinicia con `down -v` seguido de `up -d --build` |

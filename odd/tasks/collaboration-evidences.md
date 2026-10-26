@@ -71,18 +71,18 @@ Variable de entorno: `APP_EVIDENCES_STORAGE_PATH` (defecto `/app/evidences`).
 - [x] 15 - `CollaborationExceptionHandler` mapea `MaxUploadSizeExceededException`, `FileTypeNotAllowedException`, `EvidenceLimitExceededException`, `EvidenceSizeLimitExceededException`, `EmptyFileException`.
 
 ### Pruebas backend (integración con MySQL real + `@TempDir`)
-- [ ] 16 - `EvidenceApiTests.uploadJpgReturns201` (escrita, pendiente de ejecutar en CI)
-- [ ] 17 - `EvidenceApiTests.uploadPngReturns201` (escrita, pendiente de ejecutar en CI)
-- [ ] 18 - `EvidenceApiTests.uploadPdfReturns201` (escrita, pendiente de ejecutar en CI)
-- [ ] 19 - `EvidenceApiTests.uploadSixthFileReturns400` (escrita, pendiente de ejecutar en CI)
-- [ ] 20 - `EvidenceApiTests.uploadFileOver5MbReturns400` (escrita, pendiente de ejecutar en CI)
-- [ ] 21 - `EvidenceApiTests.uploadNonAllowedTypeReturns400` (escrita, pendiente de ejecutar en CI)
-- [ ] 22 - `EvidenceApiTests.uploadExeRenamedToPngReturns400` (escrita, pendiente de ejecutar en CI)
-- [ ] 23 - `EvidenceApiTests.uploadEmptyFileReturns400` (escrita, pendiente de ejecutar en CI)
-- [ ] 24 - `EvidenceApiTests.downloadWithoutPermissionReturns404` (escrita, pendiente de ejecutar en CI)
-- [ ] 25 - `EvidenceApiTests.downloadWithWrongCodeReturns404` (escrita, pendiente de ejecutar en CI)
-- [ ] 26 - `EvidenceApiTests.downloadReturnsContentAndHeaders` (escrita, pendiente de ejecutar en CI)
-- [ ] 27 - `EvidenceApiTests.uploadWithoutTokenReturns401` (escrita, pendiente de ejecutar en CI)
+- [x] 16 - `EvidenceApiTests.uploadJpgReturns201` (verde en local con Testcontainers, 2026-10-26)
+- [x] 17 - `EvidenceApiTests.uploadPngReturns201` (verde en local con Testcontainers, 2026-10-26)
+- [x] 18 - `EvidenceApiTests.uploadPdfReturns201` (verde en local con Testcontainers, 2026-10-26)
+- [x] 19 - `EvidenceApiTests.uploadSixthFileReturns400` (verde en local con Testcontainers, 2026-10-26)
+- [x] 20 - `EvidenceApiTests.uploadFileOver5MbReturns400` (verde en local con Testcontainers, 2026-10-26)
+- [x] 21 - `EvidenceApiTests.uploadNonAllowedTypeReturns400` (verde en local con Testcontainers, 2026-10-26)
+- [x] 22 - `EvidenceApiTests.uploadExeRenamedToPngReturns400` (verde en local con Testcontainers, 2026-10-26)
+- [x] 23 - `EvidenceApiTests.uploadEmptyFileReturns400` (verde en local con Testcontainers, 2026-10-26)
+- [x] 24 - `EvidenceApiTests.downloadWithoutPermissionReturns404` (verde en local con Testcontainers, 2026-10-26)
+- [x] 25 - `EvidenceApiTests.downloadWithWrongCodeReturns404` (verde en local con Testcontainers, 2026-10-26)
+- [x] 26 - `EvidenceApiTests.downloadReturnsContentAndHeaders` (verde en local con Testcontainers, 2026-10-26)
+- [x] 27 - `EvidenceApiTests.uploadWithoutTokenReturns401` (verde en local con Testcontainers, 2026-10-26)
 
 ### Pruebas dominio (sin Spring)
 - [x] 28 - `FileTypeValidatorTest` — cada tipo permitido y tipos no permitidos (5 tests).
@@ -118,4 +118,9 @@ Variable de entorno: `APP_EVIDENCES_STORAGE_PATH` (defecto `/app/evidences`).
 2. **Sevan:** si "Nueva solicitud" envía metadatos de evidencias (`CreateRequestBody.evidences`), la subida real de los archivos ocurre en un segundo paso con `POST /requests/{code}/evidences`. Se propone en el PR pero no se modifica la pantalla de Sevan sin su acuerdo.
 
 ## Pendientes
-- Ninguno para Fase D. Pruebas de integración API (`EvidenceApiTests`) quedan anotadas para ejecución en CI por ausencia de Docker local.
+- Ninguno para Fase D. `EvidenceApiTests` (12 pruebas) se ejecutó en local con Testcontainers el 2026-10-26: verde.
+
+## Evidencia de verificación (2026-10-26)
+
+- Comando: `cd backend && mise exec -- ./mvnw verify` (Testcontainers con MySQL 8.4, Docker local), rama `feature/fl-infra` sobre `dev` 44d1e4d.
+- Resultado: `Tests run: 377, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`. Incluye `AuthApiTests` 17/17, `CollaborationApiTests` 6/6, `EvidenceApiTests` 12/12 y `NotificationsApiTests` 8/8; no hizo falta corregir pruebas ni código de producción.

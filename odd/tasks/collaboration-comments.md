@@ -41,11 +41,11 @@ Implementar comentarios en las solicitudes: `GET` y `POST /api/v1/requests/{code
 - [x] 11 - DTOs `CollaborationDtos` y manejador de excepciones `CollaborationExceptionHandler`.
 
 ### Pruebas backend
-- [ ] 12 - `CollaborationApiTests.addCommentToVisibleRequestReturns201` — escrita en `CollaborationApiTests.java`, pendiente de ejecutar en CI (sin Docker local).
-- [ ] 13 - `CollaborationApiTests.addCommentToInvisibleRequestReturns404` — escrita en `CollaborationApiTests.java`, pendiente de ejecutar en CI.
-- [ ] 14 - `CollaborationApiTests.emptyCommentIsRejectedWith400` — escrita en `CollaborationApiTests.java`, pendiente de ejecutar en CI.
-- [ ] 15 - `CollaborationApiTests.commentOver1000CharsIsRejectedWith400` — escrita en `CollaborationApiTests.java`, pendiente de ejecutar en CI.
-- [ ] 16 - `CollaborationApiTests.addCommentWithoutTokenReturns401` — escrita en `CollaborationApiTests.java`, pendiente de ejecutar en CI.
+- [x] 12 - `CollaborationApiTests.addCommentToVisibleRequestReturns201` — escrita en `CollaborationApiTests.java`; verde en local con Testcontainers (2026-10-26).
+- [x] 13 - `CollaborationApiTests.addCommentToInvisibleRequestReturns404` — escrita en `CollaborationApiTests.java`; verde en local con Testcontainers (2026-10-26).
+- [x] 14 - `CollaborationApiTests.emptyCommentIsRejectedWith400` — escrita en `CollaborationApiTests.java`; verde en local con Testcontainers (2026-10-26).
+- [x] 15 - `CollaborationApiTests.commentOver1000CharsIsRejectedWith400` — escrita en `CollaborationApiTests.java`; verde en local con Testcontainers (2026-10-26).
+- [x] 16 - `CollaborationApiTests.addCommentWithoutTokenReturns401` — escrita en `CollaborationApiTests.java`; verde en local con Testcontainers (2026-10-26).
 
 ### Frontend
 - [x] 17 - `CommentsTab.tsx` actualizado para consumir `GET /comments` de forma independiente vía hook `useComments(code)`.
@@ -73,4 +73,9 @@ Implementar comentarios en las solicitudes: `GET` y `POST /api/v1/requests/{code
 2. **Angela:** el evento de transición (`RequestTransitionedEvent`) que dispara notificaciones se acuerda en la Fase E (notificaciones). Los comentarios no dependen de él.
 
 ## Pendientes
-- [ ] Ejecución de pruebas de integración con Testcontainers en CI.
+- [ ] Ejecución de pruebas de integración con Testcontainers en CI (ya ejecutadas en local el 2026-10-26; falta observarlas en una ejecución de CI).
+
+## Evidencia de verificación (2026-10-26)
+
+- Comando: `cd backend && mise exec -- ./mvnw verify` (Testcontainers con MySQL 8.4, Docker local), rama `feature/fl-infra` sobre `dev` 44d1e4d.
+- Resultado: `Tests run: 377, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`. Incluye `AuthApiTests` 17/17, `CollaborationApiTests` 6/6, `EvidenceApiTests` 12/12 y `NotificationsApiTests` 8/8; no hizo falta corregir pruebas ni código de producción.
