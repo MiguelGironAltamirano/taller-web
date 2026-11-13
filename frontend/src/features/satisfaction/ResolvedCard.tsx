@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { ApiError } from '../../shared/api/client'
 import type { RequestDetailView } from '../../shared/domain'
 import { Alert, Button, Modal, ModalActions, StarRating, Textarea, useToast } from '../../shared/ui'
-import { useConfirmSolution, useRejectSolution } from './api'
+import { RATING_COMMENT_MAX, useConfirmSolution, useRejectSolution } from './api'
+import { proposedSolution } from './lib/solution'
 
 const REJECT_MIN = 10
 
@@ -20,13 +21,14 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState('')
+  const solution = proposedSolution(request)
 
   const confirm = async () => {
     try {
       const result = await confirmSolution.mutateAsync(score ? { score, comment: comment.trim() || undefined } : null)
       if (!score) toast('Solicitud cerrada.')
       else if (result.rated) toast('Solicitud cerrada. Gracias por tu calificación.')
-      else toast('Solicitud cerrada, pero no pudimos guardar tu calificación.', { bad: true })
+      else toast('Solicitud cerrada, pero no pudimos guardar tu calificación. Puedes volver a enviarla.', { bad: true })
     } catch (e) {
       toast(e instanceof ApiError ? e.detail || e.title : 'No pudimos cerrar la solicitud.', { bad: true })
     }
@@ -48,11 +50,13 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
   }
 
   return (
-    <section className="flex flex-col gap-2.5 rounded-xl border border-ok-fg bg-surface p-4">
-      <h2 className="m-0 text-[15px] font-semibold">¿Quedó resuelto?</h2>
-      <div className="rounded-lg bg-ok-bg px-3 py-2.5 text-ok-fg">
-        <b>Solución propuesta:</b> {request.solution}
-      </div>
+    <section aria-labelledby="resolved-title" className="flex flex-col gap-2.5 rounded-xl border border-ok-fg bg-surface p-4">
+      <h2 id="resolved-title" className="m-0 text-[15px] font-semibold">¿Quedó resuelto?</h2>
+      {solution && (
+        <div className="rounded-lg bg-ok-bg px-3 py-2.5 text-ok-fg">
+          <b>Solución propuesta:</b> {solution}
+        </div>
+      )}
       <div className="text-[13px] font-medium">
         Califica la atención <span className="font-normal text-muted">(opcional)</span>
       </div>
@@ -61,6 +65,7 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
         rows={2}
         aria-label="Comentario"
         placeholder="Comentario (opcional)"
+        maxLength={RATING_COMMENT_MAX}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
       />

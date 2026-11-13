@@ -78,6 +78,13 @@ describe('StarRating', () => {
     expect(screen.getByRole('radio', { name: '4 estrellas' })).toBeChecked()
     expect(screen.getByRole('status')).toHaveTextContent('4')
   })
+
+  it('en solo lectura anuncia el valor y no ofrece controles', () => {
+    render(<StarRating value={4} readOnly label="Tu calificación" />)
+    expect(screen.getByRole('img', { name: 'Tu calificación: 4 de 5 estrellas' })).toBeInTheDocument()
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
 })
 
 describe('Tabs', () => {

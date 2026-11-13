@@ -1,1 +1,1 @@
-export { ResolvedCard } from './ResolvedCard'
+export { SatisfactionPanel } from './SatisfactionPanel'
