@@ -6,6 +6,6 @@ public interface RatingStore {
 
 	Rating save(Rating rating);
 
-	boolean existsByRequestId(long requestId);
+	boolean existsForRequest(long requestId);
 
 }

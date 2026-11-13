@@ -3,13 +3,18 @@ package pe.edu.unmsm.servicios.satisfaction.application;
 import java.time.Instant;
 import java.util.List;
 
-/** Queries and mutations needed by the auto-close scheduler. */
 public interface ResolvedRequestStore {
 
-	/** Returns the ids of requests in RESUELTA status resolved more than {@code hours} hours ago without a rating. */
-	List<Long> findResolvedWithoutRatingOlderThan(int hours, Instant now);
+	/** Requests still in Resuelta whose latest move to Resuelta happened at or before {@code resolvedBefore}. */
+	List<ResolvedRequest> findResolvedBefore(Instant resolvedBefore);
 
-	/** Closes the request (RESUELTA → CERRADA) with closure reason CONFIRMADA (auto-close). */
-	void closeWithoutRating(long requestId, Instant now);
+	/**
+	 * Closes the request with closure reason AUTOMATICA and a history entry without a human actor, in one
+	 * transaction. Returns false when the request is no longer in Resuelta (the requester answered meanwhile).
+	 */
+	boolean closeAutomatically(long requestId, Instant now);
+
+	record ResolvedRequest(long id, String code, long requesterId) {
+	}
 
 }

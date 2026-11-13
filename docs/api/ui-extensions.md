@@ -15,7 +15,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 | `RequestSummary` | `description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName` | Mostrar y buscar en las bandejas sin pedir el detalle de cada solicitud |
 | `RequestDetail` | `allowedActions`, `comments`, `evidences`, `solution`, `rating` | Botones de flujo, pestañas del detalle y tarjeta de satisfacción |
 | `HistoryEntry` | `note?` | Entradas que no cambian de estado (p. ej. `Prioridad Alta → Prioridad Media`) |
-| `ClosureReason` | `AUTOMATICA` | Cierre automático a las 72 h |
+| `ClosureReason` | `AUTOMATICA` | Cierre automático a las 72 h. **Implementado:** ver «Cierre automático» abajo |
 | `TransitionBody` | `closureReason?: 'NO_PROCEDE' \| 'DUPLICADA'` | Distinguir los dos cierres sin resolver; el texto libre va en `reason` |
 | `CreateRequestBody` | `evidences?: [{ fileName, sizeBytes }]` | Metadatos de adjuntos (la subida del archivo irá en un endpoint aparte) |
 | Técnicos (`GET /users/technicians`) | `activeRequests` | Mostrar la carga al asignar |
@@ -28,7 +28,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 |---|---|---|---|
 | `PATCH /requests/{code}/priority` | `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `409` si ya está resuelta o cerrada |
 | `POST /requests/{code}/comments` | Token, con visibilidad | `{ text }` (1–1000) | `201` `CommentDto` (el comentario creado); el frontend recarga la lista con `GET /comments`. Notifica a la otra parte. Ver [`collaboration-notifications-v1.md §3`](collaboration-notifications-v1.md#3-comentarios) |
-| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con la calificación (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6) · `409` si no está `CERRADA` por confirmación o ya fue calificada |
+| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` (`comment` hasta 1000 caracteres; vacío equivale a sin comentario) | **Implementado (módulo `satisfaction`).** `200` `RequestDetail` con `rating: { score, comment }` (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6) · `400` con `errors.score` o `errors.comment` · `404` si no es el solicitante dueño (también para el personal que ve la solicitud) · `409` si no está `CERRADA` por confirmación (`CONFIRMADA`) o ya fue calificada |
 | `PUT /auth/password` | Token | `{ currentPassword, newPassword }` | `204` · `400` con `errors` |
 | `GET /notifications` | Token | — | `200` `[ { id, text, createdAt, read, requestCode } ]` |
 | `PATCH /notifications/{id}/read` | Token | — | `204` |
@@ -63,9 +63,16 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 - ~~Subida y descarga real de evidencias~~ **Resuelto:** ver [`collaboration-notifications-v1.md §4`](collaboration-notifications-v1.md#4-evidencias). Subida multipart `POST /requests/{code}/evidences`; descarga autenticada `GET /requests/{code}/evidences/{id}`.
 - ~~Cambio de contraseña~~ **Resuelto:** ver [`collaboration-notifications-v1.md §2`](collaboration-notifications-v1.md#2-cambio-de-contraseña).
 - ~~Notificaciones~~ **Resuelto:** ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones).
-- Cierre automático a las 72 h y marca `AUTOMATICA` (lo ejecuta el backend, módulo Lita). El mecanismo de notificación para este evento está previsto en el puerto `NotificationService`; ver `collaboration-notifications-v1.md §5`.
+- ~~Cierre automático a las 72 h y marca `AUTOMATICA`~~ **Resuelto:** ver «Cierre automático» abajo.
 - Filtros avanzados y paginación del listado en el servidor: hoy el front pide hasta 500 solicitudes y filtra en el cliente.
 - Exportación a PDF de reportes y dashboard.
+
+## Cierre automático (módulo satisfaction)
+
+- Una tarea programada del backend (cada 15 minutos; propiedad `app.satisfaction.auto-close-cron`) cierra las solicitudes que siguen en `RESUELTA` 72 horas después de su **último** paso a `RESUELTA`. Si el solicitante rechazó la solución y el técnico la volvió a resolver, el plazo empieza de nuevo.
+- La solicitud queda `CERRADA` con `closureReason: AUTOMATICA` y sin calificación (no se puede calificar después: `409`).
+- El historial registra `RESUELTA → CERRADA` con `actorName: "Sistema"` y `reason: "Cierre automático: sin respuesta del solicitante en 72 horas"`. Cualquier entrada del historial sin actor humano se muestra con `actorName: "Sistema"`.
+- El solicitante recibe la notificación `"La solicitud <código> se cerró automáticamente tras 72 horas sin respuesta."` mediante el puerto `NotificationService` (`collaboration-notifications-v1.md §5`). Si la notificación falla, el cierre se mantiene.
 
 ## Semántica de `POST /requests/{code}/transitions` (módulo workflow)
 
