@@ -11,13 +11,14 @@
 #   SMOKE_KEEP_STACK=1  Leave the stack running (e.g. to run Playwright afterwards); tear down later with
 #                       docker compose -p <project> -f infra/docker-compose.yml down -v
 #   SMOKE_SKIP_BUILD=1  Reuse already built images
+#   SMOKE_BASE_URL      Check an already running HTTPS deployment instead of starting Compose
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 PROJECT="${SMOKE_PROJECT:-taller-web-smoke}"
 PORT="${FRONTEND_PORT:-8089}"
-BASE_URL="http://localhost:$PORT"
+BASE_URL="${SMOKE_BASE_URL:-http://localhost:$PORT}"
 DEMO_EMAIL="estudiante@unmsm.edu.pe"
 DEMO_PASSWORD='Demo12345!'
 
@@ -30,11 +31,13 @@ compose() {
 
 cleanup() {
   local status=$?
-  if [[ $status -ne 0 ]]; then
+  if [[ $status -ne 0 && -z "${SMOKE_BASE_URL:-}" ]]; then
     echo "--- smoke failed; last backend logs ---" >&2
     compose logs --no-color --tail 60 backend >&2 || true
   fi
-  if [[ "${SMOKE_KEEP_STACK:-0}" == "1" && $status -eq 0 ]]; then
+  if [[ -n "${SMOKE_BASE_URL:-}" ]]; then
+    :
+  elif [[ "${SMOKE_KEEP_STACK:-0}" == "1" && $status -eq 0 ]]; then
     echo "Stack '$PROJECT' left running at $BASE_URL"
   else
     compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -79,14 +82,18 @@ http_get() {
   fail "GET $url answered ${code:-no response}"
 }
 
-if [[ "${SMOKE_SKIP_BUILD:-0}" == "1" ]]; then
+if [[ -n "${SMOKE_BASE_URL:-}" ]]; then
+  step "Checking deployment at $BASE_URL"
+elif [[ "${SMOKE_SKIP_BUILD:-0}" == "1" ]]; then
   step "Starting stack '$PROJECT' (no build)"
   compose up -d --wait --wait-timeout 300
 else
   step "Building and starting stack '$PROJECT'"
   compose up -d --build --wait --wait-timeout 300
 fi
-compose ps --format 'table {{.Service}}\t{{.Status}}'
+if [[ -z "${SMOKE_BASE_URL:-}" ]]; then
+  compose ps --format 'table {{.Service}}\t{{.Status}}'
+fi
 
 step "GET /api/v1/system/info through nginx"
 http_get "$BASE_URL/api/v1/system/info" "$WORK_DIR/info.json"
