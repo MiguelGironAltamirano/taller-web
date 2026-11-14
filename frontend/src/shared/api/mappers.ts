@@ -97,6 +97,7 @@ export function toRequestDetail(d: RequestDetail): RequestDetailView {
     rating: d.rating ? { score: d.rating.score, comment: d.rating.comment ?? '' } : null,
     autoCloseAt: d.autoCloseAt ? Date.parse(d.autoCloseAt) : null,
     allowedActions: d.allowedActions ?? [],
+    closureReason: d.closureReason ?? null,
   }
 }
 

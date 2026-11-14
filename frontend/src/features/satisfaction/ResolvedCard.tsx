@@ -3,6 +3,7 @@ import { ApiError } from '../../shared/api/client'
 import type { RequestDetailView } from '../../shared/domain'
 import { dateLong } from '../../shared/lib/format'
 import { Alert, Button, Modal, ModalActions, StarRating, Textarea, useToast } from '../../shared/ui'
+import { RATING_COMMENT_MAX } from '../../shared/api/types'
 import { useConfirmSolution, useRejectSolution } from './api'
 
 const REJECT_MIN = 10
@@ -28,7 +29,7 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
       const result = await confirmSolution.mutateAsync(score ? { score, comment: comment.trim() || undefined } : null)
       if (!score) toast('Solicitud cerrada.')
       else if (result.rated) toast('Solicitud cerrada. Gracias por tu calificación.')
-      else toast('Solicitud cerrada, pero no pudimos guardar tu calificación.', { bad: true })
+      else toast('Solicitud cerrada, pero no pudimos guardar tu calificación. Puedes volver a enviarla.', { bad: true })
     } catch (e) {
       toast(e instanceof ApiError ? e.detail || e.title : 'No pudimos cerrar la solicitud.', { bad: true })
     }
@@ -52,9 +53,11 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
   return (
     <section aria-labelledby={titleId} className="flex flex-col gap-2.5 rounded-xl border border-ok-fg bg-surface p-4">
       <h2 id={titleId} className="m-0 text-[15px] font-semibold">¿Quedó resuelto?</h2>
-      <div className="rounded-lg bg-ok-bg px-3 py-2.5 text-ok-fg">
-        <b>Solución propuesta:</b> {request.solution}
-      </div>
+      {request.solution && (
+        <div className="rounded-lg bg-ok-bg px-3 py-2.5 text-ok-fg">
+          <b>Solución propuesta:</b> {request.solution}
+        </div>
+      )}
       <div className="text-[13px] font-medium">
         Califica la atención <span className="font-normal text-muted">(opcional)</span>
       </div>
@@ -63,6 +66,7 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
         rows={2}
         aria-label="Comentario"
         placeholder="Comentario (opcional)"
+        maxLength={RATING_COMMENT_MAX}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
       />

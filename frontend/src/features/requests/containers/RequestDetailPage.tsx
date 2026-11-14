@@ -21,7 +21,7 @@ import {
 } from '../../../shared/ui'
 import { ErrorPage, useSessionUser } from '../../auth'
 import { CommentsTab, EvidenceTab } from '../../collaboration'
-import { ResolvedCard } from '../../satisfaction'
+import { SatisfactionPanel } from '../../satisfaction'
 import { ActionsPanel } from '../../workflow'
 import { useRequestDetail } from '../api'
 import { slaBarColor, slaTextClass, withSla } from '../lib/view'
@@ -103,7 +103,6 @@ export function RequestDetailPage() {
     }
     toast('Código copiado')
   }
-  const showResolved = user.role === 'solicitante' && request.requesterId === user.id && request.state === 'Resuelta'
 
   return (
     <>
@@ -122,7 +121,7 @@ export function RequestDetailPage() {
 
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[2_1_560px] flex-col gap-3.5">
-          {showResolved && <ResolvedCard request={request} />}
+          <SatisfactionPanel request={request} user={user} />
           <Card className="overflow-x-auto px-4 pb-3 pt-4">
             <Stepper steps={REQUEST_STATES} current={stateIndex(request.state)} />
           </Card>

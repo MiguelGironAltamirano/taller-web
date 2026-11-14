@@ -30,8 +30,8 @@ La seguridad operativa (SAST, DAST) y la observabilidad están a cargo de Miguel
 
 | Endpoint | Acceso | Notas |
 |---|---|---|
-| `POST /api/v1/requests/{codigo}/rating` | Solicitante dueño | Puntaje de 1 a 5 y comentario; la solicitud debe estar en "Resuelta"; la solicitud pasa a "Cerrada" |
-| Tarea programada de cierre automático | Sistema | Cierra a las 72 h las solicitudes resueltas sin respuesta; detalle por definir en `docs/api/` antes de implementar |
+| `POST /api/v1/requests/{codigo}/rating` | Solicitante dueño | Puntaje de 1 a 5 y comentario opcional. Se califica **después** de confirmar la solución (que ya cerró la solicitud con `POST /transitions {to:CERRADA}`); no cambia el estado. Responde `200` con el detalle. Contrato en `docs/api/ui-extensions.md` |
+| Tarea programada de cierre automático | Sistema | Cierra con `AUTOMATICA` las solicitudes que siguen en "Resuelta" 72 h después de su último paso a "Resuelta" y notifica al solicitante. Contrato en `docs/api/ui-extensions.md` («Cierre automático») |
 | Consulta de calificaciones para el dashboard | Interno | Por definir en `docs/api/` antes de implementar |
 
 Pantallas: confirmación y calificación (1 a 5) al resolver, con opción de rechazar la solución con motivo; estados vacío, de carga y de error y toasts reutilizables en todas las pantallas.
@@ -49,8 +49,10 @@ Pantallas: confirmación y calificación (1 a 5) al resolver, con opción de rec
 
 ## 5. Pruebas obligatorias
 
-- Calificar con puntaje 0 o 6 → `400`; con 1 a 5 → `201` y la solicitud pasa a "Cerrada" con la calificación guardada.
-- Calificar una solicitud que no está en "Resuelta" → `409`; calificar una solicitud ajena → `404`; calificar dos veces la misma solicitud → rechazado.
+- Calificar con puntaje 0 o 6 → `400`; con 1 a 5 una solicitud cuya solución se confirmó → `200` con la calificación en el detalle.
+- Calificar una solicitud que no está "Cerrada" por confirmación → `409`; calificar una solicitud ajena → `404`; calificar dos veces la misma solicitud → `409`.
+
+> Ajuste (2026-11-13): el plan original hacía que calificar cerrara la solicitud. El contrato acordado (`docs/api/ui-extensions.md`), el frontend y el spec §6 (calificación opcional) separan los dos pasos: confirmar cierra y calificar es opcional y posterior. Se siguió el contrato.
 - Cierre automático: una solicitud resuelta hace más de 72 horas se cierra sin calificación; una resuelta hace menos de 72 horas no cambia; una ya cerrada no se vuelve a procesar.
 - Rechazar la solución devuelve la solicitud a "En atención" y exige motivo.
 - Componentes de `shared/ui`: cada campo asocia su etiqueta, muestra su mensaje de error y recibe foco con el teclado; los botones deshabilitados no disparan acciones; el estado de error ofrece reintentar.

@@ -7,6 +7,7 @@ import type {
   RequestStatus,
   TransitionBody,
 } from '../../shared/api/types'
+import { RATING_COMMENT_MAX } from '../../shared/api/types'
 import { statusToState } from '../../shared/api/mappers'
 import { computeDueAt } from '../../features/workflow/lib/sla'
 import { codeOf, getDb, type MockRequest, type MockUser } from '../db'
@@ -324,16 +325,17 @@ export const requestHandlers = [
       if (!r || r.requesterId !== user.id) return notFound()
       // La calificación es opcional y se guarda después de confirmar la solución (que ya cerró la solicitud).
       if (r.status !== 'CERRADA' || r.closureReason !== 'CONFIRMADA') {
-        return problem(409, 'Transición inválida', 'Solo se puede calificar una solicitud cuya solución confirmaste.')
+        return problem(409, 'Conflict', 'Solo se puede calificar una solicitud cuya solución confirmaste')
       }
-      if (r.rating) return problem(409, 'Transición inválida', 'Ya calificaste esta solicitud.')
+      if (r.rating) return problem(409, 'Conflict', 'Ya calificaste esta solicitud')
+      // Mismos mensajes que el backend (Rating.give): un error por campo, ambos a la vez si los dos fallan.
       const body = (await request.json()) as RateBody
-      if (!Number.isInteger(body.score) || body.score < 1 || body.score > 5) {
-        return problem(400, 'Datos no válidos', 'La calificación debe ser de 1 a 5.', { score: 'Califica de 1 a 5 estrellas.' })
+      const errors: Record<string, string> = {}
+      if (!Number.isInteger(body.score) || body.score < 1 || body.score > 5) errors.score = 'Califica de 1 a 5 estrellas'
+      if ((body.comment?.trim().length ?? 0) > RATING_COMMENT_MAX) {
+        errors.comment = `El comentario no puede superar los ${RATING_COMMENT_MAX} caracteres`
       }
-      if ((body.comment?.trim().length ?? 0) > 500) {
-        return problem(400, 'Datos no válidos', 'El comentario es demasiado largo.', { comment: 'El comentario no puede superar los 500 caracteres' })
-      }
+      if (Object.keys(errors).length) return problem(400, 'Bad Request', 'La calificación contiene datos inválidos', errors)
       r.rating = { score: body.score, comment: body.comment?.trim() || null }
       return HttpResponse.json(detailOf(r, user))
     }),

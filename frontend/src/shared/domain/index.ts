@@ -57,6 +57,9 @@ export type SessionUser = {
 
 export type WorkflowActionId = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
 
+/** Por qué se cerró una solicitud: sin resolver (no procede, duplicada), confirmada por el solicitante o a las 72 h. */
+export type ClosureReason = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
+
 /** Fila de una bandeja: lo necesario para listar, filtrar y calcular el SLA. */
 export type RequestRow = {
   code: string
@@ -98,6 +101,8 @@ export type RequestDetailView = RequestRow & {
   /** Momento (ms) desde el que la solicitud Resuelta se cierra sola si nadie responde; null en otro estado. */
   autoCloseAt: number | null
   allowedActions: WorkflowActionId[]
+  /** Por qué se cerró; null mientras la solicitud no está Cerrada. */
+  closureReason: ClosureReason | null
 }
 
 export type NotificationItem = {

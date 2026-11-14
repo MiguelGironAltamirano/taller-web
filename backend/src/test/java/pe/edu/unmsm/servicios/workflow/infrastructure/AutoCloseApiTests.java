@@ -147,6 +147,21 @@ class AutoCloseApiTests {
 	}
 
 	@Test
+	void aSolutionTheRequesterAlreadyConfirmedIsLeftAlone() throws Exception {
+		String code = resolvedRequest();
+		resolvedHoursAgo(code, 100);
+		transition(STUDENT, code, "{\"to\":\"CERRADA\"}");
+		Integer history = jdbc.queryForObject("select count(*) from request_history h join service_requests r "
+				+ "on r.id = h.request_id where r.code = ?", Integer.class, code);
+
+		assertThat(autoClose.run()).isZero();
+
+		assertThat(request(code)).containsEntry("status", "CERRADA").containsEntry("closure_reason", "CONFIRMADA");
+		assertThat(jdbc.queryForObject("select count(*) from request_history h join service_requests r "
+				+ "on r.id = h.request_id where r.code = ?", Integer.class, code)).isEqualTo(history);
+	}
+
+	@Test
 	void thePeriodCountsFromTheLatestResolutionNotFromTheCreation() throws Exception {
 		String code = resolvedRequest();
 		resolvedHoursAgo(code, 100);

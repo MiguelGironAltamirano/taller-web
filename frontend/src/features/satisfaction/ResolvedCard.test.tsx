@@ -30,6 +30,7 @@ const resolved: RequestDetailView = {
   rating: null,
   autoCloseAt: Date.parse('2026-10-20T15:30:00Z'),
   allowedActions: [],
+  closureReason: null,
 }
 
 function renderCard(request: RequestDetailView) {

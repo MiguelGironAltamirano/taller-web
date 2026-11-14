@@ -22,7 +22,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 | `RequestSummary` | `description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName`, `roomName` | Mostrar y buscar en las bandejas sin pedir el detalle de cada solicitud |
 | `RequestDetail` | `allowedActions`, `comments`, `evidences`, `solution`, `rating`, `autoCloseAt` | Botones de flujo, pestañas del detalle, tarjeta de satisfacción y plazo de confirmación |
 | `HistoryEntry` | `note?` | Entradas que no cambian de estado (p. ej. `Prioridad Alta → Prioridad Media`) |
-| `ClosureReason` | `AUTOMATICA` | Cierre automático a las 72 h |
+| `ClosureReason` | `AUTOMATICA` | Cierre automático a las 72 h. **Implementado:** ver [Cierre automático](#cierre-automático) |
 | `TransitionBody` | `closureReason?: 'NO_PROCEDE' \| 'DUPLICADA'` | Distinguir los dos cierres sin resolver; el texto libre va en `reason` |
 | `CreateRequestBody` | `evidences?: [{ fileName, sizeBytes }]` | Metadatos de adjuntos (la subida del archivo irá en un endpoint aparte) |
 | Técnicos (`GET /users/technicians`) | `activeRequests` | Mostrar la carga al asignar |
@@ -35,7 +35,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 |---|---|---|---|
 | `PATCH /requests/{code}/priority` | `SUPERVISOR` del área | `{ priorityId }` | **Implementado.** `200` `RequestDetail` con `dueAt` recalculado · `409` si ya está resuelta o cerrada · `400` si la prioridad no existe o es la actual |
 | `POST /requests/{code}/comments` | Token, con visibilidad | `{ text }` (1–1000) | `201` `CommentDto` (el comentario creado); el frontend recarga la lista con `GET /comments`. Notifica a la otra parte. Ver [`collaboration-notifications-v1.md §3`](collaboration-notifications-v1.md#3-comentarios) |
-| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con la calificación (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6) · `409` si no está `CERRADA` por confirmación o ya fue calificada. **Implementado** (comentario opcional, máx. 500 caracteres) |
+| `POST /requests/{code}/rating` | `SOLICITANTE` dueño | `{ score: 1..5, comment? }` (`comment` hasta 1000 caracteres; vacío equivale a sin comentario) | **Implementado (módulo `satisfaction`).** `200` `RequestDetail` con `rating: { score, comment }` (no cambia el estado: la solicitud ya se cerró con `POST /transitions {to:CERRADA}`; la calificación es opcional, spec §6). Errores, en este orden: `404` si no puede ver la solicitud (otro solicitante o código inexistente) · `403` si la ve pero no es su solicitante (supervisor, técnico, administrador) · `409` si no está `CERRADA` por confirmación (`CONFIRMADA`) o ya fue calificada · `400` con `errors.score` o `errors.comment`. Se unificaron las dos implementaciones previas: de `dev` se mantienen el límite de 1000 caracteres y los mensajes; de `finish-local`, el `403` al personal que ve la solicitud (antes `404` en `dev`), igual que en las demás acciones sobre una solicitud visible |
 | `PUT /auth/password` | Token | `{ currentPassword, newPassword }` | `204` · `400` con `errors` |
 | `GET /notifications` | Token | — | `200` `[ { id, text, createdAt, read, requestCode } ]` |
 | `PATCH /notifications/{id}/read` | Token | — | `204` |
@@ -67,7 +67,7 @@ Convenciones: las mismas del contrato v1 (fechas ISO-8601 UTC, errores `applicat
 
 #### Lectura de la configuración desde otros módulos
 
-La configuración se guarda en la tabla `system_settings` (una sola fila tipada, migración `V20261026_0300`) y la administra el módulo `admin`. Los demás módulos la leen mediante un puerto compartido, sin depender de clases de `admin`:
+La configuración se guarda en la tabla `system_settings` (una sola fila tipada, migración `V20261114_0300`) y la administra el módulo `admin`. Los demás módulos la leen mediante un puerto compartido, sin depender de clases de `admin`:
 
 - Puerto: `pe.edu.unmsm.servicios.shared.application.SystemSettingsProvider`, con el método `SystemSettings current()`.
 - Valor: `pe.edu.unmsm.servicios.shared.domain.SystemSettings` (`autoCloseHours`, `emailNotifications`, `triageSuggestions`; `autoCloseHours` siempre es mayor a 0).
@@ -90,7 +90,7 @@ La configuración se guarda en la tabla `system_settings` (una sola fila tipada,
 Lo ejecuta el backend (módulo `workflow`); no hay endpoint ni acción de usuario.
 
 - **Qué cierra:** las solicitudes en `RESUELTA` cuyo solicitante no confirmó ni rechazó la solución durante al menos `autoCloseHours` horas (configuración del administrador, `72` por defecto; se lee en cada ejecución). El plazo se cuenta desde la **última entrada a `RESUELTA`** registrada en el historial, no desde la creación: si el solicitante rechaza y el técnico vuelve a resolver, el plazo empieza de nuevo. Los cambios que no cambian de estado (p. ej. prioridad) no lo reinician.
-- **Resultado:** `status = CERRADA`, `closureReason = AUTOMATICA`; se conservan el técnico y `solution`. Se agrega una entrada de historial `RESUELTA → CERRADA` sin actor (`request_history.actor_id = NULL`, migración `V20261026_0400`) que las lecturas muestran con `actorName = "Sistema"` (detalle y auditoría) y `reason = "Cierre automático: el solicitante no confirmó la solución en <N> h"`.
+- **Resultado:** `status = CERRADA`, `closureReason = AUTOMATICA`; se conservan el técnico y `solution`. Se agrega una entrada de historial `RESUELTA → CERRADA` sin actor (`request_history.actor_id = NULL`, migración `V20261113_1010`) que las lecturas muestran con `actorName = "Sistema"` (detalle y auditoría) y `reason = "Cierre automático: el solicitante no confirmó la solución en <N> h"`.
 - **Plazo visible:** mientras la solicitud está en `RESUELTA`, `RequestDetail.autoCloseAt` informa la fecha a partir de la cual se cerrará (última entrada a `RESUELTA` + `autoCloseHours` vigente; `null` en cualquier otro estado). Así el solicitante, que no puede leer `/admin/config`, ve su plazo real; si el administrador cambia `autoCloseHours`, el valor cambia en la siguiente lectura.
 - **Calificación:** una solicitud cerrada automáticamente no se puede calificar (`POST /requests/{code}/rating` responde `409`); solo se califica tras `CONFIRMADA`.
 - **Notificaciones:** se publica el mismo evento de cambio de estado que en las transiciones de usuario. Como no hay actor, no se excluye a nadie: reciben la notificación el solicitante, el técnico asignado y los supervisores activos del área, con el texto `"La solicitud <código> se cerró automáticamente porque la solución no se confirmó a tiempo."` (ver [`collaboration-notifications-v1.md §5`](collaboration-notifications-v1.md#5-notificaciones)).

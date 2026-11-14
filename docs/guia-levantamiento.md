@@ -129,26 +129,41 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env down -v
 
 Disponibles cuando `APP_FLYWAY_LOCATIONS` incluye `db/seed-dev`. Contraseña de todos: `Demo12345!`.
 
-| Rol | Correo |
-|---|---|
-| Administrador | `admin@unmsm.edu.pe` |
-| Supervisor (Mantenimiento) | `supervisor.mantenimiento@unmsm.edu.pe` |
-| Técnico (Mantenimiento) | `tecnico.mantenimiento@unmsm.edu.pe` |
-| Solicitante (estudiante) | `estudiante@unmsm.edu.pe` |
+| Rol | Correo | Área o tipo | Para probar |
+|---|---|---|---|
+| Administrador | `admin@unmsm.edu.pe` | — | Administración; ve todas las solicitudes |
+| Supervisor | `supervisor.mantenimiento@unmsm.edu.pe` | Mantenimiento | Electricidad y Gasfitería |
+| Técnico | `tecnico.mantenimiento@unmsm.edu.pe` | Mantenimiento | |
+| Supervisor | `supervisor.infraestructura@unmsm.edu.pe` | Infraestructura | Mobiliario, Aulas y laboratorios |
+| Técnico | `tecnico.infraestructura@unmsm.edu.pe` | Infraestructura | Reasignar entre dos técnicos |
+| Técnico | `tecnica.infraestructura@unmsm.edu.pe` | Infraestructura | Reasignar entre dos técnicos |
+| Técnico (inactivo) | `tecnico.cesado@unmsm.edu.pe` | Infraestructura | No puede iniciar sesión ni aparece para asignar |
+| Supervisor | `supervisora.informatica@unmsm.edu.pe` | Soporte Informático | Equipos de cómputo, Red e Internet |
+| Técnico | `tecnico.informatica@unmsm.edu.pe` | Soporte Informático | |
+| Supervisor | `supervisor.administrativo@unmsm.edu.pe` | Servicios Administrativos | Trámites administrativos |
+| Técnico | `tecnica.administrativa@unmsm.edu.pe` | Servicios Administrativos | |
+| Solicitante | `estudiante@unmsm.edu.pe` | Estudiante | |
+| Solicitante | `estudiante2@unmsm.edu.pe` | Estudiante | Un solicitante no ve las solicitudes de otro |
+| Solicitante | `docente@unmsm.edu.pe` | Docente | |
+| Solicitante | `administrativo@unmsm.edu.pe` | Administrativo | |
+| Solicitante (inactivo) | `solicitante.inactivo@unmsm.edu.pe` | Estudiante | Cuenta desactivada: el login la rechaza |
+
+Supervisores y técnicos pertenecen a un **área**, no a una facultad: la categoría de la solicitud decide el área que la atiende, y la facultad solo describe dónde está el problema. Los usuarios desde `supervisor.infraestructura` vienen de `seed-dev/V20261113_1100__more_dev_users.sql`; en una base existente se agregan solos al reiniciar el backend.
 
 ### Datos de demostración (`db/seed-demo`)
 
-Con `db/seed-demo` se agregan, con la misma contraseña:
+Con `db/seed-demo` (requiere `db/seed-dev`) se agregan, con la misma contraseña:
 
 | Rol | Correo |
 |---|---|
-| Supervisor (Infraestructura) | `supervisor.infraestructura@unmsm.edu.pe` |
-| Supervisora (Soporte Informático) | `supervisor.soporte@unmsm.edu.pe` |
-| Supervisor (Servicios Administrativos) | `supervisor.administrativo@unmsm.edu.pe` |
-| Técnicos | `jorge.ramirez@`, `carmen.vilchez@` (Mantenimiento), `raul.mendoza@` (Infraestructura), `diana.torres@`, `kevin.huaman@` (Soporte Informático), `patricia.lozano@` (Servicios Administrativos), todos `@unmsm.edu.pe`. `oscar.medina@unmsm.edu.pe` está inactivo |
-| Solicitante (docente) | `docente@unmsm.edu.pe` |
-| Solicitante (administrativo) | `administrativo@unmsm.edu.pe` |
+| Técnicos (Mantenimiento) | `jorge.ramirez@unmsm.edu.pe`, `carmen.vilchez@unmsm.edu.pe` |
+| Técnico (Infraestructura) | `raul.mendoza@unmsm.edu.pe` |
+| Técnicos (Soporte Informático) | `diana.torres@unmsm.edu.pe`, `kevin.huaman@unmsm.edu.pe` |
+| Técnica (Servicios Administrativos) | `patricia.lozano@unmsm.edu.pe` |
 | Solicitante (estudiante) | `sofia.castillo@unmsm.edu.pe` |
+| Técnico (inactivo, Infraestructura) | `oscar.medina@unmsm.edu.pe` |
+
+Los supervisores de Infraestructura, Soporte Informático y Servicios Administrativos y los solicitantes `docente@` y `administrativo@` de las solicitudes de demostración son los de `db/seed-dev` (tabla anterior): el script los busca por correo y no los vuelve a crear.
 
 Además carga:
 

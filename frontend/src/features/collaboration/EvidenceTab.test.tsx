@@ -32,6 +32,7 @@ const mockRequest: RequestDetailView = {
   rating: null,
   autoCloseAt: null,
   allowedActions: [],
+  closureReason: null,
 }
 
 function renderComponent(req = mockRequest) {

@@ -126,6 +126,9 @@ export type RequestListQuery = {
 /** Tamaño máximo de página que acepta `GET /requests`. */
 export const MAX_REQUEST_PAGE_SIZE = 500
 
+/** Máximo del comentario de `POST /requests/{code}/rating` (contrato: 1000 caracteres). */
+export const RATING_COMMENT_MAX = 1000
+
 /** `GET /requests/counts`: contadores de la bandeja (todos los estados presentes). */
 export type RequestCounts = { total: number; overdue: number; byStatus: Record<RequestStatus, number> }
 
