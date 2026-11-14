@@ -53,6 +53,8 @@ export function UsersPage() {
   return (
     <>
       <PageHeader
+        icon="users"
+        eyebrow="Administración"
         title="Usuarios"
         subtitle={`${users.length} usuarios registrados`}
         actions={

@@ -5,7 +5,7 @@ import { ApiError, apiPost } from '../../shared/api/client'
 import { requesterTypeToApi } from '../../shared/api/mappers'
 import { REQUESTER_TYPES } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
-import { Button, Field, Input, PasswordInput, useToast } from '../../shared/ui'
+import { Button, Field, Input, PageHeader, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
 import { PASSWORD_MIN, passwordScore, registerSchema, type RegisterValues } from './schemas/auth'
 
@@ -68,10 +68,13 @@ export function RegisterPage() {
   return (
     <AuthShell>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        <div>
-          <h1 className="m-0 text-[26px] font-semibold tracking-tight">Crear cuenta</h1>
-          <p className="m-0 mt-1.5 text-muted">Regístrate con tu correo institucional @unmsm.edu.pe.</p>
-        </div>
+        <PageHeader
+          layout="stacked"
+          icon="userCheck"
+          eyebrow="Servicios Universitarios"
+          title="Crear cuenta"
+          subtitle="Para solicitantes con correo @unmsm.edu.pe."
+        />
         <Field label="Nombre completo" error={errors.name?.message}>
           {(a) => <Input {...a} invalid={!!errors.name} autoComplete="name" {...register('name')} />}
         </Field>

@@ -24,6 +24,8 @@ export function AuditPage() {
   return (
     <>
       <PageHeader
+        icon="shield"
+        eyebrow="Administración"
         title="Auditoría"
         subtitle="Registro de cambios sobre solicitudes"
         actions={

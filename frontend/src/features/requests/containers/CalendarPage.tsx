@@ -93,7 +93,7 @@ export function CalendarPage() {
 
   return (
     <>
-      <PageHeader title="Calendario de vencimientos" subtitle="Tus solicitudes según su fecha límite de atención" />
+      <PageHeader icon="calendar" eyebrow="Planificación" title="Calendario de vencimientos" subtitle="Tus solicitudes según su fecha límite de atención" />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat icon="alert" label="Vencidas" value={stats.overdue} tone="bg-err-bg text-err-fg" />

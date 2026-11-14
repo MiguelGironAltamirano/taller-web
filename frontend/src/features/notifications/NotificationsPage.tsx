@@ -29,6 +29,8 @@ export function NotificationsPage() {
   return (
     <>
       <PageHeader
+        icon="bell"
+        eyebrow="Cuenta"
         title="Notificaciones"
         subtitle={`${unread} sin leer`}
         actions={<Button onClick={() => markAll.mutate()}>Marcar todas como leídas</Button>}

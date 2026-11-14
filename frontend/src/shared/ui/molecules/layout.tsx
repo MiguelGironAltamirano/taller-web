@@ -11,17 +11,62 @@ export function CardTitle({ className, ...rest }: ComponentProps<'h2'>) {
   return <h2 className={cn('mb-3 text-[15px] font-semibold', className)} {...rest} />
 }
 
-type PageHeaderProps = { title: string; subtitle?: ReactNode; actions?: ReactNode }
+type PageHeaderProps = {
+  title: string
+  subtitle?: ReactNode
+  actions?: ReactNode
+  /** Ícono de la sección (el mismo del menú, para orientar). */
+  icon?: IconName
+  /** Etiqueta corta sobre el título: la sección o el contexto de la página. */
+  eyebrow?: string
+  /** `inline`: ícono a la izquierda (páginas); `stacked`: ícono arriba y título mayor (formularios de acceso). */
+  layout?: 'inline' | 'stacked'
+}
 
-export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
+function HeaderIcon({ name, large }: { name: IconName; large?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="min-w-48 flex-1">
-        <h1 className="m-0 text-xl font-semibold md:text-2xl">{title}</h1>
-        {subtitle && <div className="mt-0.5 text-muted">{subtitle}</div>}
+    <span
+      className={cn(
+        'relative grid shrink-0 place-items-center overflow-hidden bg-surface text-primary-fg ring-1 ring-inset ring-line',
+        'shadow-[0_1px_2px_rgb(0_0_0/0.05),0_10px_24px_-14px_var(--primary)]',
+        large ? 'size-14 rounded-[18px]' : 'size-12 rounded-2xl',
+      )}
+    >
+      <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(160deg,var(--primary-soft)_10%,transparent_75%)]" />
+      <Icon name={name} size={large ? 26 : 22} strokeWidth={1.9} className="relative" />
+    </span>
+  )
+}
+
+const EYEBROW = 'm-0 text-[11px] font-semibold uppercase leading-none tracking-[0.14em] text-primary-fg'
+
+/** Encabezado de página: ícono de sección, etiqueta, título (h1), subtítulo y acciones. */
+export function PageHeader({ title, subtitle, actions, icon, eyebrow, layout = 'inline' }: PageHeaderProps) {
+  if (layout === 'stacked') {
+    return (
+      <header className="flex flex-col items-start gap-5">
+        {icon && <HeaderIcon name={icon} large />}
+        <div>
+          {eyebrow && <p className={cn(EYEBROW, 'mb-2.5')}>{eyebrow}</p>}
+          <h1 className="m-0 text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-fg">{title}</h1>
+          {subtitle && <div className="mt-2.5 text-[14.5px] leading-relaxed text-muted">{subtitle}</div>}
+        </div>
+        {actions}
+      </header>
+    )
+  }
+  return (
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-3 pb-1">
+      <div className="flex min-w-60 flex-1 items-center gap-4">
+        {icon && <HeaderIcon name={icon} />}
+        <div className="min-w-0">
+          {eyebrow && <p className={cn(EYEBROW, 'mb-1')}>{eyebrow}</p>}
+          <h1 className="m-0 text-[22px] font-bold leading-tight tracking-[-0.015em] text-fg md:text-[27px]">{title}</h1>
+          {subtitle && <div className="mt-1 text-[13.5px] text-muted">{subtitle}</div>}
+        </div>
       </div>
-      {actions}
-    </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </header>
   )
 }
 

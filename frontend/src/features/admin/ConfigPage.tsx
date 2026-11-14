@@ -61,7 +61,7 @@ export function ConfigPage() {
   const { data } = useConfig()
   return (
     <>
-      <PageHeader title="Configuración" subtitle="Parámetros generales del sistema" />
+      <PageHeader icon="cog" eyebrow="Administración" title="Configuración" subtitle="Parámetros generales del sistema" />
       {data ? <ConfigForm config={data} /> : <Skeleton className="h-64 max-w-[640px]" />}
     </>
   )

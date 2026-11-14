@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../shared/api/client'
-import { Alert, Avatar, Button, Field, Icon, Input, PasswordInput, useToast } from '../../shared/ui'
+import { Alert, Avatar, Button, Field, Icon, Input, PageHeader, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
+import { consumeWelcome, markWelcome } from './welcome'
 import { useAuth } from './context'
 import { DEMO_ACCOUNTS, SHOW_DEMO_ACCOUNTS } from './demoAccounts'
 import { loginSchema, type LoginValues } from './schemas/auth'
@@ -30,12 +31,14 @@ export function LoginPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError('')
+    // La marca va antes: el layout puede montarse en cuanto la sesión cambia, antes de volver de `login`.
+    markWelcome()
     try {
       await login(values.email, values.password)
       const from = (location.state as { from?: string } | null)?.from
-      toast('Sesión iniciada')
       navigate(from && from !== '/login' ? from : '/', { replace: true })
     } catch (e) {
+      consumeWelcome()
       setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
     }
   })
@@ -43,16 +46,13 @@ export function LoginPage() {
   return (
     <AuthShell>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-        <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted shadow-sm">
-            <Icon name="lock" size={13} strokeWidth={2} className="text-primary-fg" />
-            Acceso institucional
-          </span>
-          <h1 className="m-0 mt-4 text-[30px] font-bold leading-tight tracking-tight">Iniciar sesión</h1>
-          <p className="m-0 mt-2 text-[14.5px] leading-relaxed text-muted">
-            Te damos la bienvenida. Ingresa con tu cuenta institucional.
-          </p>
-        </div>
+        <PageHeader
+          layout="stacked"
+          icon="login"
+          eyebrow="Servicios Universitarios"
+          title="Iniciar sesión"
+          subtitle="Ingresa con tu cuenta @unmsm.edu.pe para continuar."
+        />
         {formError && <Alert>{formError}</Alert>}
         <div className="flex flex-col gap-4">
           <Field label="Correo" error={errors.email?.message}>
@@ -102,17 +102,12 @@ export function LoginPage() {
             <Icon name="arrowR" size={17} strokeWidth={2.25} className="transition-transform group-hover:translate-x-0.5" />
           )}
         </Button>
-        <div className="flex items-center gap-3 text-xs text-muted">
-          <span className="h-px flex-1 bg-line" />
-          ¿Primera vez aquí?
-          <span className="h-px flex-1 bg-line" />
-        </div>
-        <Link
-          to="/registro"
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface font-semibold text-fg no-underline shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-colors hover:border-line-strong hover:bg-surface2 hover:no-underline"
-        >
-          Crear cuenta
-        </Link>
+        <p className="m-0 text-center text-[13px] text-muted">
+          ¿Eres solicitante y no tienes cuenta?{' '}
+          <Link to="/registro" className="font-semibold">
+            Regístrate
+          </Link>
+        </p>
 
         {SHOW_DEMO_ACCOUNTS && (
           <section aria-labelledby="demo-title" className="mt-2 rounded-xl border border-dashed border-line-strong p-3.5">
