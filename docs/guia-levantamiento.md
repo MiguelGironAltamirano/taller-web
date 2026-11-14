@@ -96,12 +96,26 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env down -v
 
 Disponibles cuando el módulo de autenticación está integrado y `APP_FLYWAY_LOCATIONS` incluye `db/seed-dev`. Contraseña de todos: `Demo12345!`.
 
-| Rol | Correo |
-|---|---|
-| Administrador | `admin@unmsm.edu.pe` |
-| Supervisor | `supervisor.mantenimiento@unmsm.edu.pe` |
-| Técnico | `tecnico.mantenimiento@unmsm.edu.pe` |
-| Solicitante | `estudiante@unmsm.edu.pe` |
+| Rol | Correo | Área o tipo | Para probar |
+|---|---|---|---|
+| Administrador | `admin@unmsm.edu.pe` | — | Administración; ve todas las solicitudes |
+| Supervisor | `supervisor.mantenimiento@unmsm.edu.pe` | Mantenimiento | Electricidad y Gasfitería |
+| Técnico | `tecnico.mantenimiento@unmsm.edu.pe` | Mantenimiento | |
+| Supervisor | `supervisor.infraestructura@unmsm.edu.pe` | Infraestructura | Mobiliario, Aulas y laboratorios |
+| Técnico | `tecnico.infraestructura@unmsm.edu.pe` | Infraestructura | Reasignar entre dos técnicos |
+| Técnico | `tecnica.infraestructura@unmsm.edu.pe` | Infraestructura | Reasignar entre dos técnicos |
+| Técnico (inactivo) | `tecnico.cesado@unmsm.edu.pe` | Infraestructura | No puede iniciar sesión ni aparece para asignar |
+| Supervisor | `supervisora.informatica@unmsm.edu.pe` | Soporte Informático | Equipos de cómputo, Red e Internet |
+| Técnico | `tecnico.informatica@unmsm.edu.pe` | Soporte Informático | |
+| Supervisor | `supervisor.administrativo@unmsm.edu.pe` | Servicios Administrativos | Trámites administrativos |
+| Técnico | `tecnica.administrativa@unmsm.edu.pe` | Servicios Administrativos | |
+| Solicitante | `estudiante@unmsm.edu.pe` | Estudiante | |
+| Solicitante | `estudiante2@unmsm.edu.pe` | Estudiante | Un solicitante no ve las solicitudes de otro |
+| Solicitante | `docente@unmsm.edu.pe` | Docente | |
+| Solicitante | `administrativo@unmsm.edu.pe` | Administrativo | |
+| Solicitante (inactivo) | `solicitante.inactivo@unmsm.edu.pe` | Estudiante | Cuenta desactivada: el login la rechaza |
+
+Supervisores y técnicos pertenecen a un **área**, no a una facultad: la categoría de la solicitud decide el área que la atiende, y la facultad solo describe dónde está el problema. Los usuarios desde `supervisor.infraestructura` vienen de `seed-dev/V1001__more_dev_users.sql`; en una base existente se agregan solos al reiniciar el backend.
 
 > Con la API simulada (`VITE_USE_MOCKS=true`, sección 7) el login muestra otras cuentas de ejemplo, definidas en `frontend/src/mocks/db.ts` (ver `frontend/README.md`); las de esta tabla son las de la base de datos real.
 

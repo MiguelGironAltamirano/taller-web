@@ -42,11 +42,33 @@ class SchemaMigrationTests {
 	}
 
 	@Test
-	void devSeedCreatesOneUserPerRoleWithHashedPasswords() {
-		List<String> roles = jdbc.queryForList("select role from users order by id", String.class);
+	void devSeedCoversEveryRoleWithHashedPasswords() {
+		List<String> roles = jdbc.queryForList("select distinct role from users", String.class);
 		Integer plain = jdbc.queryForObject("select count(*) from users where password_hash not like '$2%'", Integer.class);
-		assertThat(roles).containsExactly("ADMINISTRADOR", "SUPERVISOR", "TECNICO", "SOLICITANTE");
+		assertThat(roles).containsExactlyInAnyOrder("ADMINISTRADOR", "SUPERVISOR", "TECNICO", "SOLICITANTE");
 		assertThat(plain).isZero();
+	}
+
+	@Test
+	void devSeedLetsEveryAreaRunTheWholeFlow() {
+		List<Long> areasWithoutSupervisor = jdbc.queryForList("select a.id from areas a where not exists (select 1 "
+				+ "from users u where u.area_id = a.id and u.role = 'SUPERVISOR' and u.active)", Long.class);
+		List<Long> areasWithoutTechnician = jdbc.queryForList("select a.id from areas a where not exists (select 1 "
+				+ "from users u where u.area_id = a.id and u.role = 'TECNICO' and u.active)", Long.class);
+		assertThat(areasWithoutSupervisor).isEmpty();
+		assertThat(areasWithoutTechnician).isEmpty();
+	}
+
+	@Test
+	void devSeedHasTheUsersTheEdgeCasesNeed() {
+		List<String> requesterTypes = jdbc.queryForList(
+				"select distinct requester_type from users where role = 'SOLICITANTE' and active", String.class);
+		Integer areasWithTwoTechnicians = jdbc.queryForObject("select count(*) from (select area_id from users "
+				+ "where role = 'TECNICO' and active group by area_id having count(*) >= 2) a", Integer.class);
+		Integer inactive = jdbc.queryForObject("select count(*) from users where not active", Integer.class);
+		assertThat(requesterTypes).containsExactlyInAnyOrder("ESTUDIANTE", "DOCENTE", "ADMINISTRATIVO");
+		assertThat(areasWithTwoTechnicians).as("an area where a request can be reassigned").isPositive();
+		assertThat(inactive).as("deactivated accounts").isPositive();
 	}
 
 }
