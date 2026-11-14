@@ -292,7 +292,10 @@ Como institución, quiero que el sistema impida los saltos de estado que no est�
 | **Estado destino inválido.** Dado un estado destino ausente o desconocido, entonces recibo `400` | `WfApi.aMissingOrUnknownTargetStatusIsABadRequest` |
 | **Solicitud inexistente o sin sesión.** Entonces recibo `404` o `401` | `WfApi.anUnknownRequestIsNotFoundAndAMissingTokenIsUnauthorized` |
 | **Simultaneidad.** Dadas dos transiciones idénticas al mismo tiempo, entonces solo una se aplica | `WfApi.twoSimultaneousIdenticalTransitionsOnlyOneWins` |
-| **En la interfaz.** Dado un `409`, entonces se muestra "Transición no permitida" y se refresca el detalle | **Por escribir** (prueba de interfaz pendiente) |
+| **En la interfaz.** Dado un `409`, entonces se muestra "Transición no permitida" y se refresca el detalle | `FE features/workflow/ActionModal.test.tsx` (un 409 avisa, refresca y cierra) |
+| **Solo las acciones permitidas.** Dado el detalle de una solicitud, entonces solo se muestran los botones que el servidor permite | `FE features/workflow/ActionsPanel.test.tsx` |
+| **Asignar y cerrar con datos.** Dado asignar sin técnico, o cerrar o reasignar sin motivo, entonces el formulario lo rechaza y no llama a la API | `FE features/workflow/ActionModal.test.tsx` |
+| **Tablero.** Dado un arrastre no listado para el rol, entonces se avisa y no se llama a la API | `FE features/workflow/KanbanBoard.test.tsx` |
 
 ### HU-20 — Conocer el plazo y las solicitudes vencidas (S)
 

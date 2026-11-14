@@ -111,7 +111,7 @@ Resumen: **el backend de `workflow` y su conexión con el frontend están hechos
 - [x] Un `409` muestra "Transición no permitida" y refresca el detalle
 - [x] Confirmar la solución cierra la solicitud; la calificación es opcional y se guarda después; rechazar exige motivo
 - [x] Mocks alineados con el backend real
-- [ ] Pruebas de interfaz de los flujos de supervisor, técnico y solicitante
+- [x] Pruebas de interfaz de los flujos de supervisor, técnico y solicitante (`ActionsPanel`, `ActionModal`, `KanbanBoard`, `SatisfactionPanel`)
 - [ ] Verificación manual de punta a punta con el backend real en el navegador
 
 ### Documentación

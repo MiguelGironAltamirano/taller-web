@@ -22,7 +22,7 @@ Out: cierre automático a las 72 h, comentarios y evidencias (AngelCarrasco), ca
 - [x] Pruebas unitarias (dominio y casos de uso) y de integración con MySQL real
 - [x] Frontend: acciones derivadas de `allowedTransitions`, manejo del 409, confirmar y calificar en dos pasos
 - [x] Corrección de `WorkflowApiTests`: sin ids de usuario fijos (`users.id` es AUTO_INCREMENT)
-- [ ] Pruebas de interfaz de workflow y satisfacción
+- [x] Pruebas de interfaz de workflow (`ActionsPanel`, `ActionModal`, `KanbanBoard`) y de satisfacción
 - [ ] Verificación manual de punta a punta con el backend real
 - [ ] Cierre automático a las 72 h
 - [x] Documentación de Fase I en `docs/fase-1/` (problema, requerimientos, épicas e historias con BDD, arquitectura, wireframes, evidencia)
