@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { useCatalogs } from '../../../shared/api/catalogs'
 import { useNow } from '../../../shared/hooks/useNow'
@@ -8,12 +8,14 @@ import { Button, Card, EmptyState, Icon, PageHeader, Pagination, SkeletonRows, u
 import { useSessionUser } from '../../auth'
 import { KanbanBoard, useTechnicians } from '../../workflow'
 import { useRequestRows } from '../api'
+import { AttentionPanel } from '../components/AttentionPanel'
 import { FilterChips } from '../components/FilterChips'
 import { ListToolbar } from '../components/ListToolbar'
 import { RequestCards, RequestTable } from '../components/RequestTable'
 import { StatusStrip } from '../components/StatusStrip'
 import { countByState, filterRows, sortRows, toCsv } from '../lib/filters'
-import { withSla } from '../lib/view'
+import { attentionFor, sortByUrgency, useUnseenCodes } from '../lib/attention'
+import { withSla, type RowView } from '../lib/view'
 import { useListParams } from './useListParams'
 import { useIsMobile } from '../../../shared/hooks/useMediaQuery'
 
@@ -29,9 +31,23 @@ export function RequestListPage() {
   const { data: rows, isLoading, isError } = useRequestRows(p.server)
   const technicians = useTechnicians(user.role === 'supervisor' ? (user.areaId ?? undefined) : undefined)
 
+  const unseen = useUnseenCodes()
   const all = useMemo(() => (rows ?? []).map((r) => withSla(r, now)), [rows, now])
   const counts = useMemo(() => countByState(all), [all])
-  const filtered = useMemo(() => sortRows(filterRows(all, p.filters), p.filters.sort), [all, p.filters])
+  const attentionOf = useCallback((r: RowView) => attentionFor(user.role, r, unseen), [user.role, unseen])
+  const attentionItems = useMemo(
+    () =>
+      sortByUrgency(all.filter((r) => attentionOf(r)), unseen).map((row) => ({
+        row,
+        attention: attentionOf(row)!,
+        unseen: unseen.has(row.code),
+      })),
+    [all, attentionOf, unseen],
+  )
+  const filtered = useMemo(() => {
+    const matched = filterRows(all, p.filters, (r) => attentionOf(r) !== null)
+    return p.filters.view === 'attention' ? sortByUrgency(matched, unseen) : sortRows(matched, p.filters.sort)
+  }, [all, p.filters, attentionOf, unseen])
 
   const canKanban = user.role !== 'solicitante'
   const kanban = canKanban && p.mode === 'kanban'
@@ -64,31 +80,40 @@ export function RequestListPage() {
           </>
         }
       />
-      <StatusStrip counts={counts} value={p.filters.status} onChange={(status) => p.setFilters({ status })} />
-      <ListToolbar
-        filters={p.filters}
-        server={p.server}
-        areas={user.role === 'administrador' ? (catalogs?.areas ?? []) : null}
-        categories={catalogs?.categories.map((c) => c.name) ?? []}
-        technicians={user.role === 'supervisor' ? (technicians.data?.map((t) => t.fullName) ?? []) : null}
-        canKanban={canKanban}
-        mode={p.mode}
-        density={p.density}
-        onChange={p.setFilters}
-        onServerChange={p.setServer}
-        onMode={p.setMode}
-        onDensity={p.setDensity}
-      />
-      <FilterChips
-        filters={p.filters}
-        server={p.server}
-        areas={catalogs?.areas ?? []}
-        onChange={p.setFilters}
-        onServerChange={p.setServer}
-        onClear={p.clearFilters}
-      />
+      {p.filters.view !== 'attention' && (
+        <AttentionPanel
+          items={attentionItems}
+          onOpen={open}
+          onShowAll={() => p.setFilters({ view: 'attention', status: '' })}
+        />
+      )}
 
       <Card className="overflow-hidden">
+        <StatusStrip counts={counts} value={p.filters.status} onChange={(status) => p.setFilters({ status })} />
+        <div className="flex flex-col gap-2.5 border-y border-line bg-surface2/40 p-3">
+          <ListToolbar
+            filters={p.filters}
+            server={p.server}
+            areas={user.role === 'administrador' ? (catalogs?.areas ?? []) : null}
+            categories={catalogs?.categories.map((c) => c.name) ?? []}
+            technicians={user.role === 'supervisor' ? (technicians.data?.map((t) => t.fullName) ?? []) : null}
+            canKanban={canKanban}
+            mode={p.mode}
+            density={p.density}
+            onChange={p.setFilters}
+            onServerChange={p.setServer}
+            onMode={p.setMode}
+            onDensity={p.setDensity}
+          />
+          <FilterChips
+            filters={p.filters}
+            server={p.server}
+            areas={catalogs?.areas ?? []}
+            onChange={p.setFilters}
+            onServerChange={p.setServer}
+            onClear={p.clearFilters}
+          />
+        </div>
         {isLoading && <SkeletonRows count={5} rowClass={p.density === 'comfy' ? 'h-12' : 'h-10'} />}
         {isError && (
           <EmptyState icon="file" title="No pudimos cargar las solicitudes" description="Inténtalo de nuevo en unos momentos." />
@@ -104,9 +129,15 @@ export function RequestListPage() {
         {!isLoading && filtered.length > 0 && !kanban && (
           <>
             {isMobile ? (
-              <RequestCards rows={pageRows} onOpen={open} />
+              <RequestCards rows={pageRows} onOpen={open} attentionOf={attentionOf} unseen={unseen} />
             ) : (
-              <RequestTable rows={pageRows} compact={p.density === 'compact'} onOpen={open} />
+              <RequestTable
+                rows={pageRows}
+                compact={p.density === 'compact'}
+                onOpen={open}
+                attentionOf={attentionOf}
+                unseen={unseen}
+              />
             )}
             <Pagination page={page} pageSize={pageSize} total={filtered.length} onPage={p.setPage} onPageSize={p.setPageSize} />
           </>

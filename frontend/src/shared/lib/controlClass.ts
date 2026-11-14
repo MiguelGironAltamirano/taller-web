@@ -1,7 +1,7 @@
 import { cn } from './cn'
 
 const CONTROL =
-  'rounded-lg border bg-surface text-fg placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60'
+  'rounded-lg border bg-surface text-fg placeholder:text-muted transition-[border-color,box-shadow] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
  * Clases comunes de inputs, selects y textareas; el borde pasa a rojo si es inválido.

@@ -19,7 +19,7 @@ export function GridTable({ columns, minWidth = '600px', heads, children, label 
       <div role="table" aria-label={label} style={{ minWidth }}>
         <div
           role="row"
-          className="grid h-[38px] items-center gap-3 border-b border-line bg-surface2 px-4 text-xs font-semibold text-muted"
+          className="grid h-10 items-center gap-3 border-b border-line bg-surface2/70 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted"
           style={{ gridTemplateColumns: columns }}
         >
           {heads.map((h, i) => (
@@ -43,7 +43,7 @@ export function GridRow({ columns, interactive, className, style, ...rest }: Gri
       tabIndex={interactive ? 0 : undefined}
       className={cn(
         'grid items-center gap-3 border-b border-line px-4',
-        interactive && 'cursor-pointer hover:bg-surface2',
+        interactive && 'cursor-pointer transition-colors hover:bg-surface2/70',
         className,
       )}
       style={{ gridTemplateColumns: columns, ...style }}

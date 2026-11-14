@@ -16,6 +16,7 @@ export function useRequestRows(server: ServerFilters = NO_SERVER_FILTERS) {
     queryKey: [...requestListKey, server],
     queryFn: () => apiGet<Page<RequestSummary>>('/requests', { size: 500, ...serverQuery(server) }),
     select: (page) => page.items.map(toRequestRow),
+    refetchInterval: 30_000,
   })
 }
 

@@ -3,7 +3,7 @@ import { buildCsv } from '../../../shared/lib/csv'
 import { dateLong, normalizeText } from '../../../shared/lib/format'
 import type { RowView } from './view'
 
-export type ListView = 'all' | 'venc' | 'open' | 'confirm' | 'critsa'
+export type ListView = 'all' | 'attention' | 'venc' | 'open' | 'confirm' | 'critsa'
 export type ListSort = 'due' | 'new' | 'prio'
 
 export type ListFilters = {
@@ -19,6 +19,7 @@ export type ListFilters = {
 
 export const VIEW_LABELS: Record<ListView, string> = {
   all: 'Todas',
+  attention: 'Requieren mi atención',
   venc: 'Mis vencidas',
   open: 'Abiertas',
   confirm: 'Por confirmar',
@@ -40,8 +41,10 @@ export function serverQuery(f: ServerFilters): Record<string, string> {
 
 export const OVERDUE_STATUS = '__venc'
 
-const matchesView = (r: RowView, view: ListView): boolean => {
+const matchesView = (r: RowView, view: ListView, needsAttention?: (r: RowView) => boolean): boolean => {
   switch (view) {
+    case 'attention':
+      return needsAttention?.(r) ?? false
     case 'venc':
       return r.sla.overdue
     case 'open':
@@ -56,7 +59,7 @@ const matchesView = (r: RowView, view: ListView): boolean => {
 }
 
 /** Aplica búsqueda, filtros y vista guardada (la ordenación se hace aparte). */
-export function filterRows(rows: RowView[], f: ListFilters): RowView[] {
+export function filterRows(rows: RowView[], f: ListFilters, needsAttention?: (r: RowView) => boolean): RowView[] {
   const q = normalizeText(f.q.trim())
   return rows.filter((r) => {
     if (q && !normalizeText(`${r.code} ${r.description} ${r.category} ${r.room}`).includes(q)) return false
@@ -66,7 +69,7 @@ export function filterRows(rows: RowView[], f: ListFilters): RowView[] {
     if (f.status === OVERDUE_STATUS) {
       if (!r.sla.overdue) return false
     } else if (f.status && r.state !== f.status) return false
-    return matchesView(r, f.view)
+    return matchesView(r, f.view, needsAttention)
   })
 }
 

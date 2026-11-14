@@ -64,7 +64,7 @@ export function CommentsTab({ request, currentUserName }: Props) {
           type="submit"
           aria-label="Enviar"
           disabled={add.isPending}
-          className="grid h-10 w-11 place-items-center rounded-lg border-0 bg-primary text-on-primary disabled:opacity-60"
+          className="grid h-10 w-11 place-items-center rounded-lg border-0 bg-primary text-on-primary shadow-[0_1px_2px_rgb(0_0_0/0.14)] enabled:hover:bg-primary-hover enabled:active:translate-y-px enabled:active:bg-primary-active disabled:opacity-55"
         >
           <Icon name="send" />
         </button>
