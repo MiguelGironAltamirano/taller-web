@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../shared/api/client'
-import { Alert, Avatar, Button, Field, Input, PasswordInput, useToast } from '../../shared/ui'
+import { Alert, Avatar, Button, Field, Icon, Input, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
 import { useAuth } from './context'
 import { DEMO_ACCOUNTS, SHOW_DEMO_ACCOUNTS } from './demoAccounts'
@@ -42,52 +42,77 @@ export function LoginPage() {
 
   return (
     <AuthShell>
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <div>
-          <h1 className="m-0 text-[26px] font-semibold tracking-tight">Iniciar sesión</h1>
-          <p className="m-0 mt-1.5 text-muted">Ingresa con tu cuenta institucional @unmsm.edu.pe.</p>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted shadow-sm">
+            <Icon name="lock" size={13} strokeWidth={2} className="text-primary-fg" />
+            Acceso institucional
+          </span>
+          <h1 className="m-0 mt-4 text-[30px] font-bold leading-tight tracking-tight">Iniciar sesión</h1>
+          <p className="m-0 mt-2 text-[14.5px] leading-relaxed text-muted">
+            Te damos la bienvenida. Ingresa con tu cuenta institucional.
+          </p>
         </div>
         {formError && <Alert>{formError}</Alert>}
-        <Field label="Correo" error={errors.email?.message}>
-          {(a) => (
-            <Input
-              {...a}
-              type="email"
-              autoComplete="username"
-              placeholder="usuario@unmsm.edu.pe"
-              className="h-11"
-              {...register('email', { onChange: () => setFormError('') })}
-            />
-          )}
-        </Field>
-        <Field label="Contraseña" error={errors.password?.message}>
-          {(a) => (
-            <PasswordInput
-              {...a}
-              autoComplete="current-password"
-              className="h-11"
-              {...register('password', { onChange: () => setFormError('') })}
-            />
-          )}
-        </Field>
-        <div className="-mt-1 flex justify-end text-[13px]">
-          <button
-            type="button"
-            className="border-0 bg-transparent p-0 font-medium text-primary-fg hover:underline"
-            onClick={() => toast('Te enviaremos un enlace de recuperación a tu correo.', { tone: 'info' })}
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
+        <div className="flex flex-col gap-4">
+          <Field label="Correo" error={errors.email?.message}>
+            {(a) => (
+              <Input
+                {...a}
+                icon="mail"
+                type="email"
+                autoComplete="username"
+                placeholder="usuario@unmsm.edu.pe"
+                className="h-12 text-[14.5px]"
+                {...register('email', { onChange: () => setFormError('') })}
+              />
+            )}
+          </Field>
+          <div className="flex flex-col gap-1.5">
+            <Field label="Contraseña" error={errors.password?.message}>
+              {(a) => (
+                <PasswordInput
+                  {...a}
+                  icon="lock"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="h-12 text-[14.5px]"
+                  {...register('password', { onChange: () => setFormError('') })}
+                />
+              )}
+            </Field>
+            <button
+              type="button"
+              className="self-end border-0 bg-transparent p-0 text-[13px] font-medium text-primary-fg hover:underline"
+              onClick={() => toast('Te enviaremos un enlace de recuperación a tu correo.', { tone: 'info' })}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
         </div>
-        <Button type="submit" variant="primary" size="lg" loading={isSubmitting} className="h-11 w-full">
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          loading={isSubmitting}
+          className="group h-12 w-full text-[15px] shadow-[0_8px_20px_-8px_var(--primary)]"
+        >
           {isSubmitting ? 'Ingresando…' : 'Ingresar'}
+          {!isSubmitting && (
+            <Icon name="arrowR" size={17} strokeWidth={2.25} className="transition-transform group-hover:translate-x-0.5" />
+          )}
         </Button>
-        <p className="m-0 text-center text-[13px] text-muted">
-          ¿Aún no tienes cuenta?{' '}
-          <Link to="/registro" className="font-medium">
-            Crear cuenta
-          </Link>
-        </p>
+        <div className="flex items-center gap-3 text-xs text-muted">
+          <span className="h-px flex-1 bg-line" />
+          ¿Primera vez aquí?
+          <span className="h-px flex-1 bg-line" />
+        </div>
+        <Link
+          to="/registro"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface font-semibold text-fg no-underline shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-colors hover:border-line-strong hover:bg-surface2 hover:no-underline"
+        >
+          Crear cuenta
+        </Link>
 
         {SHOW_DEMO_ACCOUNTS && (
           <section aria-labelledby="demo-title" className="mt-2 rounded-xl border border-dashed border-line-strong p-3.5">

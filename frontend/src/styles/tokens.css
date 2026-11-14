@@ -156,6 +156,16 @@
 
   --animate-pop: pop 0.15s ease-out;
   --animate-pulse-soft: pulse-soft 1.2s infinite;
+  --animate-float: float 7s ease-in-out infinite;
+  @keyframes float {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: 0 -8px;
+    }
+  }
   --animate-rise: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   @keyframes rise {
     from {

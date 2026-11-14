@@ -1,7 +1,7 @@
 import { useId, useState, type ComponentProps, type ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 import { controlClass } from '../../lib/controlClass'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 
 type FieldProps = {
   label: string
@@ -58,10 +58,30 @@ export function PasswordInput({ className, ...rest }: PasswordInputProps) {
 
 const hasHeight = (className?: string) => /(^|\s)h-/.test(className ?? '')
 
-type InputProps = ComponentProps<'input'> & { invalid?: boolean }
+type InputProps = ComponentProps<'input'> & {
+  invalid?: boolean
+  /** Ícono decorativo a la izquierda del texto. */
+  icon?: IconName
+}
 
-export function Input({ invalid, className, ...rest }: InputProps) {
-  return <input className={controlClass(invalid, cn(!hasHeight(className) && 'h-10', 'px-3', className))} {...rest} />
+export function Input({ invalid, icon, className, ...rest }: InputProps) {
+  const input = (
+    <input
+      className={controlClass(invalid, cn(!hasHeight(className) && 'h-10', 'px-3', icon && 'pl-10', className))}
+      {...rest}
+    />
+  )
+  if (!icon) return input
+  return (
+    <span className="relative block">
+      <Icon
+        name={icon}
+        size={17}
+        className="pointer-events-none absolute inset-y-0 left-3 my-auto text-muted"
+      />
+      {input}
+    </span>
+  )
 }
 
 type SelectProps = ComponentProps<'select'> & { invalid?: boolean }
