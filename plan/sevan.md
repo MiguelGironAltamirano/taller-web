@@ -106,9 +106,9 @@ Prioridad sugerida: **S** = Release Candidate (semana 12), **C** = opcional si h
 - **Registro de solicitudes:** el contrato del MVP envía el `locationId` del ambiente; el formulario del diseño elige Facultad → Pabellón → Ambiente y el front resuelve ese id.
 - **Cierre automático a las 72 h:** el front solo lo informa; hay que implementarlo en el backend (satisfacción, plan de Lita).
 
-## 10. Estado de avance (17 de octubre de 2026)
+## 10. Estado de avance (14 de noviembre de 2026)
 
-Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; faltan los filtros avanzados del servidor y la documentación para el manual. El frontend (PR #7) y el backend `catalog` y `requests` (PR #8) ya están en `dev`, igual que el módulo `workflow` de Angela (PR #9).
+Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; los filtros avanzados del servidor y la documentación del módulo (notas del manual de usuario y manual técnico) también están hechos; falta la revisión de otro integrante y las pruebas de aceptación. El frontend (PR #7) y el backend `catalog` y `requests` (PR #8) ya están en `dev`, igual que el módulo `workflow` de Angela (PR #9).
 
 ### Backend (`catalog`, `requests`)
 
@@ -146,4 +146,4 @@ El detalle del backend todavía no incluye comentarios, evidencias, solución ni
 
 - **Los datos de los mocks no son los de la semilla real:** los mocks usan los datos del diseño (3 áreas, 8 categorías, 6 facultades) y la semilla del backend define 4 áreas, 7 categorías y 8 ubicaciones. Con el backend real la interfaz funciona igual, pero las listas son las de la semilla.
 - **Campos que el backend ya devuelve además del contrato v1:** `description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName` y `roomName` en cada solicitud (ver `docs/api/ui-extensions.md`).
-- **Pruebas de aceptación y revisión de otro integrante:** pendientes (semanas 13–14).
+- **Pruebas de aceptación (Lita) y revisión de otro integrante:** pendientes (semanas 13–14). Los filtros avanzados y los manuales están en `feature/requests-filtros-avanzados`, aún sin PR; ningún PR de este módulo recibió revisión hasta ahora.

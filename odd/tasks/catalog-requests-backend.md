@@ -24,7 +24,7 @@ Out: transiciones de estado (Angela), comentarios y evidencias (AngelCarrasco), 
 - [x] Verificación manual de punta a punta: backend real + frontend sin mocks en Chrome
 - [ ] Revisión de otro integrante y PR a `dev`
 - [x] Filtros avanzados (fechas, área, vencidas) del listado
-- [ ] Sustituir `NoAllowedTransitions` cuando exista el módulo de workflow
+- [x] Sustituir `NoAllowedTransitions` cuando exista el módulo de workflow (lo reemplazó `AllowedTransitions` del módulo `workflow`, PR #9)
 
 ## Decisions
 - **Código correlativo:** un solo `INSERT … ON DUPLICATE KEY UPDATE` con `LAST_INSERT_ID(expr)` toma el bloqueo de la fila del año y suma; el bloqueo se mantiene hasta el commit, así que las creaciones concurrentes se serializan y un rollback devuelve el número (los códigos quedan consecutivos). Exige estar dentro de una transacción (`Propagation.MANDATORY`), porque `LAST_INSERT_ID` es por conexión.
