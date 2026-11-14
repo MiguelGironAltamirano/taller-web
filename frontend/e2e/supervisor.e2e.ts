@@ -79,7 +79,8 @@ test.describe('Supervisor', () => {
     await expect(priority.getByText(/^Nuevo vencimiento: /)).toBeVisible()
     await priority.getByRole('button', { name: 'Cambiar prioridad' }).click()
     await expect(priority).toBeHidden()
-    await expect(detail).toContainText('Crítica · 8 h')
+    await expect(detail).toContainText('PrioridadCrítica')
+    await expect(detail).toContainText('Plazo de atención · 8 h')
 
     await openTab(page, 'Historial')
     const history = page.getByRole('tabpanel')

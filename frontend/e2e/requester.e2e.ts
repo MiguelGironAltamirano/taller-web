@@ -38,7 +38,9 @@ test.describe('Requester', () => {
     await expect(page.getByRole('heading', { name: code, level: 1 })).toBeVisible()
     const detail = page.getByRole('region', { name: 'Detalle' })
     await expect(detail).toContainText('Registrada')
-    await expect(detail).toContainText('Alta · 24 h')
+    // Lita's redesigned summary shows the priority and its SLA hours in separate places.
+    await expect(detail).toContainText('PrioridadAlta')
+    await expect(detail).toContainText('Plazo de atención · 24 h')
     await expect(detail).toContainText('Mantenimiento')
     // The evidence picked in the form was uploaded to the new request.
     await expect(page.getByRole('tab', { name: /^Evidencias/ })).toContainText('1')

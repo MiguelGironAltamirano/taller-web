@@ -74,7 +74,9 @@ test.describe('Administrator', () => {
     // An area that still has categories is kept (the API answers 409); once its category is gone it can be deleted.
     await page.getByRole('tab', { name: 'Áreas' }).click()
     await areaRow.getByRole('button', { name: 'Eliminar' }).click()
-    await expect(page.getByRole('status').filter({ hasText: /categor/i })).toBeVisible()
+    // Error toasts are announced as alerts since the toast redesign (PR #16); a 'status' match was racy with the
+    // still-visible "category created" toast.
+    await expect(page.getByRole('alert').filter({ hasText: /tiene categor/i })).toBeVisible()
     await expect(areaRow).toHaveCount(1)
 
     await page.getByRole('tab', { name: 'Categorías' }).click()
