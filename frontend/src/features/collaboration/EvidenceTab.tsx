@@ -97,7 +97,7 @@ export function EvidenceTab({ request }: { request: RequestDetailView }) {
                   type="button"
                   aria-label={`Descargar ${f.name}`}
                   onClick={() => handleDownload(f)}
-                  className="grid size-7 place-items-center rounded-md border-0 bg-transparent text-muted hover:text-foreground"
+                  className="grid size-7 place-items-center rounded-md border-0 bg-transparent text-muted hover:bg-surface2 hover:text-fg"
                 >
                   <Icon name="download" size={14} />
                 </button>

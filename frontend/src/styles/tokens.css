@@ -44,8 +44,8 @@
   --st-3-fg: #1e40af;
   --st-4-bg: #d1fae5;
   --st-4-fg: #065f46;
-  --st-5-bg: #374151;
-  --st-5-fg: #ffffff;
+  --st-5-bg: #e2e8f0;
+  --st-5-fg: #475569;
 
   /* Prioridades (fondo / texto) */
   --pr-critica-bg: #fee2e2;
@@ -99,8 +99,8 @@
   --st-3-fg: #bfdbfe;
   --st-4-bg: #064e3b;
   --st-4-fg: #a7f3d0;
-  --st-5-bg: #9ca3af;
-  --st-5-fg: #111827;
+  --st-5-bg: #2b3340;
+  --st-5-fg: #cbd5e1;
 
   --pr-critica-bg: #7f1d1d;
   --pr-critica-fg: #fecaca;
@@ -150,6 +150,26 @@
 
   --animate-pop: pop 0.15s ease-out;
   --animate-pulse-soft: pulse-soft 1.2s infinite;
+  --animate-toast-in: toast-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-toast-progress: toast-progress linear forwards;
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes toast-progress {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
   --animate-halo: halo 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   --animate-grow-x: grow-x 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-step-in: step-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;

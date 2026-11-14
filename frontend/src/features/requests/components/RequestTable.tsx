@@ -69,7 +69,7 @@ export function RequestCards({ rows, onOpen }: Pick<Props, 'rows' | 'onOpen'>) {
           key={r.code}
           type="button"
           onClick={() => onOpen(r.code)}
-          className="flex flex-col gap-2 border-0 border-b border-line bg-transparent p-3.5 text-left text-fg"
+          className="flex flex-col gap-2 border-0 border-b border-line bg-transparent p-3.5 text-left text-fg hover:bg-surface2"
         >
           <div className="flex justify-between gap-2">
             <b>{r.code}</b>

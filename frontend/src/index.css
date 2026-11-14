@@ -27,6 +27,9 @@
   button {
     cursor: pointer;
     font: inherit;
+    transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
   }
   input,
   select,

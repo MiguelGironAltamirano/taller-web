@@ -22,7 +22,7 @@ export function StatusStrip({ counts, value, onChange }: Props) {
           onClick={() => onChange(it.id)}
           className={cn(
             'rounded-[10px] border px-3 py-2 text-left text-fg',
-            value === it.id ? 'border-primary bg-primary-soft' : 'border-line bg-surface',
+            value === it.id ? 'border-primary bg-primary-soft' : 'border-line bg-surface hover:border-line-strong hover:bg-surface2',
           )}
         >
           <div className="text-xs text-muted">{it.label}</div>

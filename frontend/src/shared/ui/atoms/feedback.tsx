@@ -78,9 +78,12 @@ export function ProgressBar({ value, color = 'var(--primary)', label, className 
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={label}
-      className={cn('h-1.5 overflow-hidden rounded-full bg-surface2', className)}
+      className={cn('h-1.5 overflow-hidden rounded-full bg-line/70', className)}
     >
-      <div className="h-full" style={{ width: `${pct}%`, background: color }} />
+      <div
+        className="h-full rounded-full transition-[width] duration-700 ease-out"
+        style={{ width: `${pct}%`, background: color }}
+      />
     </div>
   )
 }

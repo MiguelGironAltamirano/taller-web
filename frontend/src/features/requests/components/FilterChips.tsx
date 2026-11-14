@@ -27,13 +27,13 @@ export function FilterChips({ filters, onChange, onClear }: Props) {
           type="button"
           aria-label={`Quitar filtro ${c.label}`}
           onClick={c.remove}
-          className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-primary-soft px-2.5 text-xs font-medium text-primary-fg"
+          className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-primary-soft px-2.5 text-xs font-medium text-primary-fg hover:border-primary/50"
         >
           {c.label}
           <Icon name="x" size={12} strokeWidth={2} />
         </button>
       ))}
-      <button type="button" onClick={onClear} className="border-0 bg-transparent text-xs text-muted underline">
+      <button type="button" onClick={onClear} className="border-0 bg-transparent text-xs text-muted underline hover:text-fg">
         Limpiar filtros
       </button>
     </div>

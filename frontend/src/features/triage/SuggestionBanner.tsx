@@ -20,7 +20,7 @@ export function SuggestionBanner({ suggestion, onAccept, onIgnore }: Props) {
       <button
         type="button"
         onClick={onIgnore}
-        className="h-[30px] rounded-md border border-current bg-transparent px-3 text-inherit"
+        className="h-[30px] rounded-md border border-current/40 bg-transparent px-3 font-medium text-inherit hover:border-current hover:bg-current/10"
       >
         Ignorar
       </button>
