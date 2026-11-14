@@ -119,7 +119,7 @@ Resumen: **el frontend y el backend de registro y consulta de solicitudes están
 - [x] `GET /api/v1/requests/{codigo}` con `404` si no es visible
 - [x] Marca de vencidas calculada en el servidor
 - [x] Pruebas de integración con MySQL real de la lista de la sección 5, incluida la de diez creaciones concurrentes (`RequestsApiTests`, `CatalogApiTests`)
-- [x] Filtros avanzados del listado (`from`, `to`, `areaId`, `overdue`): contrato en `docs/api/contrato-v1.md`, pruebas unitarias y de integración (`listCanBeFilteredBy...` en `RequestsApiTests`; las de integración están escritas pero pendientes de ejecutar con Docker)
+- [x] Filtros avanzados del listado (`from`, `to`, `areaId`, `overdue`): contrato en `docs/api/contrato-v1.md`, pruebas unitarias y de integración (`listCanBeFilteredBy...` en `RequestsApiTests`; verificadas con MySQL real: `./mvnw verify`, 426 pruebas en verde)
 - [x] `allowedTransitions` del detalle: ya las calcula el módulo `workflow` (PR #9, implementación de `AllowedTransitions`)
 
 El detalle del backend todavía no incluye comentarios, evidencias, solución ni calificación: son de los módulos de AngelCarrasco y Lita, y el frontend ya tolera su ausencia.
