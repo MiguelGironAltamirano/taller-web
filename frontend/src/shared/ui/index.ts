@@ -9,7 +9,7 @@ export { Field, Input, PasswordInput, Select, Textarea, Switch } from './atoms/f
 export { Skeleton, SkeletonRows, EmptyState, Alert, ProgressBar } from './atoms/feedback'
 
 // Molecules
-export { Card, CardTitle, PageHeader, KpiCard } from './molecules/layout'
+export { Card, CardTitle, PageHeader, SectionIcon, KpiCard } from './molecules/layout'
 export { Tabs, Segmented, type TabItem } from './molecules/Tabs'
 export { Modal, ModalActions } from './molecules/Modal'
 export { ToastProvider } from './molecules/Toast'

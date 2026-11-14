@@ -17,28 +17,37 @@ type PageHeaderProps = {
   actions?: ReactNode
   /** Ícono de la sección (el mismo del menú, para orientar). */
   icon?: IconName
-  /** Etiqueta corta sobre el título: la sección o el contexto de la página. */
-  eyebrow?: string
 }
 
-/** Encabezado de página: ícono de sección, etiqueta, título (h1), subtítulo y acciones. */
-export function PageHeader({ title, subtitle, actions, icon, eyebrow }: PageHeaderProps) {
+/** Recuadro guinda del ícono de sección: mismo degradado que el encabezado del inicio de sesión. */
+export function SectionIcon({ name, className }: { name: IconName; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'grid size-12 shrink-0 place-items-center rounded-xl text-white',
+        'shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_8px_18px_-10px_var(--brand)]',
+        className,
+      )}
+      style={{
+        background:
+          'radial-gradient(90% 120% at 50% 0%, rgb(255 255 255 / 0.16), transparent 70%),' +
+          'linear-gradient(180deg, color-mix(in srgb, var(--brand) 82%, white), var(--brand))',
+      }}
+    >
+      <Icon name={name} size={22} strokeWidth={1.8} />
+    </span>
+  )
+}
+
+/** Encabezado de página: ícono de sección, título (h1) en la serif institucional, subtítulo y acciones. */
+export function PageHeader({ title, subtitle, actions, icon }: PageHeaderProps) {
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-3 pb-1">
       <div className="flex min-w-60 flex-1 items-center gap-4">
-        {icon && (
-          <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-surface text-primary-fg shadow-[0_1px_2px_rgb(0_0_0/0.05),0_10px_24px_-14px_var(--primary)] ring-1 ring-inset ring-line">
-            <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(160deg,var(--primary-soft)_10%,transparent_75%)]" />
-            <Icon name={icon} size={22} strokeWidth={1.9} className="relative" />
-          </span>
-        )}
+        {icon && <SectionIcon name={icon} />}
         <div className="min-w-0">
-          {eyebrow && (
-            <p className="m-0 mb-1 text-[11px] font-semibold uppercase leading-none tracking-[0.14em] text-primary-fg">
-              {eyebrow}
-            </p>
-          )}
-          <h1 className="m-0 text-[22px] font-bold leading-tight tracking-[-0.015em] text-fg md:text-[27px]">{title}</h1>
+          <h1 className="m-0 font-display text-[24px] font-semibold leading-tight text-fg md:text-[28px]">{title}</h1>
           {subtitle && <div className="mt-1 text-[13.5px] text-muted">{subtitle}</div>}
         </div>
       </div>

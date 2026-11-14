@@ -137,7 +137,6 @@ export function RequestListPage() {
     <>
       <PageHeader
         icon="file"
-        eyebrow="Solicitudes"
         title={LIST_TITLES[user.role]}
         subtitle={`${total} de ${strip.total} solicitudes`}
         actions={

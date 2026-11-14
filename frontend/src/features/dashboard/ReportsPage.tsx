@@ -29,7 +29,7 @@ export function ReportsPage() {
 
   return (
     <>
-      <PageHeader icon="download" eyebrow="Indicadores" title="Reportes" subtitle={`Descarga la información de ${area}`} />
+      <PageHeader icon="download" title="Reportes" subtitle={`Descarga la información de ${area}`} />
       <Card className="overflow-hidden">
         <GridTable columns={COLUMNS} minWidth="640px" label="Reportes" heads={['Reporte', 'Contenido', '']}>
           {REPORTS.map((r) => (

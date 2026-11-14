@@ -204,7 +204,7 @@ export function RequestDetailPage() {
           Volver
         </Button>
         <span aria-hidden="true" className="h-6 w-px bg-line" />
-        <h1 className="m-0 text-xl font-semibold md:text-2xl">{request.code}</h1>
+        <h1 className="m-0 font-display text-[24px] font-semibold md:text-[28px]">{request.code}</h1>
         <IconButton label="Copiar código" onClick={copyCode}>
           <Icon name="copy" size={16} />
         </IconButton>

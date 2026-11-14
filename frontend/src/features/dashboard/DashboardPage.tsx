@@ -62,7 +62,6 @@ export function DashboardPage() {
     <>
       <PageHeader
         icon="chart"
-        eyebrow="Indicadores"
         title={title}
         subtitle={data ? `Últimos ${data.rangeDays} días · ${data.areaName ?? 'Todas las áreas'}` : ' '}
         actions={

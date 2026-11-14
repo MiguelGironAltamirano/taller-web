@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -61,7 +61,7 @@ describe('Nueva solicitud', () => {
     const code = (await screen.findByText(/^SOL-\d{4}-\d{6}$/)).textContent!
     expect(createCalls).toBe(1)
 
-    await user.click(screen.getByRole('link', { name: /Mis solicitudes/ }))
+    await user.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: /Mis solicitudes/ }))
     expect(await screen.findByText(code)).toBeInTheDocument()
   })
 

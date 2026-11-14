@@ -47,7 +47,7 @@ test.describe('Requester', () => {
     await openTab(page, 'Evidencias')
     await expect(page.getByRole('tabpanel')).toContainText('foco.png')
 
-    await page.getByRole('link', { name: /^Mis solicitudes/ }).click()
+    await page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: /^Mis solicitudes/ }).click()
     await page.getByRole('searchbox', { name: 'Buscar' }).fill(tag)
     const rows = page.getByRole('table', { name: 'Solicitudes' }).getByRole('row').filter({ hasText: CODE })
     await expect(rows).toHaveCount(1)

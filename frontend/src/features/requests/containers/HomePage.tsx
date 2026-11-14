@@ -35,7 +35,6 @@ export function HomePage() {
     <>
       <PageHeader
         icon="home"
-        eyebrow="Inicio"
         title={`Hola, ${user.name.split(' ')[0]}`}
         subtitle={`Resumen de tus solicitudes al ${dateFull(now)}.`}
       />
