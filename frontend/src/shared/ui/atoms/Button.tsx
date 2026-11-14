@@ -5,11 +5,11 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-outline'
 type Size = 'sm' | 'md' | 'lg'
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'border-0 bg-primary text-on-primary hover:brightness-110',
-  secondary: 'border border-line bg-surface text-fg hover:bg-surface2',
-  ghost: 'border-0 bg-transparent text-muted hover:bg-surface2',
-  danger: 'border-0 bg-err-solid text-white hover:brightness-110',
-  'danger-outline': 'border border-err-fg bg-transparent text-err-fg hover:bg-surface2',
+  primary: 'border-0 bg-primary text-on-primary hover:brightness-110 active:brightness-90',
+  secondary: 'border border-line bg-surface text-fg hover:bg-surface2 active:bg-surface2/80',
+  ghost: 'border-0 bg-transparent text-muted hover:bg-surface2 active:bg-surface2/80',
+  danger: 'border-0 bg-err-solid text-white hover:brightness-110 active:brightness-90',
+  'danger-outline': 'border border-err-fg bg-transparent text-err-fg hover:bg-err-bg active:bg-err-bg',
 }
 
 const SIZES: Record<Size, string> = {
@@ -43,7 +43,7 @@ export function Button({
       aria-busy={loading || undefined}
       className={cn(
         !ownDisplay && 'inline-flex',
-        'items-center justify-center gap-1.5 font-semibold transition-[filter,background-color] disabled:cursor-not-allowed disabled:opacity-60',
+        'items-center justify-center gap-1.5 font-semibold transition-[filter,background-color,transform] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
         VARIANTS[variant],
         SIZES[size],
         className,

@@ -22,19 +22,22 @@
   --info-bg: #dbeafe;
   --info-fg: #1e40af;
   --warn: #d97706;
+  --warn-bg: #fef3c7;
+  --warn-fg: #92400e;
   --good: #16a34a;
   --bad: #dc2626;
   --chart-blue: #2563eb;
 
-  /* Estados de la solicitud (fondo / texto) */
+  /* Estados de la solicitud (fondo / texto)
+     0=Registrada 1=En evaluación 2=Asignada 3=En atención 4=Resuelta 5=Cerrada */
   --st-0-bg: #e5e7eb;
   --st-0-fg: #374151;
-  --st-1-bg: #dbeafe;
-  --st-1-fg: #1e40af;
-  --st-2-bg: #ede9fe;
-  --st-2-fg: #5b21b6;
-  --st-3-bg: #fef3c7;
-  --st-3-fg: #92400e;
+  --st-1-bg: #fef9c3;
+  --st-1-fg: #854d0e;
+  --st-2-bg: #e0f2fe;
+  --st-2-fg: #0369a1;
+  --st-3-bg: #dbeafe;
+  --st-3-fg: #1e40af;
   --st-4-bg: #d1fae5;
   --st-4-fg: #065f46;
   --st-5-bg: #374151;
@@ -74,16 +77,18 @@
   --ok-fg: #a7f3d0;
   --info-bg: #1e3a8a;
   --info-fg: #bfdbfe;
+  --warn-bg: #78350f;
+  --warn-fg: #fde68a;
   --good: #34d399;
 
   --st-0-bg: #374151;
   --st-0-fg: #e5e7eb;
-  --st-1-bg: #1e3a8a;
-  --st-1-fg: #bfdbfe;
-  --st-2-bg: #4c1d95;
-  --st-2-fg: #ddd6fe;
-  --st-3-bg: #78350f;
-  --st-3-fg: #fde68a;
+  --st-1-bg: #713f12;
+  --st-1-fg: #fef08a;
+  --st-2-bg: #0c4a6e;
+  --st-2-fg: #bae6fd;
+  --st-3-bg: #1e3a8a;
+  --st-3-fg: #bfdbfe;
   --st-4-bg: #064e3b;
   --st-4-fg: #a7f3d0;
   --st-5-bg: #9ca3af;
@@ -122,6 +127,8 @@
   --color-info-bg: var(--info-bg);
   --color-info-fg: var(--info-fg);
   --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-fg: var(--warn-fg);
   --color-good: var(--good);
   --color-bad: var(--bad);
   --color-chart-blue: var(--chart-blue);

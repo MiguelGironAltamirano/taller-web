@@ -39,17 +39,29 @@ export function EmptyState({ icon = 'file', title, description, action, compact 
   )
 }
 
-type AlertTone = 'error' | 'info' | 'success'
+type AlertTone = 'error' | 'info' | 'success' | 'warn'
+
 const ALERT_TONE: Record<AlertTone, string> = {
   error: 'bg-err-bg text-err-fg',
   info: 'bg-info-bg text-info-fg',
   success: 'bg-ok-bg text-ok-fg',
+  warn: 'bg-warn-bg text-warn-fg',
+}
+
+const ALERT_ICON: Record<AlertTone, string> = {
+  error: 'M12 9v4m0 4h.01 M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
+  warn: 'M12 9v4m0 4h.01 M10.3 3.6 1.4 18a2 2 0 0 0 1.7 3h17.8a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z',
+  info: 'M12 16v-4m0-4h.01 M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
+  success: 'M20 6 9 17l-5-5',
 }
 
 export function Alert({ tone = 'error', children, className }: { tone?: AlertTone; children: ReactNode; className?: string }) {
   return (
-    <div role={tone === 'error' ? 'alert' : 'status'} className={cn('flex gap-2 rounded-lg px-3 py-2.5 text-[13px]', ALERT_TONE[tone], className)}>
-      {children}
+    <div role={tone === 'error' ? 'alert' : 'status'} className={cn('flex items-start gap-2 rounded-lg px-3 py-2.5 text-[13px]', ALERT_TONE[tone], className)}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-px shrink-0">
+        <path d={ALERT_ICON[tone]} />
+      </svg>
+      <div>{children}</div>
     </div>
   )
 }

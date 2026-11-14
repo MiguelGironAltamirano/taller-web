@@ -18,20 +18,37 @@ export function Stepper({ steps, current, label = 'Progreso' }: StepperProps) {
             {i > 0 && (
               <span
                 aria-hidden="true"
-                className={cn('absolute left-[-50%] top-[13px] h-0.5 w-full', i <= current ? 'bg-primary' : 'bg-line')}
+                className={cn(
+                  'absolute left-[-50%] top-[13px] h-0.5 w-full transition-colors',
+                  i <= current ? 'bg-primary' : 'bg-line',
+                )}
               />
             )}
+            {/* z-10 evita que la línea del paso siguiente tape el círculo */}
             <span
               className={cn(
-                'relative grid size-7 place-items-center rounded-full border-2 text-xs font-bold',
+                'relative z-10 grid size-7 place-items-center rounded-full border-2 text-xs font-bold transition-colors',
                 done && 'border-primary bg-primary text-on-primary',
-                active && 'border-primary bg-surface text-primary-fg',
+                active && 'border-primary bg-primary/10 text-primary-fg ring-2 ring-primary/30 ring-offset-1',
                 !done && !active && 'border-line bg-surface text-muted',
               )}
             >
-              {done ? '✓' : i + 1}
+              {done ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                i + 1
+              )}
             </span>
-            <span className={cn('text-xs', active ? 'font-bold text-fg' : 'font-medium text-muted')}>{step}</span>
+            <span
+              className={cn(
+                'text-xs transition-colors',
+                active ? 'font-semibold text-fg' : done ? 'font-medium text-muted' : 'font-medium text-muted/70',
+              )}
+            >
+              {step}
+            </span>
           </li>
         )
       })}
