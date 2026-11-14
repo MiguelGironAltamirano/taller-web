@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../shared/api/client'
-import { Alert, Button, Field, Input, useToast } from '../../shared/ui'
+import { Alert, Avatar, Button, Field, Icon, Input, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
+import { consumeWelcome, markWelcome } from './welcome'
 import { useAuth } from './context'
 import { DEMO_ACCOUNTS, SHOW_DEMO_ACCOUNTS } from './demoAccounts'
 import { loginSchema, type LoginValues } from './schemas/auth'
@@ -21,72 +22,92 @@ export function LoginPage() {
     register,
     handleSubmit,
     setValue,
-    formState: { isSubmitting },
+    clearErrors,
+    formState: { errors, isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: prefill, password: '' },
   })
 
-  const onInvalid = () => setFormError('Ingresa tu correo y contraseña.')
-
   const onSubmit = handleSubmit(async (values) => {
     setFormError('')
+    // La marca va antes: el layout puede montarse en cuanto la sesión cambia, antes de volver de `login`.
+    markWelcome()
     try {
       await login(values.email, values.password)
       const from = (location.state as { from?: string } | null)?.from
-      toast('Sesión iniciada')
       navigate(from && from !== '/login' ? from : '/', { replace: true })
     } catch (e) {
-      setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos conectar con el servidor.')
+      consumeWelcome()
+      setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
     }
-  }, onInvalid)
+  })
 
   return (
-    <AuthShell>
-      <form onSubmit={onSubmit} noValidate className="flex w-full max-w-[360px] flex-col gap-3.5">
-        <div>
-          <h1 className="m-0 mb-1 text-2xl font-semibold">Iniciar sesión</h1>
-          <div className="text-muted">Usa tu cuenta institucional.</div>
-        </div>
+    <AuthShell title="Iniciar sesión" subtitle="Ingresa con tu cuenta institucional @unmsm.edu.pe.">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         {formError && <Alert>{formError}</Alert>}
-        <Field label="Correo">
-          {(a) => (
-            <Input
-              {...a}
-              type="email"
-              autoComplete="username"
-              placeholder="usuario@unmsm.edu.pe"
-              {...register('email', { onChange: () => setFormError('') })}
-            />
-          )}
-        </Field>
-        <Field label="Contraseña">
-          {(a) => (
-            <Input
-              {...a}
-              type="password"
-              autoComplete="current-password"
-              {...register('password', { onChange: () => setFormError('') })}
-            />
-          )}
-        </Field>
-        <Button type="submit" variant="primary" size="lg" loading={isSubmitting}>
-          {isSubmitting ? 'Ingresando…' : 'Ingresar'}
-        </Button>
-        <div className="flex justify-between text-[13px]">
-          <button
-            type="button"
-            className="border-0 bg-transparent p-0 text-primary-fg hover:underline"
-            onClick={() => toast('Te enviaremos un enlace de recuperación a tu correo.')}
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
-          <Link to="/registro">Crear cuenta</Link>
+        <div className="flex flex-col gap-4">
+          <Field label="Correo" error={errors.email?.message}>
+            {(a) => (
+              <Input
+                {...a}
+                icon="mail"
+                type="email"
+                autoComplete="username"
+                placeholder="usuario@unmsm.edu.pe"
+                className="h-11"
+                {...register('email', { onChange: () => setFormError('') })}
+              />
+            )}
+          </Field>
+          <div className="flex flex-col gap-1.5">
+            <Field label="Contraseña" error={errors.password?.message}>
+              {(a) => (
+                <PasswordInput
+                  {...a}
+                  icon="lock"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="h-11"
+                  {...register('password', { onChange: () => setFormError('') })}
+                />
+              )}
+            </Field>
+            <button
+              type="button"
+              className="self-end border-0 bg-transparent p-0 text-[13px] font-medium text-primary-fg hover:underline"
+              onClick={() => toast('Te enviaremos un enlace de recuperación a tu correo.', { tone: 'info' })}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
         </div>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          loading={isSubmitting}
+          className="group h-11 w-full text-[14.5px]"
+        >
+          {isSubmitting ? 'Ingresando…' : 'Ingresar'}
+          {!isSubmitting && (
+            <Icon name="arrowR" size={17} strokeWidth={2.25} className="transition-transform group-hover:translate-x-0.5" />
+          )}
+        </Button>
+        <p className="m-0 text-center text-[13px] text-muted">
+          ¿Eres solicitante y no tienes cuenta?{' '}
+          <Link to="/registro" className="font-semibold">
+            Regístrate
+          </Link>
+        </p>
+
         {SHOW_DEMO_ACCOUNTS && (
-          <div className="border-t border-line pt-3.5">
-            <div className="mb-2 text-xs text-muted">Cuentas de ejemplo</div>
-            <div className="flex flex-col gap-1.5">
+          <section aria-labelledby="demo-title" className="mt-2 rounded-xl border border-dashed border-line-strong p-3.5">
+            <h2 id="demo-title" className="m-0 mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">
+              Cuentas de ejemplo
+            </h2>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {DEMO_ACCOUNTS.map((u) => (
                 <button
                   key={u.email}
@@ -94,21 +115,20 @@ export function LoginPage() {
                   onClick={() => {
                     setValue('email', u.email)
                     setValue('password', u.password)
+                    clearErrors()
                     setFormError('')
                   }}
-                  className="flex items-center gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-fg hover:bg-surface2"
+                  className="flex items-center gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-fg hover:border-line-strong hover:bg-surface2"
                 >
-                  <span className="grid size-7 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-primary-fg">
-                    {u.initials}
-                  </span>
+                  <Avatar name={u.name} size="sm" tone="soft" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-medium">{u.name}</span>
-                    <span className="block text-xs text-muted">{u.role}</span>
+                    <span className="block truncate text-[13px] font-medium">{u.name}</span>
+                    <span className="block truncate text-xs text-muted">{u.role}</span>
                   </span>
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         )}
       </form>
     </AuthShell>

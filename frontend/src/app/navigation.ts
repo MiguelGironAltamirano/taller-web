@@ -1,3 +1,4 @@
+import { homePathFor } from '../features/auth/context'
 import type { Role } from '../shared/domain'
 import { LIST_TITLES } from '../shared/domain'
 import type { IconName } from '../shared/ui'
@@ -79,24 +80,31 @@ export function isActivePath(itemTo: string, pathname: string): boolean {
   return itemTo === '/solicitudes' && pathname.startsWith('/solicitudes/') && pathname !== '/solicitudes/nueva'
 }
 
-const SIMPLE_CRUMBS: Record<string, string[]> = {
-  '/inicio': ['Inicio'],
-  '/solicitudes/nueva': ['Inicio', 'Solicitudes', 'Nueva solicitud'],
-  '/notificaciones': ['Inicio', 'Notificaciones'],
-  '/calendario': ['Inicio', 'Calendario'],
-  '/dashboard': ['Inicio', 'Dashboard'],
-  '/equipo': ['Inicio', 'Equipo'],
-  '/reportes': ['Inicio', 'Reportes'],
-  '/admin/usuarios': ['Inicio', 'Usuarios'],
-  '/admin/catalogos': ['Inicio', 'Catálogos'],
-  '/admin/triage': ['Inicio', 'Reglas de triage'],
-  '/admin/auditoria': ['Inicio', 'Auditoría'],
-  '/admin/configuracion': ['Inicio', 'Configuración'],
+/** Un paso de la ruta; sin `to` es la página actual (no es enlace). */
+export type Crumb = { label: string; to?: string }
+
+const PAGE_LABELS: Record<string, string> = {
+  '/notificaciones': 'Notificaciones',
+  '/calendario': 'Calendario',
+  '/dashboard': 'Dashboard',
+  '/equipo': 'Equipo',
+  '/reportes': 'Reportes',
+  '/admin/usuarios': 'Usuarios',
+  '/admin/catalogos': 'Catálogos',
+  '/admin/triage': 'Reglas de triage',
+  '/admin/auditoria': 'Auditoría',
+  '/admin/configuracion': 'Configuración',
 }
 
-export function breadcrumbsFor(pathname: string, role: Role): string[] {
-  if (SIMPLE_CRUMBS[pathname]) return SIMPLE_CRUMBS[pathname]
-  if (pathname === '/solicitudes') return ['Inicio', LIST_TITLES[role]]
-  if (pathname.startsWith('/solicitudes/')) return ['Inicio', LIST_TITLES[role], pathname.split('/')[2]]
-  return ['Inicio']
+/** Ruta de navegación de la barra superior; "Inicio" lleva a la pantalla de inicio del rol. */
+export function breadcrumbsFor(pathname: string, role: Role): Crumb[] {
+  const home = homePathFor(role)
+  if (pathname === home || pathname === '/inicio') return [{ label: 'Inicio' }]
+  const crumbs: Crumb[] = [{ label: 'Inicio', to: home }]
+  const list: Crumb = { label: LIST_TITLES[role], to: '/solicitudes' }
+  if (pathname === '/solicitudes') return [...crumbs, { label: LIST_TITLES[role] }]
+  if (pathname === '/solicitudes/nueva') return [...crumbs, list, { label: 'Nueva solicitud' }]
+  if (pathname.startsWith('/solicitudes/')) return [...crumbs, list, { label: pathname.split('/')[2] }]
+  if (PAGE_LABELS[pathname]) return [...crumbs, { label: PAGE_LABELS[pathname] }]
+  return crumbs
 }

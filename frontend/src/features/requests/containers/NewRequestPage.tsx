@@ -147,7 +147,7 @@ export function NewRequestPage() {
   const catErr = errors.category?.message
   return (
     <>
-      <PageHeader title="Nueva solicitud" subtitle="Los campos con * son obligatorios." />
+      <PageHeader icon="plus" title="Nueva solicitud" subtitle="Los campos con * son obligatorios." />
       <form onSubmit={onSubmit} noValidate className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[2_1_560px] flex-col gap-3.5">
           <Card className="flex flex-col gap-3 p-4">

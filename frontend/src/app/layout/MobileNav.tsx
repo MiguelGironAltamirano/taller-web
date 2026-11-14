@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router'
 import type { Role, SessionUser } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
-import { Icon, IconButton } from '../../shared/ui'
+import { BrandLogo, Icon, IconButton } from '../../shared/ui'
 import { BOTTOM_NAV, isActivePath } from '../navigation'
 import { NavList } from './NavList'
 
@@ -69,8 +69,9 @@ export function MobileDrawer({ role, counts, dark, onClose, onChangePassword, on
         className="fixed inset-y-0 left-0 z-[51] flex w-[280px] max-w-[86%] animate-pop flex-col bg-surface"
       >
         <div className="flex h-[60px] items-center gap-2.5 border-b border-line px-4">
-          <div className="grid size-8 place-items-center rounded-lg bg-primary font-bold text-on-primary">U</div>
-          <b className="flex-1">Servicios UNMSM</b>
+          <span className="min-w-0 flex-1">
+            <BrandLogo />
+          </span>
           <IconButton label="Cerrar" onClick={onClose}>
             <Icon name="x" />
           </IconButton>

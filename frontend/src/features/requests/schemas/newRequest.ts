@@ -14,7 +14,10 @@ export const newRequestSchema = z.object({
     .string()
     .superRefine((value, ctx) => {
       if (value.length > DESCRIPTION_MAX) {
-        ctx.addIssue({ code: 'custom', message: `Máximo ${DESCRIPTION_MAX} caracteres.` })
+        ctx.addIssue({
+          code: 'custom',
+          message: `La descripción puede tener como máximo ${DESCRIPTION_MAX} caracteres (tiene ${value.length}). Resume el problema.`,
+        })
       } else if (value.trim().length < DESCRIPTION_MIN) {
         ctx.addIssue({
           code: 'custom',

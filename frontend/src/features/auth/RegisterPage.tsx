@@ -5,15 +5,15 @@ import { ApiError, apiPost } from '../../shared/api/client'
 import { requesterTypeToApi } from '../../shared/api/mappers'
 import { REQUESTER_TYPES } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
-import { Button, Field, Input, useToast } from '../../shared/ui'
+import { Button, Field, Input, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
-import { passwordScore, registerSchema, type RegisterValues } from './schemas/auth'
+import { PASSWORD_MIN, passwordScore, registerSchema, type RegisterValues } from './schemas/auth'
 
 const STRENGTH = [
   { color: 'var(--border)', label: '' },
-  { color: '#dc2626', label: 'Débil' },
-  { color: '#d97706', label: 'Regular' },
-  { color: '#65a30d', label: 'Buena' },
+  { color: 'var(--bad)', label: 'Débil' },
+  { color: 'var(--warn)', label: 'Regular' },
+  { color: 'color-mix(in srgb, var(--good) 70%, var(--warn))', label: 'Buena' },
   { color: 'var(--good)', label: 'Fuerte' },
 ]
 
@@ -66,12 +66,8 @@ export function RegisterPage() {
   })
 
   return (
-    <AuthShell>
-      <form onSubmit={onSubmit} noValidate className="flex w-full max-w-[440px] flex-col gap-3.5 self-start">
-        <div>
-          <h1 className="m-0 mb-1 text-2xl font-semibold">Crear cuenta</h1>
-          <div className="text-muted">Solo correos @unmsm.edu.pe.</div>
-        </div>
+    <AuthShell title="Crear cuenta" subtitle="Para solicitantes con correo @unmsm.edu.pe.">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <Field label="Nombre completo" error={errors.name?.message}>
           {(a) => <Input {...a} invalid={!!errors.name} autoComplete="name" {...register('name')} />}
         </Field>
@@ -114,24 +110,31 @@ export function RegisterPage() {
             )}
           />
         </div>
-        <Field label="Contraseña" error={errors.password?.message}>
+        <Field
+          label="Contraseña"
+          error={errors.password?.message}
+          hint={`Al menos ${PASSWORD_MIN} caracteres, con una letra y un número.`}
+        >
           {(a) => (
             <>
-              <Input {...a} type="password" invalid={!!errors.password} autoComplete="new-password" {...register('password')} />
-              <span className="flex items-center gap-2 font-normal">
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
+              <PasswordInput {...a} invalid={!!errors.password} autoComplete="new-password" {...register('password')} />
+              <span className="flex items-center gap-2 font-normal" aria-live="polite">
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line/70">
                   <span
-                    className="block h-full transition-[width]"
+                    className="block h-full rounded-full transition-[width,background-color] duration-300"
                     style={{ width: `${score * 25}%`, background: strength.color }}
                   />
                 </span>
-                <span className="min-w-[60px] text-muted">{strength.label}</span>
+                <span className="min-w-[60px] text-xs text-muted">
+                  {strength.label && <span className="sr-only">Seguridad: </span>}
+                  {strength.label}
+                </span>
               </span>
             </>
           )}
         </Field>
         <Field label="Confirmar contraseña" error={errors.confirm?.message}>
-          {(a) => <Input {...a} type="password" invalid={!!errors.confirm} autoComplete="new-password" {...register('confirm')} />}
+          {(a) => <PasswordInput {...a} invalid={!!errors.confirm} autoComplete="new-password" {...register('confirm')} />}
         </Field>
         <Button type="submit" variant="primary" size="lg" loading={isSubmitting}>
           Crear cuenta

@@ -1,24 +1,28 @@
 import { useState } from 'react'
 import { REQUEST_STATES, type RequestRow, type RequestState, type Role, type WorkflowActionId } from '../../shared/domain'
 import type { SlaStatus } from './lib/sla'
-import { OverdueBadge, PriorityBadge, useToast } from '../../shared/ui'
+import { Icon, OverdueBadge, PriorityBadge, StatusBadge, useToast } from '../../shared/ui'
 import { cn } from '../../shared/lib/cn'
 import { ActionModal } from './ActionModal'
 import { resolveTransition } from './lib/transitions'
 
 export type KanbanItem = RequestRow & { sla: SlaStatus }
 
-type Props = {
-  items: KanbanItem[]
+type Props<T extends KanbanItem> = {
+  items: T[]
   role: Role
   onOpen: (code: string) => void
+  /** Si la tarjeta espera una acción del usuario: el texto de su acción directa. */
+  attentionOf?: (item: T) => { cta: string } | null
+  /** Códigos con novedades sin revisar. */
+  unseen?: ReadonlySet<string>
 }
 
 /**
  * Tablero por estado. Arrastrar una tarjeta solo es válido si la transición está listada para el rol
  * (spec §6); si no, se avisa y no se llama a la API. Las válidas abren el diálogo de la acción.
  */
-export function KanbanBoard({ items, role, onOpen }: Props) {
+export function KanbanBoard<T extends KanbanItem>({ items, role, onOpen, attentionOf, unseen }: Props<T>) {
   const toast = useToast()
   const [dragging, setDragging] = useState<KanbanItem | null>(null)
   const [pending, setPending] = useState<{ action: WorkflowActionId; item: KanbanItem } | null>(null)
@@ -49,36 +53,57 @@ export function KanbanBoard({ items, role, onOpen }: Props) {
               e.preventDefault()
               drop(state)
             }}
-            className="flex min-h-40 flex-[1_0_210px] flex-col gap-2 rounded-[10px] border border-line bg-bg p-2"
+            className="flex min-h-40 flex-[1_0_220px] flex-col gap-2 rounded-xl border border-line bg-bg p-2"
           >
-            <div className="flex justify-between px-1 py-0.5 text-xs font-semibold text-muted">
-              <span>{state}</span>
-              <span>{cards.length}</span>
+            <div className="flex items-center justify-between px-1 py-0.5">
+              <StatusBadge state={state} />
+              <span className="rounded-md bg-surface2 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted">
+                {cards.length}
+              </span>
             </div>
-            {cards.map((r) => (
-              <div
-                key={r.code}
-                draggable
-                tabIndex={0}
-                role="button"
-                onDragStart={(e) => {
-                  setDragging(r)
-                  e.dataTransfer.setData('text/plain', r.code)
-                }}
-                onClick={() => onOpen(r.code)}
-                onKeyDown={(e) => e.key === 'Enter' && onOpen(r.code)}
-                className="flex cursor-grab flex-col gap-1.5 rounded-lg border border-line bg-surface p-2.5 text-[13px]"
-              >
-                <b>{r.code}</b>
-                <span>{r.category}</span>
-                <span className="text-xs text-muted">{r.room}</span>
-                <span className="flex flex-wrap gap-1">
-                  <PriorityBadge priority={r.priority} />
-                  {r.sla.overdue && <OverdueBadge />}
-                </span>
-                <span className={cn('text-[11px]', r.sla.overdue ? 'text-err-fg' : 'text-muted')}>{r.sla.label}</span>
-              </div>
-            ))}
+            {cards.map((r) => {
+              const att = attentionOf?.(r) ?? null
+              const isNew = unseen?.has(r.code) ?? false
+              return (
+                <div
+                  key={r.code}
+                  draggable
+                  tabIndex={0}
+                  role="button"
+                  onDragStart={(e) => {
+                    setDragging(r)
+                    e.dataTransfer.setData('text/plain', r.code)
+                  }}
+                  onClick={() => onOpen(r.code)}
+                  onKeyDown={(e) => e.key === 'Enter' && onOpen(r.code)}
+                  className={cn(
+                    'flex cursor-grab flex-col gap-1.5 rounded-lg border p-2.5 text-[13px] shadow-sm transition-[border-color,box-shadow] hover:shadow-md active:cursor-grabbing',
+                    att ? 'border-primary/40 bg-primary-soft/40' : 'border-line bg-surface hover:border-line-strong',
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 font-semibold">
+                    {isNew && <span className="size-2 shrink-0 rounded-full bg-primary" title="Novedades sin revisar" />}
+                    {r.code}
+                  </span>
+                  <span>{r.category}</span>
+                  <span className="text-xs text-muted">{r.room}</span>
+                  <span className="flex flex-wrap gap-1">
+                    <PriorityBadge priority={r.priority} />
+                    {r.sla.overdue && <OverdueBadge />}
+                  </span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className={cn('text-[11px]', r.sla.overdue ? 'text-err-fg' : 'text-muted')}>{r.sla.label}</span>
+                    {att && (
+                      <span className="inline-flex items-center gap-0.5 rounded-md bg-primary px-2 py-0.5 text-[11px] font-semibold text-on-primary">
+                        <span className="sr-only">Requiere tu atención: </span>
+                        {att.cta}
+                        <Icon name="chevR" size={12} strokeWidth={2.5} />
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )
       })}

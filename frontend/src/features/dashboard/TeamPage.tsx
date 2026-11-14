@@ -15,7 +15,7 @@ export function TeamPage() {
 
   return (
     <>
-      <PageHeader title="Equipo" subtitle={`Carga actual por técnico · ${area}`} />
+      <PageHeader icon="users" title="Equipo" subtitle={`Carga actual por técnico · ${area}`} />
       <Card className="overflow-hidden">
         {isLoading && <SkeletonRows count={4} />}
         {!isLoading && team.length === 0 && <EmptyState icon="users" title="Sin técnicos en tu área" compact />}

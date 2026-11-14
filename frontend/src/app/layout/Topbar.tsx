@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import type { Role, SessionUser } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
 import { Avatar, Button, Icon, IconButton, useToast } from '../../shared/ui'
@@ -46,13 +46,34 @@ export function Topbar({
       <IconButton label="Colapsar menú lateral" className="hidden md:inline-flex" onClick={onToggleSidebar}>
         <Icon name="panel" />
       </IconButton>
-      <nav aria-label="Ruta" className="hidden items-center gap-1.5 whitespace-nowrap text-[13px] text-muted md:flex">
-        {crumbs.map((c, i) => (
-          <span key={`${c}-${i}`} className="flex items-center gap-1.5">
-            {i > 0 && <span className="text-line">/</span>}
-            <span className={cn(i === crumbs.length - 1 && 'font-semibold text-fg')}>{c}</span>
-          </span>
-        ))}
+      <nav aria-label="Ruta" className="hidden min-w-0 md:block">
+        <ol className="m-0 flex list-none items-center gap-0.5 whitespace-nowrap p-0 text-[13px]">
+          {crumbs.map((c, i) => (
+            <li key={`${c.label}-${i}`} className="flex min-w-0 items-center gap-0.5">
+              {i > 0 && <Icon name="chevR" size={14} strokeWidth={2} className="shrink-0 text-line-strong" />}
+              {c.to ? (
+                <Link
+                  to={c.to}
+                  className="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-muted no-underline transition-colors hover:bg-surface2 hover:text-fg hover:no-underline"
+                >
+                  {i === 0 && <Icon name="home" size={15} strokeWidth={1.9} />}
+                  {c.label}
+                </Link>
+              ) : (
+                <span
+                  aria-current="page"
+                  className={cn(
+                    'flex items-center gap-1.5 truncate rounded-md px-2 py-1 font-semibold text-fg',
+                    i > 0 && 'bg-surface2',
+                  )}
+                >
+                  {i === 0 && <Icon name="home" size={15} strokeWidth={1.9} />}
+                  {c.label}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
       </nav>
       <div className="hidden flex-1 justify-center md:flex">
         <button

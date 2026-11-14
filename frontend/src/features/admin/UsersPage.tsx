@@ -53,6 +53,7 @@ export function UsersPage() {
   return (
     <>
       <PageHeader
+        icon="users"
         title="Usuarios"
         subtitle={`${users.length} usuarios registrados`}
         actions={

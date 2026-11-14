@@ -3,7 +3,8 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 import { normalizeText } from '../../shared/lib/format'
 import { usePersistedFlag } from '../../shared/hooks/usePersistedFlag'
 import { useTheme } from '../../shared/hooks/useTheme'
-import { ChangePasswordModal, useAuth, useSessionUser } from '../../features/auth'
+import { ChangePasswordModal, consumeWelcome, useAuth, useSessionUser } from '../../features/auth'
+import { useToast } from '../../shared/ui'
 import { NotificationsPanel, useUnreadCount } from '../../features/notifications'
 import { openCount, useRequestCounts, useRequestRows } from '../../features/requests'
 import { NAV } from '../navigation'
@@ -33,6 +34,13 @@ export function AppLayout() {
   // La paleta de comandos busca entre las solicitudes ya cargadas (la misma consulta que usa Inicio).
   const rows = useRequestRows().data
   const counts = { open: openCount(useRequestCounts().data), unread: useUnreadCount() }
+
+  // Bienvenida tras un inicio de sesión (no al restaurar la sesión): aviso breve, no bloqueante.
+  const toast = useToast()
+  useEffect(() => {
+    if (!consumeWelcome()) return
+    toast('Iniciaste sesión correctamente.', { title: `Hola, ${user.name.split(' ')[0]}` })
+  }, [toast, user.name])
 
   // Cada cambio de ruta vuelve al inicio del contenido.
   useEffect(() => {
@@ -128,7 +136,7 @@ export function AppLayout() {
           onProfile={() => setOverlay(overlay === 'profile-topbar' ? null : 'profile-topbar')}
         />
         <main id="main" ref={mainRef} className="flex-1 overflow-auto p-3 md:px-6 md:py-5">
-          <div className="mx-auto flex max-w-[1440px] flex-col gap-3.5">
+          <div className="mx-auto flex max-w-[1440px] animate-rise flex-col gap-3.5">
             <Outlet />
           </div>
         </main>

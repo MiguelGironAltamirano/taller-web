@@ -136,6 +136,7 @@ export function RequestListPage() {
   return (
     <>
       <PageHeader
+        icon="file"
         title={LIST_TITLES[user.role]}
         subtitle={`${total} de ${strip.total} solicitudes`}
         actions={
@@ -206,7 +207,7 @@ export function RequestListPage() {
                 Se muestran {rows.length} de {total} solicitudes. Usa los filtros para acotar el tablero.
               </p>
             )}
-            <KanbanBoard items={rows} role={user.role} onOpen={open} />
+            <KanbanBoard items={rows} role={user.role} onOpen={open} attentionOf={attentionOf} unseen={unseen} />
           </>
         )}
         {!isLoading && total > 0 && !kanban && (

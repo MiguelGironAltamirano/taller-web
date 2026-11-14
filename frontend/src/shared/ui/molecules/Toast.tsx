@@ -4,7 +4,7 @@ import { Icon, type IconName } from '../atoms/Icon'
 import { ToastContext, type ToastApi, type ToastOptions } from './toast-context'
 
 type Tone = 'success' | 'error' | 'info'
-type ToastState = { message: string; tone: Tone; id: number }
+type ToastState = { message: string; tone: Tone; title?: string; id: number }
 
 const DURATION: Record<Tone, number> = { success: 4000, info: 5000, error: 7000 }
 
@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message, options) => {
       const tone = toastTone(options)
       setPaused(false)
-      setCurrent({ message, tone, id: Date.now() })
+      setCurrent({ message, tone, title: options?.title, id: Date.now() })
       schedule(DURATION[tone])
     },
     [schedule],
@@ -91,7 +91,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <Icon name={tone.icon} size={16} strokeWidth={2.25} />
             </span>
             <div className="min-w-0 flex-1 pt-px">
-              <div className="text-[13px] font-semibold">{tone.title}</div>
+              <div className="text-[13px] font-semibold">{current.title ?? tone.title}</div>
               <div className="mt-0.5 text-[13px] leading-snug text-muted">{current.message}</div>
             </div>
             <button

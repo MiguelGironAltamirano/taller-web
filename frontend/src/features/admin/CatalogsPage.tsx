@@ -96,7 +96,7 @@ export function CatalogsPage() {
 
   return (
     <>
-      <PageHeader title="Catálogos" subtitle={tab === 'states' ? 'Solo lectura' : 'Configuración de datos maestros'} actions={actions[tab]} />
+      <PageHeader icon="folder" title="Catálogos" subtitle={tab === 'states' ? 'Solo lectura' : 'Configuración de datos maestros'} actions={actions[tab]} />
       <Tabs label="Catálogos" items={TABS} value={tab} onChange={setTab} />
       <Card className="overflow-hidden">
         {isLoading && <SkeletonRows count={4} />}

@@ -139,6 +139,7 @@ export function RulesPage() {
   return (
     <>
       <PageHeader
+        icon="zap"
         title="Reglas de triage"
         subtitle="Palabras clave que sugieren categoría y prioridad"
         actions={
