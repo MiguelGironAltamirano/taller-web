@@ -69,6 +69,7 @@ Mínimo **4.5:1** para texto normal y **3:1** para texto grande, íconos y borde
 | `GridTable` | `role="table"`, filas `row` y cada celda `cell` (el componente las envuelve automáticamente). |
 | Íconos | `aria-hidden="true"`; si un botón solo tiene ícono, usa `IconButton` (exige `label`). |
 | Carga | `Skeleton`/`SkeletonRows` con `role="status"` y nombre «Cargando». |
+| Error de carga | `ErrorState`: `role="alert"`, explica qué falló y siempre ofrece «Reintentar» (ocupado mientras reintenta). |
 | Notificaciones | La campana anuncia «Notificaciones, N sin leer»; el panel es un `dialog` con nombre. |
 
 ## 7. Diseño responsive

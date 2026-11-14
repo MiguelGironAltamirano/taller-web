@@ -25,7 +25,7 @@ Comprobar que el sistema de solicitudes de servicios universitarios cumple los r
 | Seguridad | SAST y análisis de dependencias en CI; DAST (OWASP ZAP) sobre staging; revisión OWASP Top 10 | Las que defina Miguel | CI y staging | Miguel (Lita incorpora los resultados) |
 | Exploratoria | Usabilidad, modo claro y oscuro, móvil (375 px) y escritorio (1440 px) | Navegador | Informe de pruebas | Lita, con el equipo |
 
-**Situación actual (2026-11-14):** backend 591 pruebas en verde (`./mvnw verify`, integración de la PR #19); frontend 227 pruebas en 32 archivos; 26 pruebas E2E (incluye axe en 16 páginas, el detalle y el login).
+**Situación actual (2026-11-14):** backend 591 pruebas en verde (`./mvnw verify`, integración de la PR #19); frontend 322 pruebas en 40 archivos (incluye las de todos los componentes de `shared/ui`); 26 pruebas E2E (incluye axe en 16 páginas, el detalle y el login).
 
 ## 3. Entornos y datos de prueba
 

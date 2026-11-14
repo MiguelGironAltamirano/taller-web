@@ -44,6 +44,11 @@ Out: reglas de negocio, contrato de la API, backend (salvo lo que ya resolvió l
 - [x] Notificaciones (página y panel): ícono y tono por tipo, punto de no leída, grupos por día y estado vacío.
 - [ ] Revisión de otro integrante en el PR de `feature/lita-ui-polish`.
 
+### Pruebas de `shared/ui` (rama `feature/lita-shared-ui-tests`)
+- [x] Pruebas de todos los componentes, junto a cada uno (`atoms/*.test.tsx`, `molecules/*.test.tsx`), centradas en el comportamiento y la accesibilidad: nombres accesibles, roles, foco y teclado, estados deshabilitado y ocupado, anuncios (`status`/`alert`), duración y pausa de los avisos.
+- [x] `ErrorState` con «Reintentar» (requisito de `plan/lita.md` §5), usado en la bandeja y en el detalle; prueba de pantalla que simula un error del servidor y el reintento.
+- [x] Corrección hallada por las pruebas: las pestañas con contador se anunciaban «Comentarios0»; ahora «Comentarios 0».
+
 ## Decisions
 - **Sin franjas laterales de acento**: se reemplazaron por bordes y fondos tenues a pedido de la responsable.
 - **Desplegables nativos estilizados** en lugar de un componente propio: conserva teclado, formularios y pruebas (`selectOptions`).
