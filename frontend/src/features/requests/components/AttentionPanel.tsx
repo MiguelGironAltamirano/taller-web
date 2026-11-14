@@ -21,19 +21,15 @@ export function AttentionPanel({ items, onOpen, onShowAll, max = 4, title = 'Req
   const unseen = items.filter((i) => i.unseen).length
 
   return (
-    <section
-      aria-labelledby="attention-title"
-      className="relative overflow-hidden rounded-xl border border-primary/25 bg-surface shadow-sm"
-    >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-primary" />
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-primary-soft/50 py-3 pl-5 pr-4">
-        <span className="grid size-8 place-items-center rounded-lg bg-primary text-on-primary">
-          <Icon name="bell" size={16} strokeWidth={2} />
+    <section aria-labelledby="attention-title" className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3">
+        <span className="grid size-9 place-items-center rounded-full bg-primary-soft text-primary-fg">
+          <Icon name="bell" size={17} strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 id="attention-title" className="m-0 text-[15px] font-semibold">
+          <h2 id="attention-title" className="m-0 flex items-center gap-2 text-[15px] font-semibold">
             {title}
-            <span className="ml-2 rounded-md bg-primary px-1.5 py-0.5 align-middle text-xs font-bold tabular-nums text-on-primary">
+            <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold tabular-nums text-fg ring-1 ring-inset ring-line">
               {items.length}
             </span>
           </h2>
@@ -49,7 +45,7 @@ export function AttentionPanel({ items, onOpen, onShowAll, max = 4, title = 'Req
         )}
       </div>
 
-      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 p-3 pl-4">
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 bg-surface2/40 p-3">
         {shown.map(({ row: r, attention, unseen: isNew }) => (
           <li key={r.code}>
             <article

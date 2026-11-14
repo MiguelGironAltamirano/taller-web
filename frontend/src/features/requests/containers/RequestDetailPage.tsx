@@ -56,7 +56,7 @@ function SummaryTab({ r }: { r: RequestDetailView }) {
         <h3 id="desc-title" className={SECTION_LABEL}>
           Descripción
         </h3>
-        <p className="m-0 whitespace-pre-line rounded-lg border-l-[3px] border-primary/60 bg-surface2/70 px-4 py-3 text-[14px] leading-relaxed">
+        <p className="m-0 whitespace-pre-line rounded-lg border border-line bg-surface2/50 px-4 py-3 text-[14px] leading-relaxed">
           {r.description}
         </p>
       </section>

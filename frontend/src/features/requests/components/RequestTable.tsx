@@ -15,7 +15,7 @@ type Props = {
   unseen: ReadonlySet<string>
 }
 
-const ATTENTION_ROW = 'bg-primary-soft/40 shadow-[inset_3px_0_0_var(--primary)] hover:bg-primary-soft/70'
+const ATTENTION_ROW = 'bg-primary-soft/35 hover:bg-primary-soft/60'
 
 function NewDot() {
   return (
@@ -122,7 +122,7 @@ export function RequestCards({ rows, onOpen, attentionOf, unseen }: Omit<Props, 
         return (
           <div
             key={r.code}
-            className={cn('flex flex-col gap-2 border-b border-line p-3.5', att && 'bg-primary-soft/40 shadow-[inset_3px_0_0_var(--primary)]')}
+            className={cn('flex flex-col gap-2 border-b border-line p-3.5', att && 'bg-primary-soft/35')}
           >
             <button
               type="button"
