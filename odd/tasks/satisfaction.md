@@ -10,7 +10,15 @@ Backend de la encuesta de satisfacción (módulo de Lita): calificación opciona
 
 ## Scope
 In: endpoint de calificación, calificación en el detalle de la solicitud, cierre automático con historial y notificación, pantallas de satisfacción conectadas al backend real, pruebas.
-Out: consulta de calificaciones para el dashboard (por definir con AngelCruz), `autoCloseHours` configurable desde administración.
+Out: consulta de calificaciones para el dashboard (por definir con AngelCruz).
+
+## Estado tras la integración con `finish-local` (PR #19, 2026-11-14)
+Miguel unificó las implementaciones duplicadas (ver `odd/tasks/finish-local.md`, FL13). Lo que cambió respecto de lo que describe este archivo:
+- **Calificación:** se conservó la de este módulo (`SatisfactionController`, `RateRequest`, `RatingRepository`/`RatingQueries`); el detalle la lee por el puerto `RequestRatings` de `requests`. Las pruebas de API se portaron a la implementación unificada.
+- **Cierre automático:** ya no vive en `satisfaction`. Corre un solo planificador, `AutoCloseJob` en `workflow` (`AutoCloseUnconfirmedRequests`), que lee `autoCloseHours` de la configuración del administrador y notifica al solicitante, al técnico y a los supervisores. Se eliminaron `AutoCloseScheduler`, `AutoCloseResolvedRequests` y `JdbcResolvedRequestStore`; `AutoCloseApiTests` ahora está en `workflow`.
+- **Solución propuesta:** el backend envía `solution` en el detalle y el frontend la usa directamente; se eliminó `lib/solution.ts` (el respaldo desde el historial).
+- **Plazo configurable:** `RequestDetail.autoCloseAt` indica cuándo se cierra; la tarjeta de cierre automático ya no fija "72 horas".
+- `closureReason` pasó a ser obligatorio en `RequestDetailView` del frontend.
 
 ## Tasks
 - [x] Migraciones: tabla `ratings` (una por solicitud, puntaje 1–5), `request_history.actor_id` admite nulo (entradas del sistema), `AUTOMATICA` en `ck_service_requests_closure`.
@@ -19,11 +27,12 @@ Out: consulta de calificaciones para el dashboard (por definir con AngelCruz), `
 - [x] `POST /api/v1/requests/{code}/rating` → `200` con `RequestDetail`; `400` con `errors.score` / `errors.comment`.
 - [x] `RequestDetail.rating` en el módulo `requests`: `null` o `{ score, comment }`.
 - [x] Historial: entradas sin actor humano se muestran como `"Sistema"` (antes el `join` interno las ocultaba).
-- [x] `AutoCloseResolvedRequests` + `AutoCloseScheduler` (cada 15 min, `app.satisfaction.auto-close-cron`): plazo desde el último paso a `RESUELTA`; cada solicitud en su propia transacción; guardia de estado contra la respuesta simultánea del solicitante; incrementa `version` (bloqueo optimista de JPA); notifica al solicitante sin bloquear el cierre si la notificación falla.
-- [x] Pruebas unitarias: `RatingTest`, `RateRequestTest`, `AutoCloseResolvedRequestsTest`.
-- [x] Pruebas de integración con MySQL (Testcontainers): `SatisfactionApiTests`, `AutoCloseApiTests`.
+- [x] `AutoCloseResolvedRequests` + `AutoCloseScheduler` (cada 15 min, `app.satisfaction.auto-close-cron`): plazo desde el último paso a `RESUELTA`; cada solicitud en su propia transacción; guardia de estado contra la respuesta simultánea del solicitante; incrementa `version` (bloqueo optimista de JPA); notifica al solicitante sin bloquear el cierre si la notificación falla. *Reemplazado en la integración por `AutoCloseJob` de `workflow` (ver arriba).*
+- [x] Pruebas unitarias: `RatingTest`, `RateRequestTest` (las de cierre automático pasaron a `workflow`: `AutoCloseUnconfirmedRequestsTest`, `AutoCloseJobTests`).
+- [x] Pruebas de integración con MySQL (Testcontainers): `SatisfactionApiTests`, `AutoCloseApiTests` (esta última ahora en `workflow`).
 - [x] Frontend: `SatisfactionPanel` decide qué mostrar en el detalle (la página solo lo monta). Resuelta → `ResolvedCard` para el solicitante dueño; Cerrada → `ClosedCard`: calificación en solo lectura (solicitante y personal), formulario para calificar después de confirmar (o reintentar si falló) y aviso del cierre automático.
-- [x] Frontend: la «Solución propuesta» se toma del historial (`Solución: …`) porque el backend no envía `solution`; `closureReason` llega al detalle del dominio.
+- [x] Frontend: la «Solución propuesta» se toma del historial (`Solución: …`) porque el backend no envía `solution`; `closureReason` llega al detalle del dominio. *Desde la integración el backend envía `solution` y el frontend la usa directamente.*
+- [x] Frontend (PR #16): `ClosedCard` muestra la «Solución aplicada» también en la solicitud cerrada (antes desaparecía al confirmar), con pruebas de regresión.
 - [x] `StarRating` en modo solo lectura (`role="img"`, «4 de 5 estrellas»), con prueba.
 - [x] Pruebas con Testing Library y MSW: `features/satisfaction/satisfaction.test.tsx` (confirmar con y sin calificación, fallo de la calificación, fallo del cierre, rechazo con y sin motivo válido, calificación cerrada, calificar después, `409`, personal, cierre automático, no procede).
 - [x] Verificación manual en navegador contra el backend real (Docker): confirmar con 4 estrellas y comentario; confirmar sin calificar y calificar después; vista móvil a 375 px; cierre automático por el scheduler.
@@ -37,15 +46,16 @@ Out: consulta de calificaciones para el dashboard (por definir con AngelCruz), `
 - **Fechas en UTC**: se escriben como `LocalDateTime` en UTC, igual que el resto del esquema (`hibernate.jdbc.time_zone=UTC`); con `Timestamp` se habrían guardado en la zona de la JVM.
 - **`@EnableScheduling` en `SatisfactionConfig`** y desactivado en las pruebas (`app.satisfaction.auto-close-cron=-`) para que una ejecución programada no interfiera con sus datos.
 
-- **La solución propuesta se deriva del historial en el frontend** en lugar de añadir `solution` al backend: el campo pertenece al módulo `workflow`/`requests`; si algún día se envía, el frontend lo usa primero.
-- **`closureReason` opcional en `RequestDetailView`** del frontend, para no tocar los datos de prueba de otros módulos.
+- **La solución propuesta se deriva del historial en el frontend** en lugar de añadir `solution` al backend: el campo pertenece al módulo `workflow`/`requests`; si algún día se envía, el frontend lo usa primero. *Superada: el backend ya envía `solution` (PR #19).*
+- **`closureReason` opcional en `RequestDetailView`** del frontend, para no tocar los datos de prueba de otros módulos. *Superada: ahora es obligatorio (PR #19).*
 
 ## Known issues (otros módulos)
-- `GET /api/v1/notifications` responde `500` en `dev` (módulo de notificaciones, AngelCarrasco): `NotificationsController` usa `@AuthenticationPrincipal AuthenticatedUser`, pero el principal es un `Jwt`. Por eso `AutoCloseApiTests` verifica la notificación en la base de datos. La corrección corresponde a su responsable.
+- ~~`GET /api/v1/notifications` responde `500` en `dev`~~: corregido en la integración (`NotificationsController` usa `Jwt` + `CurrentUser.from(jwt)`, FL9a de `finish-local`).
 
 ## Acceptance criteria
 - `./mvnw verify` en verde, incluidas `ArchitectureTest` y las pruebas de los demás módulos.
 - Las pruebas obligatorias de `plan/lita.md` §5 sobre calificación y cierre automático tienen su prueba.
 
 ## Evidence
-- Ver el PR de `feature/lita-satisfaction-quality` (resultado de `./mvnw verify`).
+- PR #15 (`feature/lita-satisfaction-quality`), fusionado el 2026-11-14 con el CI en verde.
+- Integración en PR #19: `./mvnw clean verify` 591/591 y 26/26 E2E según `odd/tasks/finish-local.md` (FL14).
