@@ -115,7 +115,7 @@ Disponibles cuando el módulo de autenticación está integrado y `APP_FLYWAY_LO
 | Solicitante | `administrativo@unmsm.edu.pe` | Administrativo | |
 | Solicitante (inactivo) | `solicitante.inactivo@unmsm.edu.pe` | Estudiante | Cuenta desactivada: el login la rechaza |
 
-Supervisores y técnicos pertenecen a un **área**, no a una facultad: la categoría de la solicitud decide el área que la atiende, y la facultad solo describe dónde está el problema. Los usuarios desde `supervisor.infraestructura` vienen de `seed-dev/V1001__more_dev_users.sql`; en una base existente se agregan solos al reiniciar el backend.
+Supervisores y técnicos pertenecen a un **área**, no a una facultad: la categoría de la solicitud decide el área que la atiende, y la facultad solo describe dónde está el problema. Los usuarios desde `supervisor.infraestructura` vienen de `seed-dev/V20261113_1100__more_dev_users.sql`; en una base existente se agregan solos al reiniciar el backend.
 
 > Con la API simulada (`VITE_USE_MOCKS=true`, sección 7) el login muestra otras cuentas de ejemplo, definidas en `frontend/src/mocks/db.ts` (ver `frontend/README.md`); las de esta tabla son las de la base de datos real.
 
