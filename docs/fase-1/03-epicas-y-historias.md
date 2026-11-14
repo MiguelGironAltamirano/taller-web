@@ -13,6 +13,11 @@ Cada historia indica su prioridad (**M** MVP, **S** release candidate), los requ
 | `WfApi` | `workflow/infrastructure/WorkflowApiTests` |
 | `StateMachine` | `workflow/domain/StateMachineTest` |
 | `SlaTest` | `requests/domain/SlaTest` |
+| `CollabApi` | `collaboration/infrastructure/CollaborationApiTests` |
+| `EvApi` | `collaboration/infrastructure/EvidenceApiTests` |
+| `NotifApi` | `notifications/infrastructure/NotificationsApiTests` |
+| `SatApi` | `satisfaction/infrastructure/SatisfactionApiTests` |
+| `AutoClose` | `satisfaction/infrastructure/AutoCloseApiTests` |
 | `FE` | pruebas del frontend (`*.test.ts(x)`), con la API simulada |
 
 ## Épicas
@@ -26,7 +31,7 @@ Cada historia indica su prioridad (**M** MVP, **S** release candidate), los requ
 | E5. Indicadores | HU-25 | `dashboard` |
 | E6. Administración | HU-26, HU-27 | `admin` |
 
-Estado de las historias a 17 de octubre de 2026: **HU-01 a HU-09, HU-12 a HU-20 están construidas y probadas en el backend y en el frontend**; de **HU-26** están construidos y probados en el backend la gestión de usuarios, la de catálogos y la consulta de estados (falta la auditoría); HU-05, HU-10, HU-11, HU-21 a HU-25 y HU-27 tienen la interfaz hecha contra la API simulada y su backend está pendiente (release candidate).
+Estado de las historias a 14 de noviembre de 2026: **HU-01 a HU-19 y HU-21 están construidas y probadas en el backend y en el frontend**, junto con **HU-05, HU-10, HU-11, HU-22 y HU-24** (cambio de contraseña, comentarios, evidencias, notificaciones y calificación). **HU-20** está construida salvo el cambio de prioridad con recálculo del vencimiento. De **HU-26** están construidos y probados la gestión de usuarios, la de catálogos y la consulta de estados (falta la auditoría). **HU-23, HU-25 y HU-27** (triage y dashboard) tienen la interfaz hecha contra la API simulada y su backend está pendiente.
 
 ---
 
@@ -99,9 +104,10 @@ Como usuario, quiero cambiar mi contraseña para mantener mi cuenta segura. *(RF
 
 | Escenario | Prueba |
 |---|---|
-| **Cambio correcto.** Dada la contraseña actual correcta y una nueva válida, cuando la cambio, entonces puedo iniciar sesión con la nueva | **Por escribir** (backend pendiente) |
-| **Contraseña actual errónea.** Dada una contraseña actual incorrecta, cuando intento cambiarla, entonces se rechaza | **Por escribir** |
-| **Validación en el formulario.** Dada una nueva contraseña inválida, entonces el formulario lo indica | `FE schemas/auth.test.ts` |
+| **Cambio correcto.** Dada la contraseña actual correcta y una nueva válida, cuando la cambio, entonces el cambio se acepta y las demás sesiones quedan revocadas | `AuthApi.changePasswordWithCorrectCurrentPasswordReturns204AndRevokesRefreshTokens`, `ChangePasswordTest.correctPasswordUpdatesPasswordHashAndRevokesAllRefreshTokens` |
+| **Contraseña actual errónea.** Dada una contraseña actual incorrecta, cuando intento cambiarla, entonces se rechaza | `AuthApi.changePasswordWithWrongCurrentPasswordReturns400`, `ChangePasswordTest.wrongCurrentPasswordThrowsInvalidCurrentPasswordException` |
+| **Nueva contraseña inválida o sin sesión.** Dada una nueva contraseña inválida, entonces recibo `400`; sin token, `401` | `AuthApi.changePasswordWithInvalidNewPasswordReturns400`, `AuthApi.changePasswordWithoutTokenReturns401` |
+| **Validación en el formulario.** Dada una nueva contraseña inválida, entonces el formulario lo indica | `FE schemas/auth.test.ts`, `FE features/auth/ChangePasswordModal.test.tsx` |
 
 ---
 
@@ -174,9 +180,9 @@ Como participante de una solicitud, quiero dejar comentarios para coordinar con 
 
 | Escenario | Prueba |
 |---|---|
-| **Comentario correcto.** Dado un participante de la solicitud, cuando comenta, entonces el comentario aparece con su autor y fecha | **Por escribir** (backend pendiente) |
-| **Sin acceso.** Dado un usuario que no ve la solicitud, cuando intenta comentar, entonces recibe `404` | **Por escribir** |
-| **Comentario vacío.** Dado un texto vacío, entonces se rechaza | **Por escribir** |
+| **Comentario correcto.** Dado un participante de la solicitud, cuando comenta, entonces el comentario aparece con su autor y fecha | `CollabApi.addCommentToVisibleRequestReturns201`, `CollabApi.listCommentsReturnsChronologicalList`, `FE features/collaboration/CommentsTab.test.tsx` |
+| **Sin acceso.** Dado un usuario que no ve la solicitud, cuando intenta comentar, entonces recibe `404` | `CollabApi.addCommentToInvisibleRequestReturns404`, `CollabApi.addCommentWithoutTokenReturns401` |
+| **Comentario vacío o demasiado largo.** Dado un texto vacío o de más de 1000 caracteres, entonces se rechaza | `CollabApi.emptyCommentIsRejectedWith400`, `CollabApi.commentOver1000CharsIsRejectedWith400` |
 
 ### HU-11 — Adjuntar evidencias (S)
 
@@ -186,9 +192,10 @@ Como solicitante, quiero adjuntar fotos o un PDF para mostrar el problema. *(RF-
 
 | Escenario | Prueba |
 |---|---|
-| **Adjunto válido.** Dado un archivo JPG, PNG o PDF de hasta 5 MB, cuando lo adjunto, entonces queda asociado a la solicitud | **Por escribir** |
-| **Archivo no permitido o grande.** Dado un archivo de otro tipo o de más de 5 MB, entonces se rechaza | **Por escribir**; en la interfaz, `FE shared/lib/files.test.ts` |
-| **Límite de cinco.** Dada una solicitud con cinco evidencias, cuando adjunto otra, entonces se rechaza | **Por escribir** |
+| **Adjunto válido.** Dado un archivo JPG, PNG o PDF de hasta 5 MB, cuando lo adjunto, entonces queda asociado a la solicitud | `EvApi.uploadPngReturns201`, `EvApi.uploadJpgReturns201`, `EvApi.uploadPdfReturns201`, `FE features/collaboration/EvidenceTab.test.tsx` |
+| **Archivo no permitido o grande.** Dado un archivo de otro tipo, de más de 5 MB, vacío o un ejecutable renombrado, entonces se rechaza | `EvApi.uploadNonAllowedTypeReturns400`, `EvApi.uploadFileOver5MbReturns400`, `EvApi.uploadExeRenamedToPngReturns400`, `EvApi.uploadEmptyFileReturns400`; en la interfaz, `FE shared/lib/files.test.ts` |
+| **Límite de cinco.** Dada una solicitud con cinco evidencias, cuando adjunto otra, entonces se rechaza | `EvApi.uploadSixthFileReturns400` |
+| **Descarga autorizada.** Dado un usuario sin acceso a la solicitud, cuando pide una evidencia, entonces recibe `404` | `EvApi.downloadReturnsContentAndHeaders`, `EvApi.downloadWithoutPermissionReturns404` |
 
 ---
 
@@ -318,8 +325,9 @@ Como institución, quiero que una solicitud Resuelta sin respuesta se cierre sol
 
 | Escenario | Prueba |
 |---|---|
-| **Cierre automático.** Dada una solicitud Resuelta hace más de 72 horas sin respuesta, cuando corre la tarea, entonces queda Cerrada sin calificación | **Por escribir** (tarea programada pendiente) |
-| **No antes de tiempo.** Dada una solicitud Resuelta hace menos de 72 horas, entonces no se cierra | **Por escribir** |
+| **Cierre automático.** Dada una solicitud Resuelta hace más de 72 horas sin respuesta, cuando corre la tarea, entonces queda Cerrada sin calificación | `AutoClose.aRequestResolvedMoreThan72HoursAgoIsClosedAutomatically`, `AutoClose.anAutomaticallyClosedRequestCannotBeRated` |
+| **No antes de tiempo.** Dada una solicitud Resuelta hace menos de 72 horas, entonces no se cierra | `AutoClose.aRequestResolvedLessThan72HoursAgoDoesNotChange` |
+| **Una sola vez y con aviso.** Dada la tarea ejecutada dos veces, entonces cierra una sola vez y notifica al solicitante, aunque la notificación falle | `AutoClose.runningTwiceClosesOnlyOnce`, `AutoClose.theRequesterIsNotifiedOfTheAutomaticClosure`, `AutoCloseResolvedRequestsTest.aFailedNotificationDoesNotUndoTheClosure` |
 
 ---
 
@@ -333,8 +341,9 @@ Como solicitante, técnico o supervisor, quiero recibir un aviso dentro de la ap
 
 | Escenario | Prueba |
 |---|---|
-| **Aviso por cambio de estado.** Dada una transición, entonces los interesados reciben una notificación con el código de la solicitud | **Por escribir** (backend pendiente) |
-| **Marcar como leída.** Dada una notificación, cuando la marco como leída, entonces deja de contarse como pendiente | **Por escribir** |
+| **Aviso por cambio de estado.** Dada una transición, una asignación, una reasignación o un comentario, entonces los demás participantes reciben una notificación, sin incluir a quien la hizo | `NotifApi.transitionNotifiesParticipantsExcludingActor`, `NotifApi.assignmentNotifiesAssignedTechnician`, `NotifApi.reassignmentNotifiesNewTechnician`, `NotifApi.commentNotifiesOtherParticipants` |
+| **Solo las mías.** Dado un usuario, entonces solo lista sus notificaciones y no puede marcar las ajenas | `NotifApi.listReturnsOnlyOwnNotifications`, `NotifApi.markReadOnForeignNotificationReturns404` |
+| **Marcar como leída.** Dada una notificación, cuando la marco como leída, entonces deja de contarse como pendiente | `NotifApi.markAllReadOnlyAffectsOwnNotifications`, `FE features/notifications/NotificationsPanel.test.tsx` |
 
 ### HU-23 — Recibir una sugerencia de categoría y prioridad (S)
 
@@ -357,9 +366,10 @@ Como solicitante, quiero calificar la atención de 1 a 5 con un comentario para 
 
 | Escenario | Prueba |
 |---|---|
-| **Calificar.** Dada una solicitud cerrada por confirmación, cuando califico con una puntuación de 1 a 5, entonces queda guardada en la solicitud | `FE mocks/handlers.test.ts` (API simulada); backend **por escribir** |
-| **Solo una vez y solo al cerrar.** Dada una solicitud sin cerrar o ya calificada, cuando califico, entonces recibo `409` | `FE mocks/handlers.test.ts`; backend **por escribir** |
-| **Puntuación fuera de rango.** Dada una puntuación fuera de 1 a 5, entonces recibo `400` | `FE mocks/handlers.test.ts`; backend **por escribir** |
+| **Calificar.** Dada una solicitud cerrada por confirmación, cuando califico con una puntuación de 1 a 5, entonces queda guardada en la solicitud y no cambia su estado | `SatApi.theOwnerRatesAConfirmedRequestAndGetsTheDetailWithTheRating`, `SatApi.ratingDoesNotChangeTheStatusNorTheHistory`, `FE features/satisfaction/satisfaction.test.tsx` |
+| **Solo una vez y solo al cerrar.** Dada una solicitud cerrada como "No procede" o ya calificada, cuando califico, entonces recibo `409` | `SatApi.aRequestClosedAsNotApplicableIs409`, `SatApi.rateTwiceIs409AndKeepsTheFirstRating` |
+| **Puntuación fuera de rango.** Dada una puntuación fuera de 1 a 5, o un comentario de más de 1000 caracteres, entonces recibo `400` | `SatApi.scoresOutsideOneToFiveAreRejected`, `SatApi.aCommentLongerThan1000CharactersIsRejected` |
+| **Solo el solicitante.** Dado el personal que ve la solicitud, cuando intenta calificar, entonces no puede | `SatApi.staffWhoCanSeeTheRequestCannotRateIt` |
 
 ---
 
@@ -415,7 +425,7 @@ Como administrador, quiero crear y activar reglas de palabras clave para ajustar
 
 | | Historias | Con escenario y prueba automatizada | Con pruebas por escribir |
 |---|---|---|---|
-| Prioridad M | HU-01 a HU-04, HU-06 a HU-09, HU-12 a HU-19 | 16 de 16 | La prueba de interfaz del `409` de HU-19 |
-| Prioridad S | HU-05, HU-10, HU-11, HU-20 a HU-27 | HU-20 (parcial), HU-26 (usuarios, catálogos y estados), HU-23 y HU-24 (en la API simulada), validaciones de formularios | El backend de las demás y la auditoría de HU-26 |
+| Prioridad M | HU-01 a HU-04, HU-06 a HU-09, HU-12 a HU-19 | 16 de 16 | Ninguna |
+| Prioridad S | HU-05, HU-10, HU-11, HU-20 a HU-27 | HU-05, HU-10, HU-11, HU-21, HU-22 y HU-24 completas; HU-20 (falta el cambio de prioridad); HU-26 (usuarios, catálogos y estados); validaciones de formularios y la sugerencia de triage en el cliente | HU-23 (endpoint), HU-25 (indicadores), HU-27 (reglas de triage), el cambio de prioridad de HU-20 y la auditoría de HU-26, todos con backend pendiente |
 
 Las pruebas por escribir son parte de los sprints 2 y 3; Lita las incorpora al informe de pruebas a medida que se construyen.

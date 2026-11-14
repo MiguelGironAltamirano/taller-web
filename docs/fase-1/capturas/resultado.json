@@ -1,0 +1,128 @@
+{
+  "steps": [
+    {
+      "name": "Solicitudes de prueba creadas por API",
+      "ok": true,
+      "code": "SOL-2026-000011",
+      "code2": "SOL-2026-000012"
+    },
+    {
+      "name": "Solicitante ve su solicitud Registrada sin botones de flujo",
+      "ok": true
+    },
+    {
+      "name": "Supervisor evalúa la solicitud",
+      "ok": true
+    },
+    {
+      "name": "Asignar sin técnico muestra el error y no envía",
+      "ok": true
+    },
+    {
+      "name": "Supervisor asigna al técnico del área",
+      "ok": true
+    },
+    {
+      "name": "Reasignar sin técnico ni motivo muestra los errores",
+      "ok": true
+    },
+    {
+      "name": "Técnico inicia la atención",
+      "ok": true
+    },
+    {
+      "name": "Resolver sin comentario de solución muestra el error",
+      "ok": true
+    },
+    {
+      "name": "Técnico resuelve con comentario de solución",
+      "ok": true
+    },
+    {
+      "name": "Solicitante confirma y la solicitud queda Cerrada",
+      "ok": true
+    },
+    {
+      "name": "Historial: seis entradas y estado final Cerrada",
+      "ok": true,
+      "code": "SOL-2026-000011",
+      "status": "CERRADA",
+      "closureReason": "CONFIRMADA",
+      "historyEntries": 6
+    }
+  ],
+  "apiChecks": [
+    {
+      "name": "Registrada -> Resuelta (fuera de la tabla)",
+      "expected": 409,
+      "got": 409,
+      "ok": true
+    },
+    {
+      "name": "Solicitante intenta evaluar",
+      "expected": 403,
+      "got": 403,
+      "ok": true
+    },
+    {
+      "name": "Supervisor de otra área intenta evaluar",
+      "expected": 403,
+      "got": 403,
+      "ok": true
+    },
+    {
+      "name": "Técnico intenta evaluar",
+      "expected": 403,
+      "got": 403,
+      "ok": true
+    },
+    {
+      "name": "Estado destino ausente",
+      "expected": 400,
+      "got": 400,
+      "ok": true
+    },
+    {
+      "name": "Evaluar correctamente",
+      "expected": 200,
+      "got": 200,
+      "ok": true
+    },
+    {
+      "name": "Asignar sin técnico",
+      "expected": 400,
+      "got": 400,
+      "ok": true
+    },
+    {
+      "name": "Cerrar sin tipo de cierre",
+      "expected": 400,
+      "got": 400,
+      "ok": true
+    },
+    {
+      "name": "Cerrar como duplicada",
+      "expected": 200,
+      "got": 200,
+      "ok": true
+    },
+    {
+      "name": "Solicitud cerrada no admite transiciones",
+      "expected": 409,
+      "got": 409,
+      "ok": true
+    },
+    {
+      "name": "Cerrada sin sesión",
+      "expected": 401,
+      "got": 401,
+      "ok": true
+    }
+  ],
+  "final": {
+    "code": "SOL-2026-000011",
+    "status": "CERRADA",
+    "closureReason": "CONFIRMADA",
+    "historyEntries": 6
+  }
+}

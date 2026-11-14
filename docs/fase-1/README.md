@@ -27,7 +27,7 @@ Además, el uso responsable de IA está en [06](06-evidencia-primer-desarrollo.m
 
 | Documento | Estado |
 |---|---|
-| 01 a 05 | Completos para el MVP; las funciones de la prioridad S (release candidate) están especificadas pero aún no se construyen en el backend |
-| 06 | Refleja el estado a 17 de octubre de 2026; se actualiza antes de la semana 10 |
+| 01 a 05 | Completos. Las historias de prioridad S ya construidas tienen su prueba enlazada en 03; las que aún no tienen backend (triage, dashboard, cambio de prioridad y auditoría) siguen marcadas **Por escribir** |
+| 06 | Refleja el estado a 14 de noviembre de 2026 (semana 14) |
 
 Convención de prioridad (igual que el spec): **M** = MVP (semana 10), **S** = release candidate (semana 12), **C** = opcional.

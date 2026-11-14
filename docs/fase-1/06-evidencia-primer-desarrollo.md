@@ -1,6 +1,6 @@
 # 06 — Evidencia del primer desarrollo y uso responsable de IA
 
-Estado a **17 de octubre de 2026** (semana 8). Se actualiza antes de la presentación parcial de la semana 10.
+Estado a **14 de noviembre de 2026** (semana 14). La primera versión de este documento era del 17 de octubre (semana 8).
 
 ## Evidencia del primer desarrollo
 
@@ -15,11 +15,14 @@ Estado a **17 de octubre de 2026** (semana 8). Se actualiza antes de la presenta
 | Flujo de atención: máquina de estados, asignación y reasignación, rechazo de solución, historial, técnicos del área | Hecho | `backend/.../workflow` |
 | Interfaz completa de los cuatro roles (login, solicitudes, bandejas, detalle con acciones, dashboard, administración) | Hecho, contra la API simulada; conectada al backend real en los módulos anteriores | `frontend/` |
 | Administración: usuarios (con contraseña temporal y desactivación), catálogos (áreas, categorías, SLA de prioridades, ubicaciones) y consulta de estados | Hecho, conectado al frontend | `backend/.../admin` |
-| Comentarios, evidencias, notificaciones, triage, calificación, dashboard y auditoría en el backend | Pendiente (release candidate, semanas 10–12); triage y dashboard ya tienen contrato en `docs/api/contrato-v1.md` | — |
+| Cambio de contraseña, comentarios, evidencias adjuntas, notificaciones en la aplicación, calificación y cierre automático a las 72 h | Hecho, con pruebas y conectado al frontend | `backend/.../collaboration`, `notifications`, `satisfaction`, `auth` |
+| Triage, dashboard, cambio de prioridad y auditoría en el backend | Pendiente; tienen contrato en `docs/api/contrato-v1.md` y la interfaz funciona contra la API simulada | — |
 
 ### Flujo de punta a punta que ya funciona
 
 Login → registrar solicitud → guardar en MySQL → consultar la solicitud → evaluar → asignar → atender → resolver → confirmar el cierre, con seis entradas de historial. Lo ejercita la prueba `WorkflowApiTests.theCompleteFlowLeavesSixHistoryEntriesWithUserDateAndStatuses` sobre un MySQL real, y se puede recorrer a mano con el [prototipo](05-wireframes-y-prototipo.md#prototipo).
+
+El 14 de noviembre se recorrió además **en el navegador, con el backend real** (Docker Compose con MySQL y los usuarios de demostración), con los cuatro pasos de cada rol y las validaciones. Las capturas y el resultado están en [`capturas/`](capturas/README.md).
 
 ### Pull requests integrados en `dev`
 
@@ -34,7 +37,11 @@ Login → registrar solicitud → guardar en MySQL → consultar la solicitud �
 | #9 | Backend del flujo de atención y su conexión con el frontend |
 | #10 | Administración de usuarios y consulta de estados |
 | #11 | Documento de especificación de la Fase I |
-| Este PR | Administración de catálogos y contrato de triage e indicadores |
+| #12 | Administración de catálogos y contrato de triage e indicadores |
+| #13 | Colaboración y notificaciones: cambio de contraseña, comentarios, evidencias y notificaciones |
+| #14 | Usuarios de demostración para todas las áreas y los casos límite |
+| #15 | Satisfacción: calificación, cierre automático a las 72 h y pruebas de calidad |
+| Este PR | Pruebas de interfaz del flujo de atención, manual técnico de `workflow` y evidencia de la semana 14 |
 
 Cada integración pasó por el CI de GitHub Actions (backend y frontend). El historial completo de commits sigue Conventional Commits en español.
 
@@ -42,8 +49,8 @@ Cada integración pasó por el CI de GitHub Actions (backend y frontend). El his
 
 | Conjunto | Cantidad | Qué cubre |
 |---|---|---|
-| Backend (`./mvnw verify`) | 311 | Dominio sin Spring (máquina de estados, SLA, código de solicitud, política de acceso), casos de uso con dobles, endpoints con MySQL real en Testcontainers y reglas de arquitectura con ArchUnit |
-| Frontend (`pnpm test`) | 161 | Lógica pura (SLA, transiciones, triage, filtros, reportes, esquemas), componentes y la API simulada |
+| Backend (`./mvnw verify`) | 419 | Dominio sin Spring (máquina de estados, SLA, código de solicitud, política de acceso), casos de uso con dobles, endpoints con MySQL real en Testcontainers y reglas de arquitectura con ArchUnit |
+| Frontend (`pnpm test`) | 244 | Lógica pura (SLA, transiciones, triage, filtros, reportes, esquemas), componentes (incluidos `ActionsPanel`, `ActionModal` y `KanbanBoard` del flujo de atención) y la API simulada |
 
 El CI ejecuta además lint, verificación de tipos y build del frontend. La trazabilidad entre escenarios BDD y pruebas está en [03](03-epicas-y-historias.md); los escenarios sin prueba están marcados **Por escribir**.
 
@@ -54,11 +61,27 @@ El CI ejecuta además lint, verificación de tipos y build del frontend. La traz
 - **Una prueba de integración dependía de ids fijos de usuario** y fallaba en el CI según el orden de ejecución; se corrigió para que no dependa del orden (commit `test(workflow): no fija ids de usuario porque users.id es AUTO_INCREMENT`).
 - **Extensiones del contrato** que necesitó el diseño (campos de las bandejas, `closureReason`, `activeRequests` de los técnicos) están en [`docs/api/ui-extensions.md`](../api/ui-extensions.md).
 
-### Qué falta antes de la presentación parcial (semana 10)
+### Verificación manual con el backend real (14 de noviembre)
 
-- Verificación manual del flujo completo con el backend real en el navegador.
-- Pruebas de interfaz de los flujos de supervisor, técnico y solicitante.
-- Actualizar esta página con las cifras finales y las capturas de pantalla de la demostración.
+Recorrido en Chromium contra el stack de Docker Compose, con los usuarios de demostración. Todo pasó: ver las [capturas](capturas/README.md).
+
+- Solicitante, supervisor, técnico y de nuevo solicitante recorren registrar → evaluar → asignar → atender → resolver → confirmar; el historial queda con seis entradas y la solicitud en Cerrada (`CONFIRMADA`).
+- Los formularios rechazan asignar sin técnico, reasignar sin técnico ni motivo y resolver sin comentario de solución.
+- La API respondió `409` ante una transición fuera de la tabla y sobre una solicitud cerrada, `403` ante un rol que no corresponde, `400` ante datos faltantes y `401` sin sesión.
+- El detalle se ve bien en una pantalla de 390 px.
+
+### Hallazgos de esa verificación
+
+| Hallazgo | Módulo | Estado |
+|---|---|---|
+| `GET /api/v1/notifications` responde `500` con el backend real: `NotificationsController` recibe el principal como `AuthenticatedUser`, pero Spring entrega un `Jwt`, y queda `null` | `notifications` | Pendiente de corregir |
+| El stack servido por Nginx bloquea la hoja de estilos de Google Fonts y un script en línea con la política de seguridad `default-src 'self'` | `infra` | Pendiente de decidir (autohospedar la fuente o ajustar la política) |
+| `PATCH /requests/{code}/priority` no existe en el backend; con el backend real el botón «Cambiar prioridad» no se ofrece | `workflow` | Pendiente (limitación documentada en el [manual técnico](../manual-tecnico/workflow.md#9-limitaciones-conocidas)) |
+
+### Qué falta
+
+- Capturas de la demostración final con el despliegue en staging.
+- Backend de triage, dashboard, cambio de prioridad y auditoría.
 
 ## Uso responsable de IA
 
