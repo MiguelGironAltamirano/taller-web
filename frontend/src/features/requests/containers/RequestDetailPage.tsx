@@ -8,7 +8,7 @@ import {
   Avatar,
   Button,
   Card,
-  EmptyState,
+  ErrorState,
   Icon,
   IconButton,
   type IconName,
@@ -170,7 +170,7 @@ export function RequestDetailPage() {
   const user = useSessionUser()
   const now = useNow()
   const [tab, setTab] = useState<Tab>('sum')
-  const { data: request, isLoading, error } = useRequestDetail(code)
+  const { data: request, isLoading, error, refetch, isFetching } = useRequestDetail(code)
 
   if (isLoading) {
     return (
@@ -183,7 +183,14 @@ export function RequestDetailPage() {
   }
   if (error instanceof ApiError && (error.status === 404 || error.status === 403)) return <ErrorPage kind="404" />
   if (!request) {
-    return <EmptyState title="No pudimos cargar la solicitud" description="Inténtalo de nuevo en unos momentos." />
+    return (
+      <ErrorState
+        title="No pudimos cargar la solicitud"
+        description="Revisa tu conexión y vuelve a intentarlo."
+        onRetry={() => void refetch()}
+        retrying={isFetching}
+      />
+    )
   }
 
   const view = withSla(request, now)
