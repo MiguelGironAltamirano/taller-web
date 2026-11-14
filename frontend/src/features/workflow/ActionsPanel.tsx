@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import type { RequestDetailView, WorkflowActionId } from '../../shared/domain'
-import { cn } from '../../shared/lib/cn'
+import { Button, Icon, type IconName } from '../../shared/ui'
 import { ActionModal } from './ActionModal'
 import { ACTION_CONFIG } from './lib/transitions'
+
+const ACTION_ICON: Record<WorkflowActionId, IconName> = {
+  eval: 'clipboard',
+  assign: 'userCheck',
+  reassign: 'users',
+  prio: 'flag',
+  noproc: 'ban',
+  dup: 'copy',
+  start: 'play',
+  resolve: 'checkCircle',
+}
 
 /**
  * Panel "Acciones" del detalle. Solo muestra los botones que el servidor permite
@@ -13,28 +24,36 @@ export function ActionsPanel({ request }: { request: RequestDetailView }) {
   const actions = request.allowedActions
   if (actions.length === 0) return null
 
+  const main = actions.filter((a) => !ACTION_CONFIG[a].danger)
+  const closing = actions.filter((a) => ACTION_CONFIG[a].danger)
+
   return (
-    <div className="flex flex-col gap-2 border-t border-line pt-3">
-      <b className="text-[13px]">Acciones</b>
-      {actions.map((a, i) => {
-        const danger = ACTION_CONFIG[a].danger
-        return (
-          <button
-            key={a}
-            type="button"
-            onClick={() => setActive(a)}
-            className={cn(
-              'h-[38px] rounded-lg px-3 text-left font-semibold max-md:h-11',
-              danger && 'border border-err-fg bg-transparent text-err-fg',
-              !danger && i === 0 && 'border-0 bg-primary text-on-primary',
-              !danger && i !== 0 && 'border border-line bg-surface text-fg',
-            )}
-          >
-            {ACTION_CONFIG[a].title}
-          </button>
-        )
-      })}
+    <section aria-labelledby="actions-title" className="flex flex-col gap-2 border-t border-line pt-4">
+      <h2 id="actions-title" className="m-0 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">
+        Acciones
+      </h2>
+      {main.map((a, i) => (
+        <Button
+          key={a}
+          variant={i === 0 ? 'primary' : 'secondary'}
+          className="w-full !justify-start"
+          onClick={() => setActive(a)}
+        >
+          <Icon name={ACTION_ICON[a]} size={16} strokeWidth={2} />
+          {ACTION_CONFIG[a].title}
+        </Button>
+      ))}
+      {closing.length > 0 && (
+        <div className="mt-2 flex flex-col gap-2 border-t border-dashed border-line pt-3">
+          {closing.map((a) => (
+            <Button key={a} variant="danger-outline" className="w-full !justify-start" onClick={() => setActive(a)}>
+              <Icon name={ACTION_ICON[a]} size={16} strokeWidth={2} />
+              {ACTION_CONFIG[a].title}
+            </Button>
+          ))}
+        </div>
+      )}
       {active && <ActionModal action={active} target={request} onClose={() => setActive(null)} />}
-    </div>
+    </section>
   )
 }

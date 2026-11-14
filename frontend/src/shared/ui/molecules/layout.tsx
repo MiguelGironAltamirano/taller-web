@@ -1,9 +1,9 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
-/** Tarjeta contenedora del diseño: borde fino y radio de 12 px. */
+/** Tarjeta contenedora del diseño: borde fino, radio de 12 px y sombra sutil. */
 export function Card({ className, ...rest }: ComponentProps<'section'>) {
-  return <section className={cn('rounded-xl border border-line bg-surface', className)} {...rest} />
+  return <section className={cn('rounded-xl border border-line bg-surface shadow-sm', className)} {...rest} />
 }
 
 export function CardTitle({ className, ...rest }: ComponentProps<'h2'>) {

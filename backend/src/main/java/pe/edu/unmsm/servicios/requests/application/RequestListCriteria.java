@@ -1,6 +1,8 @@
 package pe.edu.unmsm.servicios.requests.application;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -16,16 +18,18 @@ import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 /**
  * Filters, order and page of {@code GET /requests}. Every filter is optional and they combine with AND; the
  * visibility rule of the role is always applied on top of them. {@code statuses} empty means any status;
- * {@code text} empty means no text search; {@code from} is inclusive and {@code to} exclusive on the
- * registration date.
+ * {@code text} empty means no text search; {@code from} and {@code to} are inclusive calendar days of the
+ * registration date, counted in Lima time like the year of the code.
  */
 public record RequestListCriteria(Set<RequestStatus> statuses, Long areaId, Long categoryId, Long priorityId,
-		Long technicianId, boolean unassigned, Boolean overdue, String text, Instant from, Instant to,
+		Long technicianId, boolean unassigned, Boolean overdue, String text, LocalDate from, LocalDate to,
 		RequestSort sort, int page, int size) {
 
 	public static final int DEFAULT_PAGE_SIZE = 20;
 	public static final int MAX_PAGE_SIZE = 500;
 	public static final int MAX_TEXT_LENGTH = 100;
+
+	static final ZoneId ZONE = ZoneId.of("America/Lima");
 
 	public RequestListCriteria {
 		statuses = statuses == null || statuses.isEmpty() ? Set.of() : Set.copyOf(statuses);
@@ -41,6 +45,16 @@ public record RequestListCriteria(Set<RequestStatus> statuses, Long areaId, Long
 
 	public boolean hasText() {
 		return !text.isEmpty();
+	}
+
+	/** First registration instant included, or {@code null} when there is no lower bound. */
+	public Instant createdFrom() {
+		return from == null ? null : from.atStartOfDay(ZONE).toInstant();
+	}
+
+	/** First registration instant excluded (start of the day after {@code to}), or {@code null} without one. */
+	public Instant createdBefore() {
+		return to == null ? null : to.plusDays(1).atStartOfDay(ZONE).toInstant();
 	}
 
 	/** Query parameters as received; {@link #parse} validates them and reports every invalid one at once. */
@@ -63,10 +77,10 @@ public record RequestListCriteria(Set<RequestStatus> statuses, Long areaId, Long
 		if (text.length() > MAX_TEXT_LENGTH) {
 			errors.put("q", "La búsqueda admite hasta " + MAX_TEXT_LENGTH + " caracteres");
 		}
-		Instant from = instant("from", params.from(), errors);
-		Instant to = instant("to", params.to(), errors);
-		if (from != null && to != null && !from.isBefore(to)) {
-			errors.put("to", "Debe ser posterior a from");
+		LocalDate from = date("from", params.from(), errors);
+		LocalDate to = date("to", params.to(), errors);
+		if (from != null && to != null && to.isBefore(from)) {
+			errors.put("to", "La fecha final no puede ser anterior a la inicial");
 		}
 		RequestSort sort = sort(params.sort(), errors);
 		Integer page = integer("page", params.page(), 0, 0, Integer.MAX_VALUE, errors);
@@ -135,15 +149,15 @@ public record RequestListCriteria(Set<RequestStatus> statuses, Long areaId, Long
 		};
 	}
 
-	private static Instant instant(String field, String value, Map<String, String> errors) {
+	private static LocalDate date(String field, String value, Map<String, String> errors) {
 		if (isBlank(value)) {
 			return null;
 		}
 		try {
-			return Instant.parse(value.strip());
+			return LocalDate.parse(value.strip());
 		}
 		catch (DateTimeParseException ex) {
-			errors.put(field, "Debe ser una fecha y hora ISO-8601 en UTC, p. ej. 2026-10-01T05:00:00Z");
+			errors.put(field, "Debe ser una fecha AAAA-MM-DD, p. ej. 2026-10-01");
 			return null;
 		}
 	}

@@ -49,11 +49,13 @@ export function parseListQuery(params: URLSearchParams): { query: ParsedListQuer
     errors[name] = 'Debe ser true o false'
     return undefined
   }
-  const instant = (name: string) => {
+  const day = (name: string) => {
     const raw = text(name)
     if (!raw) return undefined
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/.test(raw) && !Number.isNaN(Date.parse(raw))) return raw
-    errors[name] = 'Debe ser una fecha y hora ISO-8601 en UTC, p. ej. 2026-10-01T05:00:00Z'
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw) && !Number.isNaN(Date.parse(raw)) && new Date(raw).toISOString().startsWith(raw)) {
+      return raw
+    }
+    errors[name] = 'Debe ser una fecha AAAA-MM-DD, p. ej. 2026-10-01'
     return undefined
   }
   const integer = (name: string, fallback: number, min: number, max: number) => {
@@ -69,9 +71,9 @@ export function parseListQuery(params: URLSearchParams): { query: ParsedListQuer
   const unassigned = flag('unassigned')
   const q = text('q')
   if (q.length > MAX_TEXT) errors.q = `La búsqueda admite hasta ${MAX_TEXT} caracteres`
-  const from = instant('from')
-  const to = instant('to')
-  if (from && to && Date.parse(from) >= Date.parse(to)) errors.to = 'Debe ser posterior a from'
+  const from = day('from')
+  const to = day('to')
+  if (from && to && to < from) errors.to = 'La fecha final no puede ser anterior a la inicial'
   const rawSort = text('sort')
   if (rawSort && !(SORTS as string[]).includes(rawSort)) errors.sort = `Orden desconocido. Valores válidos: ${SORTS.join(', ')}`
   if (unassigned && technicianId !== undefined) errors.unassigned = 'No se puede combinar con technicianId'
@@ -94,6 +96,11 @@ export function parseListQuery(params: URLSearchParams): { query: ParsedListQuer
   return Object.keys(errors).length ? { errors } : { query }
 }
 
+const DAY_MS = 24 * 3_600_000
+
+/** Inicio del día `AAAA-MM-DD` en hora de Lima (UTC-5, sin horario de verano), como lo calcula el servidor. */
+const limaDayStart = (day: string) => Date.parse(`${day}T00:00:00-05:00`)
+
 const isOverdue = (r: MockRequest, now: number) => !FINISHED.includes(r.status) && r.dueAt < now
 
 function matches(r: MockRequest, s: RequestSummary, f: ParsedListQuery, now: number): boolean {
@@ -104,8 +111,8 @@ function matches(r: MockRequest, s: RequestSummary, f: ParsedListQuery, now: num
   if (f.technicianId !== undefined && r.technicianId !== f.technicianId) return false
   if (f.unassigned && r.technicianId !== null) return false
   if (f.overdue !== undefined && isOverdue(r, now) !== f.overdue) return false
-  if (f.from && r.createdAt < Date.parse(f.from)) return false
-  if (f.to && r.createdAt >= Date.parse(f.to)) return false
+  if (f.from && r.createdAt < limaDayStart(f.from)) return false
+  if (f.to && r.createdAt >= limaDayStart(f.to) + DAY_MS) return false
   if (f.q) {
     const haystack = [s.code, s.description, s.requesterName, s.categoryName, s.roomName].map(normalizeText)
     if (!haystack.some((field) => field.includes(normalizeText(f.q!)))) return false

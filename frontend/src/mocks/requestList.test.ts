@@ -131,7 +131,7 @@ describe('GET /requests (mock): filtros del servidor', () => {
     expect(error.status).toBe(400)
     expect(Object.keys(error.fieldErrors ?? {}).sort()).toEqual(['categoryId', 'overdue', 'page', 'size', 'sort', 'status'])
     expect((await problemOf(apiGet('/requests', { technicianId: 3, unassigned: true }))).status).toBe(400)
-    expect((await problemOf(apiGet('/requests', { from: '2026-10-02T00:00:00Z', to: '2026-10-01T00:00:00Z' }))).status).toBe(400)
+    expect((await problemOf(apiGet('/requests', { from: '2026-10-02', to: '2026-10-01' }))).status).toBe(400)
   })
 })
 

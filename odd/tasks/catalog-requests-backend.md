@@ -23,8 +23,10 @@ Out: transiciones de estado (Angela), comentarios y evidencias (AngelCarrasco), 
 - [x] Pruebas unitarias (dominio y casos de uso con dobles) y de integración con MySQL real (Testcontainers)
 - [x] Verificación manual de punta a punta: backend real + frontend sin mocks en Chrome
 - [ ] Revisión de otro integrante y PR a `dev`
+- [x] Filtros avanzados (fechas, área, vencidas) del listado
 - [x] Filtros avanzados, orden y paginación del listado en el servidor (FL7, rama `feature/fl-filters`): `RequestListCriteria` valida `status` múltiple, `areaId`, `categoryId`, `priorityId`, `technicianId`, `unassigned`, `overdue`, `q`, `from`/`to`, `sort` (`newest`, `oldest`, `due`, `priority`), `page` y `size` (1–500) con `400` por campo; `GET /requests/counts`; índices `V20261026_0500`. Evidencia: `RequestListCriteriaTest` (10), `GetAndListRequestsTest` (11), `RequestListFiltersApiTests` (13) y `RequestsApiTests` (22) en verde; frontend migrado (bandeja paginada en el servidor, contadores, mocks MSW con la misma semántica)
-- [ ] Sustituir `NoAllowedTransitions` cuando exista el módulo de workflow
+- [x] Un solo modelo de filtros tras integrar ambos trabajos (FL14): `from`/`to` pasan a días `AAAA-MM-DD` inclusive en hora de Lima, como en el contrato de `dev`; el resto de parámetros de FL7 se conserva
+- [x] Sustituir `NoAllowedTransitions` cuando exista el módulo de workflow (lo reemplazó `AllowedTransitions` del módulo `workflow`, PR #9)
 
 ## Decisions
 - **Código correlativo:** un solo `INSERT … ON DUPLICATE KEY UPDATE` con `LAST_INSERT_ID(expr)` toma el bloqueo de la fila del año y suma; el bloqueo se mantiene hasta el commit, así que las creaciones concurrentes se serializan y un rollback devuelve el número (los códigos quedan consecutivos). Exige estar dentro de una transacción (`Propagation.MANDATORY`), porque `LAST_INSERT_ID` es por conexión.

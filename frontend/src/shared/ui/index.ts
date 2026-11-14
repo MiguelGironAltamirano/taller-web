@@ -2,6 +2,7 @@
 export { Icon, type IconName } from './atoms/Icon'
 export { Button, IconButton, type ButtonProps } from './atoms/Button'
 export { StatusBadge, PriorityBadge, OverdueBadge, ToneBadge, CountBadge } from './atoms/Badge'
+export { stateIcon } from './atoms/state-icon'
 export { Avatar } from './atoms/Avatar'
 export { Field, Input, Select, Textarea, Switch } from './atoms/fields'
 export { Skeleton, SkeletonRows, EmptyState, Alert, ProgressBar } from './atoms/feedback'

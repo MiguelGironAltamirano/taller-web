@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 
-export type ToastApi = { toast: (message: string, options?: { bad?: boolean }) => void }
+export type ToastOptions = { bad?: boolean; tone?: 'success' | 'error' | 'info' }
+export type ToastApi = { toast: (message: string, options?: ToastOptions) => void }
 
 export const ToastContext = createContext<ToastApi | null>(null)
 

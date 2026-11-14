@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import pe.edu.unmsm.servicios.requests.domain.InvalidRequestException;
 import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
@@ -217,6 +219,50 @@ class GetAndListRequestsTest {
 		assertThat(new PageView<>(List.of(), 0, 20, 0).totalPages()).isZero();
 		assertThat(new PageView<>(List.of(), 0, 20, 20).totalPages()).isEqualTo(1);
 		assertThat(new PageView<>(List.of(), 0, 20, 21).totalPages()).isEqualTo(2);
+	}
+
+	/** Days and the rest of the filters, as the controller would receive them. */
+	private static RequestListCriteria parse(String status, String from, String to, String areaId, String overdue) {
+		return RequestListCriteria.parse(new RequestListCriteria.Params(status == null ? null : List.of(status), areaId,
+				null, null, null, null, overdue, null, from, to, null, null, null));
+	}
+
+	@Test
+	void listPassesTheFiltersToTheQuery() {
+		RequestListCriteria criteria = parse("ASIGNADA", "2026-10-01", "2026-10-15", "2", "true");
+
+		list.execute(ADMIN, criteria);
+
+		assertThat(lastCriteria.statuses()).containsExactly(RequestStatus.ASIGNADA);
+		assertThat(lastCriteria.from()).isEqualTo(LocalDate.parse("2026-10-01"));
+		assertThat(lastCriteria.to()).isEqualTo(LocalDate.parse("2026-10-15"));
+		assertThat(lastCriteria.areaId()).isEqualTo(2L);
+		assertThat(lastCriteria.overdue()).isTrue();
+	}
+
+	@Test
+	void aSingleDayRangeIsAccepted() {
+		list.execute(ADMIN, parse(null, "2026-10-10", "2026-10-10", null, null));
+
+		assertThat(lastCriteria.from()).isEqualTo(LocalDate.parse("2026-10-10"));
+	}
+
+	@Test
+	void aRangeThatEndsBeforeItStartsIsRejected() {
+		assertThatThrownBy(() -> parse(null, "2026-10-15", "2026-10-01", null, null))
+				.isInstanceOf(InvalidRequestException.class)
+				.satisfies(ex -> assertThat(((InvalidRequestException) ex).errors()).containsKey("to"));
+	}
+
+	@Test
+	void theDayRangeFollowsTheLimaCalendar() {
+		RequestListCriteria criteria = parse(null, "2026-10-10", "2026-10-10", null, null);
+
+		// 2026-10-10 in Lima (UTC-5) runs from 05:00Z to 05:00Z of the next day, end exclusive.
+		assertThat(criteria.createdFrom()).isEqualTo(Instant.parse("2026-10-10T05:00:00Z"));
+		assertThat(criteria.createdBefore()).isEqualTo(Instant.parse("2026-10-11T05:00:00Z"));
+		assertThat(RequestListCriteria.firstPage().createdFrom()).isNull();
+		assertThat(RequestListCriteria.firstPage().createdBefore()).isNull();
 	}
 
 }

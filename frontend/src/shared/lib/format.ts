@@ -13,6 +13,12 @@ export const dateShort = (ms: number) => tidy(fmt(ms, { day: '2-digit', month: '
 export const dateLong = (ms: number) =>
   tidy(fmt(ms, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }))
 
+/** `10:00` */
+export const timeShort = (ms: number) => fmt(ms, { hour: '2-digit', minute: '2-digit', hour12: false })
+
+/** `viernes 16 oct` */
+export const dateWeekday = (ms: number) => `${fmt(ms, { weekday: 'long' })} ${dateShort(ms)}`
+
 /** `16 de octubre de 2026` */
 export const dateFull = (ms: number) => fmt(ms, { day: 'numeric', month: 'long', year: 'numeric' })
 

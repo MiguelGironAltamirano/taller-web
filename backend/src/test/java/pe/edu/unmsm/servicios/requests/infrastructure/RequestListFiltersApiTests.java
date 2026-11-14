@@ -196,15 +196,17 @@ class RequestListFiltersApiTests {
 	}
 
 	@Test
-	void dateRangeIsInclusiveFromAndExclusiveTo() throws Exception {
+	void dateRangeCoversWholeLimaDaysInclusive() throws Exception {
 		String old = create(ELECTRICITY, HIGH);
 		String recent = create(ELECTRICITY, HIGH);
-		set(old, "created_at = ?", LocalDateTime.parse("2026-09-15T10:00:00"));
+		// Stored as UTC: 2026-09-30 23:59:59 and 2026-10-01 00:00 in Lima.
+		set(old, "created_at = ?", LocalDateTime.parse("2026-10-01T04:59:59"));
 		set(recent, "created_at = ?", LocalDateTime.parse("2026-10-01T05:00:00"));
 
-		assertThat(codes(STUDENT, "?from=2026-10-01T05:00:00Z")).containsExactly(recent);
-		assertThat(codes(STUDENT, "?to=2026-10-01T05:00:00Z")).containsExactly(old);
-		assertThat(codes(STUDENT, "?from=2026-09-01T00:00:00Z&to=2026-12-01T00:00:00Z")).hasSize(2);
+		assertThat(codes(STUDENT, "?from=2026-10-01")).containsExactly(recent);
+		assertThat(codes(STUDENT, "?to=2026-09-30")).containsExactly(old);
+		assertThat(codes(STUDENT, "?from=2026-09-30&to=2026-09-30")).containsExactly(old);
+		assertThat(codes(STUDENT, "?from=2026-09-01&to=2026-12-01")).hasSize(2);
 	}
 
 	// ───── Combined filters, visibility and order ─────
@@ -283,7 +285,7 @@ class RequestListFiltersApiTests {
 		Map<String, String> errors = ApiClient.read(response, "$.errors");
 		assertThat(errors).containsOnlyKeys("status", "categoryId", "overdue", "from", "sort", "page", "size");
 		ApiClient.assertProblem(list(STUDENT, "?technicianId=3&unassigned=true"), 400);
-		ApiClient.assertProblem(list(STUDENT, "?from=2026-10-02T00:00:00Z&to=2026-10-01T00:00:00Z"), 400);
+		ApiClient.assertProblem(list(STUDENT, "?from=2026-10-02&to=2026-10-01"), 400);
 		ApiClient.assertProblem(list(STUDENT, "?q=" + "a".repeat(101)), 400);
 	}
 

@@ -211,7 +211,7 @@ export function NewRequestPage() {
                     onClick={() => setValue('priority', p.name as Priority, { shouldValidate: true })}
                     className={cn(
                       'rounded-[10px] border-2 bg-surface px-3 py-2.5 text-left text-fg',
-                      priority === p.name ? 'border-primary' : 'border-line',
+                      priority === p.name ? 'border-primary' : 'border-line hover:border-line-strong hover:bg-surface2',
                     )}
                   >
                     <PriorityBadge priority={p.name as Priority} />

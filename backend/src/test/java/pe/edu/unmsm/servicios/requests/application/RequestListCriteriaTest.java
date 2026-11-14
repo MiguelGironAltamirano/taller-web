@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -61,7 +62,7 @@ class RequestListCriteriaTest {
 	@Test
 	void everyFilterIsParsed() {
 		RequestListCriteria criteria = RequestListCriteria.parse(params(null, "1", "2", "3", "4", "false", "true",
-				"  aula 101 ", "2026-10-01T05:00:00Z", "2026-11-01T05:00:00Z", "priority", "2", "50"));
+				"  aula 101 ", "2026-10-01", "2026-10-31", "priority", "2", "50"));
 
 		assertThat(criteria.areaId()).isEqualTo(1L);
 		assertThat(criteria.categoryId()).isEqualTo(2L);
@@ -70,8 +71,10 @@ class RequestListCriteriaTest {
 		assertThat(criteria.unassigned()).isFalse();
 		assertThat(criteria.overdue()).isTrue();
 		assertThat(criteria.text()).isEqualTo("aula 101");
-		assertThat(criteria.from()).isEqualTo(Instant.parse("2026-10-01T05:00:00Z"));
-		assertThat(criteria.to()).isEqualTo(Instant.parse("2026-11-01T05:00:00Z"));
+		assertThat(criteria.from()).isEqualTo(LocalDate.parse("2026-10-01"));
+		assertThat(criteria.to()).isEqualTo(LocalDate.parse("2026-10-31"));
+		assertThat(criteria.createdFrom()).isEqualTo(Instant.parse("2026-10-01T05:00:00Z"));
+		assertThat(criteria.createdBefore()).isEqualTo(Instant.parse("2026-11-01T05:00:00Z"));
 		assertThat(criteria.sort()).isEqualTo(RequestSort.PRIORITY);
 		assertThat(criteria.page()).isEqualTo(2);
 		assertThat(criteria.size()).isEqualTo(50);
@@ -79,7 +82,7 @@ class RequestListCriteriaTest {
 
 	@Test
 	void unknownStatusSortAndMalformedValuesAreReportedPerField() {
-		var errors = errorsOf(params(List.of("ABIERTA"), "x", "0", "-1", "1.5", "si", "yes", null, "2026-10-01",
+		var errors = errorsOf(params(List.of("ABIERTA"), "x", "0", "-1", "1.5", "si", "yes", null, "2026-10-01T05:00:00Z",
 				"ayer", "random", "uno", "big"));
 
 		assertThat(errors).containsOnlyKeys("status", "areaId", "categoryId", "priorityId", "technicianId",
@@ -100,11 +103,12 @@ class RequestListCriteriaTest {
 	}
 
 	@Test
-	void theDateRangeMustBeIncreasing() {
-		assertThat(errorsOf(params(null, null, null, null, null, null, null, null, "2026-10-02T00:00:00Z",
-				"2026-10-01T00:00:00Z", null, null, null))).containsOnlyKeys("to");
-		assertThat(errorsOf(params(null, null, null, null, null, null, null, null, "2026-10-01T00:00:00Z",
-				"2026-10-01T00:00:00Z", null, null, null))).containsOnlyKeys("to");
+	void theDateRangeCannotEndBeforeItStartsButMayBeASingleDay() {
+		assertThat(errorsOf(params(null, null, null, null, null, null, null, null, "2026-10-02", "2026-10-01", null,
+				null, null))).containsOnlyKeys("to");
+		RequestListCriteria day = RequestListCriteria.parse(params(null, null, null, null, null, null, null, null,
+				"2026-10-01", "2026-10-01", null, null, null));
+		assertThat(day.createdBefore()).isEqualTo(day.createdFrom().plus(java.time.Duration.ofDays(1)));
 	}
 
 	@Test

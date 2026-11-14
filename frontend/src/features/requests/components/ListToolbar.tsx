@@ -10,6 +10,8 @@ type Props = {
   priorities: FilterOption[]
   /** Solo el supervisor filtra por técnico. */
   technicians: FilterOption[] | null
+  /** Solo el administrador filtra por área; los demás roles ya ven una sola. */
+  areas: FilterOption[] | null
   /** Rol con tablero kanban (técnico, supervisor, administrador). */
   canKanban: boolean
   mode: 'table' | 'kanban'
@@ -22,7 +24,19 @@ type Props = {
 const SORT_LABELS: Record<ListSort, string> = { due: 'Vencimiento', new: 'Más recientes', prio: 'Prioridad' }
 
 /** Barra de herramientas del listado: búsqueda, filtros, vistas guardadas, orden, modo y densidad. */
-export function ListToolbar({ filters, categories, priorities, technicians, canKanban, mode, density, onChange, onMode, onDensity }: Props) {
+export function ListToolbar({
+  filters,
+  categories,
+  priorities,
+  technicians,
+  areas,
+  canKanban,
+  mode,
+  density,
+  onChange,
+  onMode,
+  onDensity,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="relative min-w-0 flex-[1_1_220px]">
@@ -35,7 +49,7 @@ export function ListToolbar({ filters, categories, priorities, technicians, canK
           value={filters.q}
           onChange={(e) => onChange({ q: e.target.value })}
           placeholder="Buscar por código, texto, solicitante o ambiente"
-          className="h-9 w-full rounded-lg border border-line bg-surface pl-[34px] pr-2.5 max-md:h-11"
+          className="h-9 w-full rounded-lg border border-line bg-surface pl-[34px] pr-2.5 text-fg placeholder:text-muted transition-[border-color,box-shadow] hover:border-line-strong focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 max-md:h-11"
         />
       </div>
       <Select
@@ -103,6 +117,42 @@ export function ListToolbar({ filters, categories, priorities, technicians, canK
           ))}
         </Select>
       )}
+      {areas && (
+        <Select
+          aria-label="Área"
+          value={filters.area}
+          onChange={(e) => onChange({ area: e.target.value })}
+          className="h-9 w-auto max-md:h-11"
+        >
+          <option value="">Todas las áreas</option>
+          {areas.map((a) => (
+            <option key={a.value} value={a.value}>
+              {a.label}
+            </option>
+          ))}
+        </Select>
+      )}
+      <label className="flex items-center gap-1.5 text-xs text-muted">
+        Desde
+        <input
+          type="date"
+          value={filters.from}
+          max={filters.to || undefined}
+          onChange={(e) => onChange({ from: e.target.value })}
+          className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg max-md:h-11"
+        />
+      </label>
+      <label className="flex items-center gap-1.5 text-xs text-muted">
+        Hasta
+        <input
+          type="date"
+          value={filters.to}
+          min={filters.from || undefined}
+          onChange={(e) => onChange({ to: e.target.value })}
+          className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg max-md:h-11"
+        />
+      </label>
+      <span className="hidden flex-1 md:block" />
       {canKanban && (
         <Segmented
           label="Vista"

@@ -5,18 +5,22 @@ import { buildCsv } from '../../../shared/lib/csv'
 import { dateLong } from '../../../shared/lib/format'
 import type { RowView } from './view'
 
-export type ListView = 'all' | 'venc' | 'open' | 'confirm' | 'critsa'
+export type ListView = 'all' | 'attention' | 'venc' | 'open' | 'confirm' | 'critsa'
 export type ListSort = 'due' | 'new' | 'prio'
 
 /**
- * Estado de los filtros de la bandeja tal como vive en la URL. `category`, `priority` y `technician` guardan
- * el id (como texto) que espera el servidor; vacío significa "todos".
+ * Estado de los filtros de la bandeja tal como vive en la URL. `category`, `priority`, `technician` y `area`
+ * guardan el id (como texto) que espera el servidor; vacío significa "todos". `from` y `to` son días
+ * `AAAA-MM-DD` de la fecha de registro (inclusive, en hora de Lima, como los interpreta el servidor).
  */
 export type ListFilters = {
   q: string
   category: string
   priority: string
   technician: string
+  area: string
+  from: string
+  to: string
   /** Un estado, `__venc` (vencidas) o vacío. */
   status: string
   view: ListView
@@ -25,6 +29,7 @@ export type ListFilters = {
 
 export const VIEW_LABELS: Record<ListView, string> = {
   all: 'Todas',
+  attention: 'Requieren mi atención',
   venc: 'Mis vencidas',
   open: 'Abiertas',
   confirm: 'Por confirmar',
@@ -34,6 +39,11 @@ export const VIEW_LABELS: Record<ListView, string> = {
 export const OVERDUE_STATUS = '__venc'
 
 const OPEN_STATUSES: RequestStatus[] = ['REGISTRADA', 'EN_EVALUACION', 'ASIGNADA', 'EN_ATENCION']
+
+/** Estados en los que una solicitud puede requerir la atención del usuario (una cerrada nunca la requiere). */
+const ATTENTION_STATUSES: RequestStatus[] = [...OPEN_STATUSES, 'RESUELTA']
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/
 
 const SORT_PARAM: Record<ListSort, RequestSortParam> = { due: 'due', new: 'newest', prio: 'priority' }
 
@@ -62,11 +72,19 @@ export function toServerQuery(f: ListFilters, criticalPriorityId: number | undef
   query.categoryId = positiveId(f.category)
   query.priorityId = positiveId(f.priority)
   query.technicianId = positiveId(f.technician)
+  query.areaId = positiveId(f.area)
+  if (DAY.test(f.from)) query.from = f.from
+  if (DAY.test(f.to)) query.to = f.to
+  if (query.from && query.to && query.to < query.from) return { kind: 'empty' }
 
   if (f.status === OVERDUE_STATUS) query.overdue = true
   else if ((REQUEST_STATES as readonly string[]).includes(f.status)) narrow([stateToStatus(f.status as RequestState)])
 
   switch (f.view) {
+    case 'attention':
+      // Depende de las notificaciones sin leer (dato del cliente): el servidor acota y la bandeja refina.
+      narrow(ATTENTION_STATUSES)
+      break
     case 'venc':
       query.overdue = true
       break

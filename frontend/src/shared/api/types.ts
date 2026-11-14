@@ -115,7 +115,7 @@ export type RequestListQuery = {
   unassigned?: boolean
   overdue?: boolean
   q?: string
-  /** ISO-8601 en UTC; `from` inclusivo y `to` exclusivo sobre la fecha de registro. */
+  /** Días `AAAA-MM-DD` de la fecha de registro, ambos inclusive y en hora de Lima. */
   from?: string
   to?: string
   sort?: RequestSortParam

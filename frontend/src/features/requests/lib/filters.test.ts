@@ -24,7 +24,18 @@ const base: RequestRow = {
 }
 const row = (over: Partial<RequestRow>): RowView => withSla({ ...base, ...over }, NOW)
 
-const none: ListFilters = { q: '', category: '', priority: '', technician: '', status: '', view: 'all', sort: 'due' }
+const none: ListFilters = {
+  q: '',
+  category: '',
+  priority: '',
+  technician: '',
+  area: '',
+  from: '',
+  to: '',
+  status: '',
+  view: 'all',
+  sort: 'due',
+}
 const plan = (f: Partial<ListFilters>) => toServerQuery({ ...none, ...f }, CRITICAL)
 const OPEN = ['REGISTRADA', 'EN_EVALUACION', 'ASIGNADA', 'EN_ATENCION']
 
@@ -43,6 +54,16 @@ describe('toServerQuery', () => {
     expect(plan({ category: 'Electricidad' })).toEqual({ kind: 'query', query: { sort: 'due' } })
   })
 
+  it('envía el área por id y el rango de fechas como días AAAA-MM-DD', () => {
+    expect(plan({ area: '3', from: '2026-10-01', to: '2026-10-15' })).toEqual({
+      kind: 'query',
+      query: { sort: 'due', areaId: 3, from: '2026-10-01', to: '2026-10-15' },
+    })
+    expect(plan({ from: '2026-10-10', to: '2026-10-10' }).kind).toBe('query')
+    expect(plan({ area: 'Soporte', from: 'ayer' })).toEqual({ kind: 'query', query: { sort: 'due' } })
+    expect(plan({ from: '2026-10-15', to: '2026-10-01' })).toEqual({ kind: 'empty' })
+  })
+
   it('traduce el estado de la interfaz al código del contrato y "Vencidas" a overdue', () => {
     expect(plan({ status: 'En atención' })).toEqual({ kind: 'query', query: { sort: 'due', status: ['EN_ATENCION'] } })
     expect(plan({ status: '__venc' })).toEqual({ kind: 'query', query: { sort: 'due', overdue: true } })
@@ -52,6 +73,8 @@ describe('toServerQuery', () => {
     expect(plan({ view: 'venc' })).toEqual({ kind: 'query', query: { sort: 'due', overdue: true } })
     expect(plan({ view: 'open' })).toEqual({ kind: 'query', query: { sort: 'due', status: OPEN } })
     expect(plan({ view: 'confirm' })).toEqual({ kind: 'query', query: { sort: 'due', status: ['RESUELTA'] } })
+    // "Requieren mi atención" excluye las cerradas; el resto lo decide la bandeja con las notificaciones.
+    expect(plan({ view: 'attention' })).toEqual({ kind: 'query', query: { sort: 'due', status: [...OPEN, 'RESUELTA'] } })
     expect(plan({ view: 'critsa' })).toEqual({
       kind: 'query',
       query: { sort: 'due', priorityId: CRITICAL, unassigned: true, status: OPEN },

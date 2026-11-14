@@ -177,13 +177,13 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 			where.append(criteria.overdue() ? " and " : " and not ").append(OVERDUE);
 			args.add(utc(now));
 		}
-		if (criteria.from() != null) {
+		if (criteria.createdFrom() != null) {
 			where.append(" and r.created_at >= ?");
-			args.add(utc(criteria.from()));
+			args.add(utc(criteria.createdFrom()));
 		}
-		if (criteria.to() != null) {
+		if (criteria.createdBefore() != null) {
 			where.append(" and r.created_at < ?");
-			args.add(utc(criteria.to()));
+			args.add(utc(criteria.createdBefore()));
 		}
 		if (criteria.hasText()) {
 			String pattern = "%" + escapeLike(criteria.text()) + "%";

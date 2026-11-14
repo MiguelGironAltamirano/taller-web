@@ -164,6 +164,25 @@ describe('solicitudes', () => {
     expect(everything.length).toBeGreaterThan(area.length)
   })
 
+  it('el listado filtra por rango de fechas (días de Lima, inclusive) y por área', async () => {
+    await loginAs(ADMIN)
+    const all = (await apiGet<Page<RequestSummary>>('/requests', { size: 500 })).items
+    const day = (iso: string) => new Date(new Date(iso).getTime() - 5 * 3_600_000).toISOString().slice(0, 10)
+    const target = day(all[0].createdAt)
+
+    const sameDay = (await apiGet<Page<RequestSummary>>('/requests', { size: 500, from: target, to: target })).items
+    expect(sameDay.length).toBeGreaterThan(0)
+    expect(sameDay.every((r) => day(r.createdAt) === target)).toBe(true)
+
+    expect((await apiGet<Page<RequestSummary>>('/requests', { size: 500, from: '2999-01-01' })).items).toEqual([])
+    expect(await status(apiGet('/requests', { from: '2026-10-15', to: '2026-10-01' }))).toBe(400)
+
+    const maintenance = (await apiGet<Page<RequestSummary>>('/requests', { size: 500, areaId: 1 })).items
+    expect(maintenance.length).toBeGreaterThan(0)
+    expect(maintenance.length).toBeLessThan(all.length)
+    expect(maintenance.every((r) => r.areaName === 'Mantenimiento e Infraestructura')).toBe(true)
+  })
+
   it('marca como vencida una solicitud sin resolver pasada su fecha, y no una resuelta', async () => {
     await loginAs(ADMIN)
     const all = (await apiGet<Page<RequestSummary>>('/requests', { size: 500 })).items

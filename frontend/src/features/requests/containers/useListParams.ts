@@ -2,11 +2,14 @@ import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import type { ListFilters, ListSort, ListView } from '../lib/filters'
 
-const VIEWS: ListView[] = ['all', 'venc', 'open', 'confirm', 'critsa']
+const VIEWS: ListView[] = ['all', 'attention', 'venc', 'open', 'confirm', 'critsa']
 const SORTS: ListSort[] = ['due', 'new', 'prio']
 
-/** Categoría, prioridad y técnico viajan por id; cualquier otro valor (enlaces antiguos por nombre) se ignora. */
+/** Categoría, prioridad, técnico y área viajan por id; cualquier otro valor (enlaces antiguos por nombre) se ignora. */
 const idParam = (value: string | null) => (value && /^[1-9]\d*$/.test(value) ? value : '')
+
+/** Días `AAAA-MM-DD`; cualquier otro valor se ignora. */
+const dayParam = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '')
 
 export type ListParams = {
   filters: ListFilters
@@ -33,6 +36,9 @@ export function useListParams() {
         category: idParam(params.get('cat')),
         priority: idParam(params.get('prio')),
         technician: idParam(params.get('tech')),
+        area: idParam(params.get('area')),
+        from: dayParam(params.get('from')),
+        to: dayParam(params.get('to')),
         status: params.get('status') ?? '',
         view: VIEWS.includes(view) ? view : 'all',
         sort: SORTS.includes(sort) ? sort : 'due',
@@ -64,21 +70,27 @@ export function useListParams() {
 
   const setFilters = useCallback(
     (patch: Partial<ListFilters>) => {
-      const map: Record<string, string> = {
+      const map: Record<keyof ListFilters, string> = {
         q: 'q',
         category: 'cat',
         priority: 'prio',
         technician: 'tech',
+        area: 'area',
+        from: 'from',
+        to: 'to',
         status: 'status',
         view: 'view',
         sort: 'sort',
       }
-      set(Object.fromEntries(Object.entries(patch).map(([k, v]) => [map[k], v as string])))
+      set(Object.fromEntries(Object.entries(patch).map(([k, v]) => [map[k as keyof ListFilters], v as string])))
     },
     [set],
   )
 
-  const clearFilters = useCallback(() => set({ q: null, cat: null, prio: null, tech: null, status: null, view: null }), [set])
+  const clearFilters = useCallback(
+    () => set({ q: null, cat: null, prio: null, tech: null, status: null, view: null, from: null, to: null, area: null }),
+    [set],
+  )
 
   return {
     ...state,

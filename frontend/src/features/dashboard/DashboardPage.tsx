@@ -146,7 +146,7 @@ export function DashboardPage() {
                     key={r.code}
                     type="button"
                     onClick={() => navigate(`/solicitudes/${r.code}`)}
-                    className="flex w-full flex-wrap items-center gap-2.5 border-0 border-t border-line bg-transparent px-1 py-2 text-left text-fg"
+                    className="flex w-full flex-wrap items-center gap-2.5 border-0 border-t border-line bg-transparent px-1 py-2 text-left text-fg hover:bg-surface2"
                   >
                     <b className="w-[130px] text-[13px]">{r.code}</b>
                     <span className="min-w-[140px] flex-1">{r.category}</span>

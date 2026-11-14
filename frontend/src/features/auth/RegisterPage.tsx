@@ -102,7 +102,9 @@ export function RegisterPage() {
                     onClick={() => field.onChange(t)}
                     className={cn(
                       'h-9 rounded-lg border px-3.5 font-medium max-md:h-11',
-                      field.value === t ? 'border-primary bg-primary-soft text-primary-fg' : 'border-line bg-surface text-fg',
+                      field.value === t
+                        ? 'border-primary bg-primary-soft text-primary-fg'
+                        : 'border-line bg-surface text-fg hover:border-line-strong hover:bg-surface2',
                     )}
                   >
                     {t}

@@ -48,12 +48,13 @@ Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNIC
 | `unassigned` | `true` / `false` | `true`: sin técnico asignado. No se combina con `technicianId` (`400`) |
 | `overdue` | `true` / `false` | Misma regla que el campo `overdue`: no llegó a `RESUELTA` ni `CERRADA` y `dueAt` ya pasó. `false` devuelve las que no están vencidas |
 | `q` | Texto de hasta 100 caracteres; se recorta | Aparece en el código, la descripción, el nombre del solicitante, la categoría o el ambiente. No distingue mayúsculas ni tildes (colación de MySQL); `%` y `_` se tratan como caracteres literales |
-| `from`, `to` | Instante ISO-8601 en UTC (`2026-10-01T05:00:00Z`) | Fecha de registro: `from` inclusivo, `to` exclusivo; `from` debe ser anterior a `to` |
+| `from`, `to` | Fecha `AAAA-MM-DD` | Fecha de registro entre ambos días, **inclusive**, en hora de Lima (`America/Lima`); se puede enviar solo uno. `to` no puede ser anterior a `from` (el mismo día sí vale) |
 | `sort` | `newest` (por defecto), `oldest`, `due`, `priority` | `newest`/`oldest`: por fecha de registro. `due`: primero las pendientes y, dentro de cada grupo, la fecha límite más próxima. `priority`: de mayor a menor prioridad y luego las más recientes. Cada orden termina en un desempate estable, así las páginas no se solapan |
 | `page` | Entero ≥ 0 (por defecto `0`) | Página, empezando en cero. Una página posterior a la última devuelve `items` vacío con el `total` real |
 | `size` | Entero entre 1 y 500 (por defecto `20`) | Elementos por página |
 
-- Un valor inválido (estado u orden desconocido, id no numérico, booleano distinto de `true`/`false`, fecha mal formada, `page` negativa, `size` fuera de rango, rango de fechas invertido) responde `400` `ProblemDetail` con `errors` por parámetro, todos a la vez. `page` y `size` fuera de rango ya no se ajustan en silencio.
+- Un valor inválido (estado u orden desconocido, id no numérico, booleano distinto de `true`/`false`, fecha mal formada, `page` negativa, `size` fuera de rango, `to` anterior a `from`) responde `400` `ProblemDetail` con `errors` por parámetro, todos a la vez. `page` y `size` fuera de rango ya no se ajustan en silencio.
+- **Decisión documentada (integración de filtros):** `from` y `to` son días de calendario de Lima, no instantes UTC, para que la interfaz envíe directamente lo que elige el usuario en un selector de fecha y el servidor aplique la zona horaria (la misma que usa el año del código). Es la única excepción a la convención de fechas ISO-8601 en UTC, y solo afecta a estos dos parámetros de consulta; las respuestas siguen en UTC.
 - `GET /requests/counts` devuelve los contadores de la bandeja sobre todo lo visible para el usuario, sin otros filtros: `total`, `overdue` y `byStatus` con los seis estados (cero si no hay ninguna).
 
 Transiciones (`to`, quién, requisito):

@@ -30,13 +30,14 @@ const fetchPage = (query: RequestListQuery) => apiGet<Page<RequestSummary>>('/re
 
 /**
  * Todo lo visible para el usuario (hasta 500), para las vistas que agregan sobre el conjunto completo:
- * Inicio, calendario y reportes. La bandeja paginada usa `useRequestPage`.
+ * Inicio, calendario, reportes y el panel "Requieren tu atención". La bandeja paginada usa `useRequestPage`.
  */
 export function useRequestRows() {
   return useQuery({
     queryKey: requestListKey,
     queryFn: () => fetchPage({ size: MAX_REQUEST_PAGE_SIZE }),
     select: (page) => page.items.map(toRequestRow),
+    refetchInterval: 30_000,
   })
 }
 

@@ -31,7 +31,7 @@ Este módulo se construye sobre la autenticación de Miguel (token, roles y `GET
 | `POST /api/v1/requests` | Solicitante | `201` con el detalle; `400` por validación |
 | `GET /api/v1/requests` | Token | Filtrado según el rol; filtro por estado y paginación |
 | `GET /api/v1/requests/{codigo}` | Token con visibilidad | `404` si no existe o no es visible para el usuario |
-| Filtros avanzados del listado (fechas, área, vencidas) | Token | Por definir en `docs/api/` antes de implementar |
+| Filtros avanzados del listado (`from`, `to`, `areaId`, `overdue`) | Token | Definidos en `docs/api/contrato-v1.md`; se combinan con `status` |
 
 Pantallas: "Mis solicitudes" (lista filtrada por estado), "Nueva solicitud" (formulario con catálogos y validación de 20 a 2000 caracteres) y detalle de la solicitud. La sugerencia de triage en el formulario usa `POST /api/v1/triage/suggestions` de AngelCruz.
 
@@ -106,9 +106,9 @@ Prioridad sugerida: **S** = Release Candidate (semana 12), **C** = opcional si h
 - **Registro de solicitudes:** el contrato del MVP envía el `locationId` del ambiente; el formulario del diseño elige Facultad → Pabellón → Ambiente y el front resuelve ese id.
 - **Cierre automático a las 72 h:** el front solo lo informa; hay que implementarlo en el backend (satisfacción, plan de Lita).
 
-## 10. Estado de avance (17 de octubre de 2026)
+## 10. Estado de avance (14 de noviembre de 2026)
 
-Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; faltan los filtros avanzados del servidor y la documentación para el manual. El frontend (PR #7) y el backend `catalog` y `requests` (PR #8) ya están en `dev`, igual que el módulo `workflow` de Angela (PR #9).
+Resumen: **el frontend y el backend de registro y consulta de solicitudes están hechos y funcionan juntos**; los filtros avanzados del servidor y la documentación del módulo (notas del manual de usuario y manual técnico) también están hechos; falta la revisión de otro integrante y las pruebas de aceptación. El frontend (PR #7) y el backend `catalog` y `requests` (PR #8) ya están en `dev`, igual que el módulo `workflow` de Angela (PR #9).
 
 ### Backend (`catalog`, `requests`)
 
@@ -119,7 +119,7 @@ Resumen: **el frontend y el backend de registro y consulta de solicitudes están
 - [x] `GET /api/v1/requests/{codigo}` con `404` si no es visible
 - [x] Marca de vencidas calculada en el servidor
 - [x] Pruebas de integración con MySQL real de la lista de la sección 5, incluida la de diez creaciones concurrentes (`RequestsApiTests`, `CatalogApiTests`)
-- [ ] Filtros avanzados del listado (fechas, área, vencidas): definirlos antes en `docs/api/`
+- [x] Filtros avanzados del listado (`from`, `to`, `areaId`, `overdue`): contrato en `docs/api/contrato-v1.md`, pruebas unitarias y de integración (`listCanBeFilteredBy...` en `RequestsApiTests`; verificadas con MySQL real: `./mvnw verify`, 426 pruebas en verde)
 - [x] `allowedTransitions` del detalle: ya las calcula el módulo `workflow` (PR #9, implementación de `AllowedTransitions`)
 
 El detalle del backend todavía no incluye comentarios, evidencias, solución ni calificación: son de los módulos de AngelCarrasco y Lita, y el frontend ya tolera su ausencia.
@@ -132,18 +132,18 @@ El detalle del backend todavía no incluye comentarios, evidencias, solución ni
 - [x] Integración con la sugerencia de triage (aceptar o ignorar)
 - [x] Marca de "Vencida" en lista, kanban, detalle y calendario
 - [x] Prueba obligatoria: crear una solicitud muestra el código y aparece en la lista; el formulario no se envía con la descripción fuera de rango (`frontend/src/features/requests/new-request.test.tsx`)
-- [ ] Filtros avanzados por **rango de fechas y área**: hoy se filtra en el cliente por estado, categoría, prioridad, técnico, texto y "vencidas"
+- [x] Filtros avanzados por **rango de fechas y área**: se piden al servidor (barra de herramientas y chips); estado, categoría, prioridad, técnico, texto y "vencidas" siguen filtrándose en el cliente
 - [x] Conectado con el backend real y verificado a mano en el navegador: inicio de sesión, catálogos, crear una solicitud (código consecutivo, vencimiento a 24 h para prioridad Alta), listado y detalle
 - [ ] Las demás pantallas (notificaciones, dashboard, administración, triage) siguen necesitando los mocks hasta que existan sus endpoints
 
 ### Documentación
 
 - [x] Contrato de catálogos y solicitudes: `docs/api/contrato-v1.md` y `docs/api/ui-extensions.md`
-- [ ] Notas del manual de usuario sobre el registro de solicitudes
-- [ ] Manual técnico del módulo (semana 15)
+- [x] Notas del manual de usuario sobre el registro de solicitudes: `docs/manual/usuario-registro-solicitudes.md`
+- [x] Manual técnico del módulo (semana 15): `docs/manual/tecnico-catalog-requests.md`
 
 ### Avisos
 
 - **Los datos de los mocks no son los de la semilla real:** los mocks usan los datos del diseño (3 áreas, 8 categorías, 6 facultades) y la semilla del backend define 4 áreas, 7 categorías y 8 ubicaciones. Con el backend real la interfaz funciona igual, pero las listas son las de la semilla.
 - **Campos que el backend ya devuelve además del contrato v1:** `description`, `requesterName`, `areaName`, `technicianName`, `facultyName`, `pavilionName` y `roomName` en cada solicitud (ver `docs/api/ui-extensions.md`).
-- **Pruebas de aceptación y revisión de otro integrante:** pendientes (semanas 13–14).
+- **Pruebas de aceptación (Lita) y revisión de otro integrante:** pendientes (semanas 13–14). Los filtros avanzados y los manuales están en `feature/requests-filtros-avanzados`, aún sin PR; ningún PR de este módulo recibió revisión hasta ahora.

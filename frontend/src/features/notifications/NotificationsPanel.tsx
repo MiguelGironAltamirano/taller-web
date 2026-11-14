@@ -43,7 +43,7 @@ export function NotificationsPanel({ onClose }: Props) {
           <button
             type="button"
             onClick={() => markAll.mutate()}
-            className="border-0 bg-transparent text-xs text-primary-fg underline"
+            className="border-0 bg-transparent text-xs text-primary-fg underline hover:no-underline"
           >
             Marcar todas como leídas
           </button>
@@ -60,7 +60,7 @@ export function NotificationsPanel({ onClose }: Props) {
               onClick={() => open(n)}
               className={cn(
                 'flex w-full items-start gap-2.5 border-0 border-b border-line px-3.5 py-2.5 text-left text-fg',
-                n.read ? 'bg-transparent' : 'bg-primary-soft',
+                n.read ? 'bg-transparent hover:bg-surface2' : 'bg-primary-soft hover:brightness-[0.97]',
               )}
             >
               <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', n.read ? 'bg-transparent' : 'bg-primary')} />
@@ -77,7 +77,7 @@ export function NotificationsPanel({ onClose }: Props) {
             onClose()
             navigate('/notificaciones')
           }}
-          className="h-10 w-full rounded-b-xl border-0 border-t border-line bg-transparent font-semibold text-primary-fg"
+          className="h-10 w-full rounded-b-xl border-0 border-t border-line bg-transparent font-semibold text-primary-fg hover:bg-surface2"
         >
           Ver todas
         </button>

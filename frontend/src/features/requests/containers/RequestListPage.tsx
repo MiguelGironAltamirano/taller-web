@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useCatalogs } from '../../../shared/api/catalogs'
+import { MAX_REQUEST_PAGE_SIZE } from '../../../shared/api/types'
 import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue'
 import { useNow } from '../../../shared/hooks/useNow'
 import { LIST_TITLES } from '../../../shared/domain'
@@ -8,13 +9,15 @@ import { downloadText } from '../../../shared/lib/download'
 import { Button, Card, EmptyState, Icon, PageHeader, Pagination, SkeletonRows, useToast } from '../../../shared/ui'
 import { useSessionUser } from '../../auth'
 import { KanbanBoard, useTechnicians } from '../../workflow'
-import { fetchAllRequestRows, useRequestCounts, useRequestPage } from '../api'
+import { fetchAllRequestRows, useRequestCounts, useRequestPage, useRequestRows } from '../api'
+import { AttentionPanel } from '../components/AttentionPanel'
 import { FilterChips } from '../components/FilterChips'
 import { ListToolbar, type FilterOption } from '../components/ListToolbar'
 import { RequestCards, RequestTable } from '../components/RequestTable'
 import { StatusStrip } from '../components/StatusStrip'
+import { attentionFor, sortByUrgency, useUnseenCodes } from '../lib/attention'
 import { toCsv, toServerQuery, toStripCounts } from '../lib/filters'
-import { withSla } from '../lib/view'
+import { withSla, type RowView } from '../lib/view'
 import { useListParams } from './useListParams'
 import { useIsMobile } from '../../../shared/hooks/useMediaQuery'
 
@@ -22,12 +25,13 @@ import { useIsMobile } from '../../../shared/hooks/useMediaQuery'
 const KANBAN_SIZE = 100
 const CRITICAL = 'Crítica'
 
-const labelOf = (options: FilterOption[], value: string) => options.find((o) => o.value === value)?.label
+const labelOf = (options: FilterOption[] | null, value: string) => options?.find((o) => o.value === value)?.label
 
 /**
  * "Mis solicitudes" / bandeja del técnico / bandeja del área / todas las solicitudes, según el rol.
  * Filtros, orden y paginación se resuelven en el servidor (`GET /requests`); los contadores vienen de
- * `GET /requests/counts`.
+ * `GET /requests/counts`. La vista "Requieren mi atención" depende de las notificaciones sin leer (dato del
+ * cliente): el servidor devuelve hasta 500 candidatas con los demás filtros y aquí se refinan y paginan.
  */
 export function RequestListPage() {
   const user = useSessionUser()
@@ -53,32 +57,54 @@ export function RequestListPage() {
     () => (user.role === 'supervisor' ? (technicians.data?.map((t) => ({ value: String(t.id), label: t.fullName })) ?? []) : null),
     [user.role, technicians.data],
   )
+  const allAreas = useMemo<FilterOption[]>(
+    () => catalogs?.areas.map((a) => ({ value: String(a.id), label: a.name })) ?? [],
+    [catalogs],
+  )
+  // Solo el administrador elige área: los demás roles ya ven una sola (o sus propias solicitudes).
+  const areaOptions = user.role === 'administrador' ? allAreas : null
   const criticalId = catalogs?.priorities.find((pr) => pr.name === CRITICAL)?.id
+
+  // Panel "Requieren tu atención": sobre todo lo visible, sin los filtros de la bandeja.
+  const unseen = useUnseenCodes()
+  const attentionOf = useCallback((r: RowView) => attentionFor(user.role, r, unseen), [user.role, unseen])
+  const visible = useRequestRows().data
+  const attentionItems = useMemo(() => {
+    const rows = (visible ?? []).map((r) => withSla(r, now)).filter((r) => attentionOf(r))
+    return sortByUrgency(rows, unseen).map((row) => ({ row, attention: attentionOf(row)!, unseen: unseen.has(row.code) }))
+  }, [visible, now, attentionOf, unseen])
 
   const canKanban = user.role !== 'solicitante'
   const kanban = canKanban && p.mode === 'kanban'
+  const attentionView = p.filters.view === 'attention'
   const plan = useMemo(() => toServerQuery({ ...p.filters, q }, criticalId), [p.filters, q, criticalId])
-  const query = useMemo(
-    () =>
-      plan.kind === 'query'
-        ? { ...plan.query, page: kanban ? 0 : p.page, size: kanban ? KANBAN_SIZE : p.pageSize }
-        : undefined,
-    [plan, kanban, p.page, p.pageSize],
-  )
+  const query = useMemo(() => {
+    if (plan.kind !== 'query') return undefined
+    if (attentionView) return { ...plan.query, page: 0, size: MAX_REQUEST_PAGE_SIZE }
+    return { ...plan.query, page: kanban ? 0 : p.page, size: kanban ? KANBAN_SIZE : p.pageSize }
+  }, [plan, attentionView, kanban, p.page, p.pageSize])
   const list = useRequestPage(query)
   const counts = useRequestCounts()
 
-  const rows = useMemo(
+  const fetched = useMemo(
     () => (plan.kind === 'query' ? (list.data?.items ?? []) : []).map((r) => withSla(r, now)),
     [plan.kind, list.data, now],
   )
-  const total = plan.kind === 'query' ? (list.data?.total ?? 0) : 0
+  const attentionRows = useMemo(
+    () => (attentionView ? sortByUrgency(fetched.filter((r) => attentionOf(r)), unseen) : []),
+    [attentionView, fetched, attentionOf, unseen],
+  )
+  const total = attentionView ? attentionRows.length : plan.kind === 'query' ? (list.data?.total ?? 0) : 0
+  const rows = useMemo(() => {
+    if (!attentionView) return fetched
+    return kanban ? attentionRows : attentionRows.slice(p.page * p.pageSize, (p.page + 1) * p.pageSize)
+  }, [attentionView, fetched, attentionRows, kanban, p.page, p.pageSize])
   const isLoading = plan.kind === 'pending' || (plan.kind === 'query' && list.isLoading)
   const isError = plan.kind === 'query' && list.isError
   const strip = useMemo(() => toStripCounts(counts.data), [counts.data])
 
   // Una página que quedó fuera de rango (p. ej. tras cerrar solicitudes) vuelve a la última que existe.
-  const totalPages = list.data?.totalPages ?? 0
+  const totalPages = attentionView ? Math.ceil(total / p.pageSize) : (list.data?.totalPages ?? 0)
   const { setPage } = p
   useEffect(() => {
     if (!kanban && !list.isPlaceholderData && list.data && p.page > 0 && p.page >= totalPages) {
@@ -92,7 +118,7 @@ export function RequestListPage() {
     if (plan.kind !== 'query') return
     setExporting(true)
     try {
-      const all = await fetchAllRequestRows(plan.query)
+      const all = attentionView ? { rows: attentionRows, total: attentionRows.length } : await fetchAllRequestRows(plan.query)
       const views = all.rows.map((r) => withSla(r, Date.now()))
       downloadText(`solicitudes-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(views))
       toast(
@@ -126,31 +152,42 @@ export function RequestListPage() {
           </>
         }
       />
-      <StatusStrip counts={strip} value={p.filters.status} onChange={(status) => p.setFilters({ status })} />
-      <ListToolbar
-        filters={p.filters}
-        categories={categoryOptions}
-        priorities={priorityOptions}
-        technicians={technicianOptions}
-        canKanban={canKanban}
-        mode={p.mode}
-        density={p.density}
-        onChange={p.setFilters}
-        onMode={p.setMode}
-        onDensity={p.setDensity}
-      />
-      <FilterChips
-        filters={p.filters}
-        labels={{
-          category: labelOf(categoryOptions, p.filters.category),
-          priority: labelOf(priorityOptions, p.filters.priority),
-          technician: technicianOptions ? labelOf(technicianOptions, p.filters.technician) : undefined,
-        }}
-        onChange={p.setFilters}
-        onClear={p.clearFilters}
-      />
+      {!attentionView && (
+        <AttentionPanel
+          items={attentionItems}
+          onOpen={open}
+          onShowAll={() => p.setFilters({ view: 'attention', status: '' })}
+        />
+      )}
 
       <Card className="overflow-hidden" aria-busy={list.isFetching}>
+        <StatusStrip counts={strip} value={p.filters.status} onChange={(status) => p.setFilters({ status })} />
+        <div className="flex flex-col gap-2.5 border-y border-line bg-surface2/40 p-3">
+          <ListToolbar
+            filters={p.filters}
+            categories={categoryOptions}
+            priorities={priorityOptions}
+            technicians={technicianOptions}
+            areas={areaOptions}
+            canKanban={canKanban}
+            mode={p.mode}
+            density={p.density}
+            onChange={p.setFilters}
+            onMode={p.setMode}
+            onDensity={p.setDensity}
+          />
+          <FilterChips
+            filters={p.filters}
+            labels={{
+              category: labelOf(categoryOptions, p.filters.category),
+              priority: labelOf(priorityOptions, p.filters.priority),
+              technician: labelOf(technicianOptions, p.filters.technician),
+              area: labelOf(allAreas, p.filters.area),
+            }}
+            onChange={p.setFilters}
+            onClear={p.clearFilters}
+          />
+        </div>
         {isLoading && <SkeletonRows count={5} rowClass={p.density === 'comfy' ? 'h-12' : 'h-10'} />}
         {isError && (
           <EmptyState icon="file" title="No pudimos cargar las solicitudes" description="Inténtalo de nuevo en unos momentos." />
@@ -175,9 +212,15 @@ export function RequestListPage() {
         {!isLoading && total > 0 && !kanban && (
           <>
             {isMobile ? (
-              <RequestCards rows={rows} onOpen={open} />
+              <RequestCards rows={rows} onOpen={open} attentionOf={attentionOf} unseen={unseen} />
             ) : (
-              <RequestTable rows={rows} compact={p.density === 'compact'} onOpen={open} />
+              <RequestTable
+                rows={rows}
+                compact={p.density === 'compact'}
+                onOpen={open}
+                attentionOf={attentionOf}
+                unseen={unseen}
+              />
             )}
             <Pagination page={p.page} pageSize={p.pageSize} total={total} onPage={p.setPage} onPageSize={p.setPageSize} />
           </>

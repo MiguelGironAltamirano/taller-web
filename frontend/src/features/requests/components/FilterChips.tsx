@@ -1,8 +1,8 @@
 import { Icon } from '../../../shared/ui'
 import { OVERDUE_STATUS, VIEW_LABELS, type ListFilters } from '../lib/filters'
 
-/** Nombres visibles de los filtros que viajan por id (categoría, prioridad y técnico). */
-export type FilterLabels = { category?: string; priority?: string; technician?: string }
+/** Nombres visibles de los filtros que viajan por id (categoría, prioridad, técnico y área). */
+export type FilterLabels = { category?: string; priority?: string; technician?: string; area?: string }
 
 type Props = {
   filters: ListFilters
@@ -25,6 +25,9 @@ export function FilterChips({ filters, labels, onChange, onClear }: Props) {
   if (filters.view !== 'all') chips.push({ label: `Vista: ${VIEW_LABELS[filters.view]}`, remove: () => onChange({ view: 'all' }) })
   if (filters.priority) chips.push({ label: `Prioridad: ${labels.priority ?? filters.priority}`, remove: () => onChange({ priority: '' }) })
   if (filters.technician) chips.push({ label: `Técnico: ${labels.technician ?? filters.technician}`, remove: () => onChange({ technician: '' }) })
+  if (filters.area) chips.push({ label: `Área: ${labels.area ?? filters.area}`, remove: () => onChange({ area: '' }) })
+  if (filters.from) chips.push({ label: `Desde: ${filters.from}`, remove: () => onChange({ from: '' }) })
+  if (filters.to) chips.push({ label: `Hasta: ${filters.to}`, remove: () => onChange({ to: '' }) })
 
   if (chips.length === 0) return null
   return (
@@ -35,13 +38,13 @@ export function FilterChips({ filters, labels, onChange, onClear }: Props) {
           type="button"
           aria-label={`Quitar filtro ${c.label}`}
           onClick={c.remove}
-          className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-primary-soft px-2.5 text-xs font-medium text-primary-fg"
+          className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-primary-soft px-2.5 text-xs font-medium text-primary-fg hover:border-primary/50"
         >
           {c.label}
           <Icon name="x" size={12} strokeWidth={2} />
         </button>
       ))}
-      <button type="button" onClick={onClear} className="border-0 bg-transparent text-xs text-muted underline">
+      <button type="button" onClick={onClear} className="border-0 bg-transparent text-xs text-muted underline hover:text-fg">
         Limpiar filtros
       </button>
     </div>
