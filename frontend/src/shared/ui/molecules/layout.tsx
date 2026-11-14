@@ -43,7 +43,7 @@ export function SectionIcon({ name, className }: { name: IconName; className?: s
 /** Encabezado de página: ícono de sección, título (h1) en la serif institucional, subtítulo y acciones. */
 export function PageHeader({ title, subtitle, actions, icon }: PageHeaderProps) {
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-3 pb-1">
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-primary/50 bg-surface px-4 py-3.5 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_10px_28px_-22px_rgb(0_0_0/0.25)] md:px-5 md:py-4">
       <div className="flex min-w-60 flex-1 items-center gap-4">
         {icon && <SectionIcon name={icon} />}
         <div className="min-w-0">
