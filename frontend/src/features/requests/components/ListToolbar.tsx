@@ -1,9 +1,12 @@
 import { PRIORITIES } from '../../../shared/domain'
 import { Icon, Segmented, Select } from '../../../shared/ui'
-import { VIEW_LABELS, type ListFilters, type ListSort, type ListView } from '../lib/filters'
+import { VIEW_LABELS, type ListFilters, type ListSort, type ListView, type ServerFilters } from '../lib/filters'
 
 type Props = {
   filters: ListFilters
+  server: ServerFilters
+  /** Solo el administrador filtra por área; los demás roles ya ven una sola. */
+  areas: { id: number; name: string }[] | null
   categories: string[]
   /** Solo el supervisor filtra por técnico. */
   technicians: string[] | null
@@ -12,6 +15,7 @@ type Props = {
   mode: 'table' | 'kanban'
   density: 'comfy' | 'compact'
   onChange: (patch: Partial<ListFilters>) => void
+  onServerChange: (patch: Partial<ServerFilters>) => void
   onMode: (mode: 'table' | 'kanban') => void
   onDensity: (d: 'comfy' | 'compact') => void
 }
@@ -19,7 +23,20 @@ type Props = {
 const SORT_LABELS: Record<ListSort, string> = { due: 'Vencimiento', new: 'Más recientes', prio: 'Prioridad' }
 
 /** Barra de herramientas del listado: búsqueda, filtros, vistas guardadas, orden, modo y densidad. */
-export function ListToolbar({ filters, categories, technicians, canKanban, mode, density, onChange, onMode, onDensity }: Props) {
+export function ListToolbar({
+  filters,
+  server,
+  areas,
+  categories,
+  technicians,
+  canKanban,
+  mode,
+  density,
+  onChange,
+  onServerChange,
+  onMode,
+  onDensity,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="relative min-w-0 flex-[1_1_220px]">
@@ -100,6 +117,41 @@ export function ListToolbar({ filters, categories, technicians, canKanban, mode,
           ))}
         </Select>
       )}
+      {areas && (
+        <Select
+          aria-label="Área"
+          value={server.areaId}
+          onChange={(e) => onServerChange({ areaId: e.target.value })}
+          className="h-9 w-auto max-md:h-11"
+        >
+          <option value="">Todas las áreas</option>
+          {areas.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </Select>
+      )}
+      <label className="flex items-center gap-1.5 text-xs text-muted">
+        Desde
+        <input
+          type="date"
+          value={server.from}
+          max={server.to || undefined}
+          onChange={(e) => onServerChange({ from: e.target.value })}
+          className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg max-md:h-11"
+        />
+      </label>
+      <label className="flex items-center gap-1.5 text-xs text-muted">
+        Hasta
+        <input
+          type="date"
+          value={server.to}
+          min={server.from || undefined}
+          onChange={(e) => onServerChange({ to: e.target.value })}
+          className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg max-md:h-11"
+        />
+      </label>
       <span className="hidden flex-1 md:block" />
       {canKanban && (
         <Segmented

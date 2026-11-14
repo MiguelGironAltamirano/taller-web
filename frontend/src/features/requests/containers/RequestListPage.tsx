@@ -27,8 +27,8 @@ export function RequestListPage() {
   const now = useNow()
   const isMobile = useIsMobile()
   const { data: catalogs } = useCatalogs()
-  const { data: rows, isLoading, isError } = useRequestRows()
   const p = useListParams()
+  const { data: rows, isLoading, isError } = useRequestRows(p.server)
   const technicians = useTechnicians(user.role === 'supervisor' ? (user.areaId ?? undefined) : undefined)
 
   const unseen = useUnseenCodes()
@@ -93,16 +93,26 @@ export function RequestListPage() {
         <div className="flex flex-col gap-2.5 border-y border-line bg-surface2/40 p-3">
           <ListToolbar
             filters={p.filters}
+            server={p.server}
+            areas={user.role === 'administrador' ? (catalogs?.areas ?? []) : null}
             categories={catalogs?.categories.map((c) => c.name) ?? []}
             technicians={user.role === 'supervisor' ? (technicians.data?.map((t) => t.fullName) ?? []) : null}
             canKanban={canKanban}
             mode={p.mode}
             density={p.density}
             onChange={p.setFilters}
+            onServerChange={p.setServer}
             onMode={p.setMode}
             onDensity={p.setDensity}
           />
-          <FilterChips filters={p.filters} onChange={p.setFilters} onClear={p.clearFilters} />
+          <FilterChips
+            filters={p.filters}
+            server={p.server}
+            areas={catalogs?.areas ?? []}
+            onChange={p.setFilters}
+            onServerChange={p.setServer}
+            onClear={p.clearFilters}
+          />
         </div>
         {isLoading && <SkeletonRows count={5} rowClass={p.density === 'comfy' ? 'h-12' : 'h-10'} />}
         {isError && (

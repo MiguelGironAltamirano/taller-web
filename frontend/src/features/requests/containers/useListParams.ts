@@ -1,12 +1,13 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
-import type { ListFilters, ListSort, ListView } from '../lib/filters'
+import type { ListFilters, ListSort, ListView, ServerFilters } from '../lib/filters'
 
 const VIEWS: ListView[] = ['all', 'attention', 'venc', 'open', 'confirm', 'critsa']
 const SORTS: ListSort[] = ['due', 'new', 'prio']
 
 export type ListParams = {
   filters: ListFilters
+  server: ServerFilters
   mode: 'table' | 'kanban'
   density: 'comfy' | 'compact'
   pageSize: number
@@ -34,6 +35,7 @@ export function useListParams() {
         view: VIEWS.includes(view) ? view : 'all',
         sort: SORTS.includes(sort) ? sort : 'due',
       },
+      server: { from: params.get('from') ?? '', to: params.get('to') ?? '', areaId: params.get('area') ?? '' },
       mode: params.get('mode') === 'kanban' ? 'kanban' : 'table',
       density: params.get('dens') === 'compact' ? 'compact' : 'comfy',
       pageSize: [10, 25, 50].includes(size) ? size : 10,
@@ -75,11 +77,23 @@ export function useListParams() {
     [set],
   )
 
-  const clearFilters = useCallback(() => set({ q: null, cat: null, prio: null, tech: null, status: null, view: null }), [set])
+  const setServer = useCallback(
+    (patch: Partial<ServerFilters>) => {
+      const map = { from: 'from', to: 'to', areaId: 'area' } as const
+      set(Object.fromEntries(Object.entries(patch).map(([k, v]) => [map[k as keyof ServerFilters], v as string])))
+    },
+    [set],
+  )
+
+  const clearFilters = useCallback(
+    () => set({ q: null, cat: null, prio: null, tech: null, status: null, view: null, from: null, to: null, area: null }),
+    [set],
+  )
 
   return {
     ...state,
     setFilters,
+    setServer,
     clearFilters,
     setMode: (mode: 'table' | 'kanban') => set({ mode: mode === 'kanban' ? 'kanban' : null }, false),
     setDensity: (d: 'comfy' | 'compact') => set({ dens: d === 'compact' ? 'compact' : null }, false),

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import pe.edu.unmsm.servicios.requests.domain.InvalidRequestException;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
@@ -46,13 +48,15 @@ class GetAndListRequestsTest {
 	private final List<RequestScope> scopes = new ArrayList<>();
 	private int lastPage;
 	private int lastSize;
+	private RequestFilter lastFilter;
 
 	private final RequestQueries queries = new RequestQueries() {
 
 		@Override
-		public PageView<RequestSummaryView> search(RequestScope scope, RequestStatus status, int page, int size,
+		public PageView<RequestSummaryView> search(RequestScope scope, RequestFilter filter, int page, int size,
 				Instant now) {
 			scopes.add(scope);
+			lastFilter = filter;
 			lastPage = page;
 			lastSize = size;
 			return new PageView<>(List.of(SUMMARY), page, size, 1);
@@ -96,10 +100,10 @@ class GetAndListRequestsTest {
 
 	@Test
 	void listScopeFollowsTheRoleOfTheUser() {
-		list.execute(OWNER, null, 0, 20);
-		list.execute(SUPERVISOR, null, 0, 20);
-		list.execute(TECHNICIAN, null, 0, 20);
-		list.execute(ADMIN, null, 0, 20);
+		list.execute(OWNER, RequestFilter.NONE, 0, 20);
+		list.execute(SUPERVISOR, RequestFilter.NONE, 0, 20);
+		list.execute(TECHNICIAN, RequestFilter.NONE, 0, 20);
+		list.execute(ADMIN, RequestFilter.NONE, 0, 20);
 
 		assertThat(scopes).extracting(RequestScope::role)
 				.containsExactly("SOLICITANTE", "SUPERVISOR", "TECNICO", "ADMINISTRADOR");
@@ -110,13 +114,53 @@ class GetAndListRequestsTest {
 
 	@Test
 	void listClampsPageAndSize() {
-		list.execute(ADMIN, null, -3, 0);
+		list.execute(ADMIN, RequestFilter.NONE, -3, 0);
 		assertThat(lastPage).isZero();
 		assertThat(lastSize).isEqualTo(1);
 
-		list.execute(ADMIN, null, 2, 100000);
+		list.execute(ADMIN, RequestFilter.NONE, 2, 100000);
 		assertThat(lastPage).isEqualTo(2);
 		assertThat(lastSize).isEqualTo(ListRequests.MAX_PAGE_SIZE);
+	}
+
+	@Test
+	void listPassesTheFiltersToTheQuery() {
+		RequestFilter filter = new RequestFilter(RequestStatus.ASIGNADA, LocalDate.parse("2026-10-01"),
+				LocalDate.parse("2026-10-15"), 2L, true);
+
+		list.execute(ADMIN, filter, 0, 20);
+
+		assertThat(lastFilter).isEqualTo(filter);
+	}
+
+	@Test
+	void aSingleDayRangeIsAccepted() {
+		LocalDate day = LocalDate.parse("2026-10-10");
+
+		list.execute(ADMIN, new RequestFilter(null, day, day, null, null), 0, 20);
+
+		assertThat(lastFilter.from()).isEqualTo(day);
+	}
+
+	@Test
+	void aRangeThatEndsBeforeItStartsIsRejected() {
+		RequestFilter inverted = new RequestFilter(null, LocalDate.parse("2026-10-15"),
+				LocalDate.parse("2026-10-01"), null, null);
+
+		assertThatThrownBy(() -> list.execute(ADMIN, inverted, 0, 20)).isInstanceOf(InvalidRequestException.class)
+				.satisfies(ex -> assertThat(((InvalidRequestException) ex).errors()).containsKey("to"));
+	}
+
+	@Test
+	void theDayRangeFollowsTheLimaCalendar() {
+		RequestFilter filter = new RequestFilter(null, LocalDate.parse("2026-10-10"), LocalDate.parse("2026-10-10"),
+				null, null);
+
+		// 2026-10-10 in Lima (UTC-5) runs from 05:00Z to 05:00Z of the next day, end exclusive.
+		assertThat(filter.createdFrom()).isEqualTo(Instant.parse("2026-10-10T05:00:00Z"));
+		assertThat(filter.createdBefore()).isEqualTo(Instant.parse("2026-10-11T05:00:00Z"));
+		assertThat(RequestFilter.NONE.createdFrom()).isNull();
+		assertThat(RequestFilter.NONE.createdBefore()).isNull();
 	}
 
 }

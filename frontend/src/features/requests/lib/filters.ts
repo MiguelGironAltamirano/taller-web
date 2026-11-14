@@ -26,6 +26,19 @@ export const VIEW_LABELS: Record<ListView, string> = {
   critsa: 'Críticas sin asignar',
 }
 
+/**
+ * Filtros que resuelve el servidor (`GET /requests?from=&to=&areaId=`, ver `docs/api/contrato-v1.md`):
+ * rango de fecha de registro (días `AAAA-MM-DD`, inclusive, hora de Lima) y área.
+ */
+export type ServerFilters = { from: string; to: string; areaId: string }
+
+export const NO_SERVER_FILTERS: ServerFilters = { from: '', to: '', areaId: '' }
+
+/** Parámetros de consulta sin los filtros vacíos. */
+export function serverQuery(f: ServerFilters): Record<string, string> {
+  return Object.fromEntries(Object.entries(f).filter(([, v]) => v !== ''))
+}
+
 export const OVERDUE_STATUS = '__venc'
 
 const matchesView = (r: RowView, view: ListView, needsAttention?: (r: RowView) => boolean): boolean => {

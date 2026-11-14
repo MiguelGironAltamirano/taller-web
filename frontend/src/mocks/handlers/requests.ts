@@ -58,8 +58,26 @@ export const requestHandlers = [
       const status = url.searchParams.get('status')
       const page = Math.max(0, Number(url.searchParams.get('page') ?? 0))
       const size = Math.min(500, Math.max(1, Number(url.searchParams.get('size') ?? 20)))
+      const from = url.searchParams.get('from')
+      const to = url.searchParams.get('to')
+      const areaId = url.searchParams.get('areaId')
+      if (from && to && to < from) {
+        return problem(400, 'Bad Request', 'La solicitud contiene datos inválidos', {
+          to: 'La fecha final no puede ser anterior a la inicial',
+        })
+      }
+      // Días inclusive en hora de Lima (UTC-5, sin horario de verano), como el servidor.
+      const lower = from ? Date.parse(`${from}T00:00:00-05:00`) : -Infinity
+      const upper = to ? Date.parse(`${to}T00:00:00-05:00`) + 24 * 3_600_000 : Infinity
       const all = getDb()
-        .requests.filter((r) => inScope(r, user) && (!status || r.status === status))
+        .requests.filter(
+          (r) =>
+            inScope(r, user) &&
+            (!status || r.status === status) &&
+            r.createdAt >= lower &&
+            r.createdAt < upper &&
+            (!areaId || areaIdOf(r) === Number(areaId)),
+        )
         .sort((a, b) => a.dueAt - b.dueAt)
         .map((r) => summaryOf(r))
       const body: Page<ReturnType<typeof summaryOf>> = { items: all.slice(page * size, page * size + size), page, size, total: all.length }

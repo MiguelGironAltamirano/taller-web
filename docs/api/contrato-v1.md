@@ -28,9 +28,18 @@ Cookie `refresh_token`: `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; M
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
 | `POST /requests` | Rol `SOLICITANTE` | `{ categoryId, locationId, description, priorityId }` | `201` `RequestDetail` · `400` |
-| `GET /requests?status=&page=0&size=20` | Token | — | `200` `Page<RequestSummary>` filtrado por rol |
+| `GET /requests?status=&from=&to=&areaId=&overdue=&page=0&size=20` | Token | — | `200` `Page<RequestSummary>` filtrado por rol y por los filtros opcionales · `400` fecha mal formada, `to` anterior a `from` o estado inexistente |
 | `GET /requests/{code}` | Token, con visibilidad | — | `200` `RequestDetail` · `404` si no existe o no es visible |
 | `POST /requests/{code}/transitions` | Token, según la tabla de transiciones | `{ to, reason?, technicianId? }` | `200` `RequestDetail` · `400` falta un dato obligatorio · `403` rol no autorizado · `409` transición inválida |
+
+Filtros del listado (todos opcionales y combinables con AND; nunca amplían lo que el rol puede ver):
+
+| Parámetro | Valor | Regla |
+|---|---|---|
+| `status` | Estado de la solicitud | Igual al estado indicado |
+| `from`, `to` | Fecha `AAAA-MM-DD` | Fecha de registro entre ambos días, **inclusive**, en hora de Lima (`America/Lima`); se puede enviar solo uno |
+| `areaId` | Id de un área | Solicitudes de esa área; un supervisor o técnico que pide un área ajena recibe la página vacía |
+| `overdue` | `true` o `false` | `true`: solo las vencidas (no llegaron a `RESUELTA` antes de `dueAt`); `false`: solo las no vencidas |
 
 Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNICO` las asignadas a él; `ADMINISTRADOR` todas.
 
