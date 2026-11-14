@@ -20,11 +20,11 @@ export function HomePage() {
 
   const views = useMemo(() => (rows ?? []).map((r) => withSla(r, now)), [rows, now])
   const kpis = [
-    { label: 'Abiertas', value: views.filter(isOpen).length, to: '/solicitudes?view=open', tone: '' },
-    { label: 'Por confirmar', value: views.filter((r) => r.state === 'Resuelta').length, to: '/solicitudes?view=confirm', tone: 'text-good' },
-    { label: 'Vencidas', value: views.filter((r) => r.sla.overdue).length, to: '/solicitudes?view=venc', tone: 'text-err-fg' },
-    { label: 'Cerradas', value: views.filter((r) => r.state === 'Cerrada').length, to: '/solicitudes?status=Cerrada', tone: 'text-muted' },
-  ]
+    { label: 'Abiertas', value: views.filter(isOpen).length, to: '/solicitudes?view=open', icon: 'folder', tone: 'bg-info-bg text-info-fg' },
+    { label: 'Por confirmar', value: views.filter((r) => r.state === 'Resuelta').length, to: '/solicitudes?view=confirm', icon: 'checkCircle', tone: 'bg-ok-bg text-ok-fg' },
+    { label: 'Vencidas', value: views.filter((r) => r.sla.overdue).length, to: '/solicitudes?view=venc', icon: 'alert', tone: 'bg-err-bg text-err-fg' },
+    { label: 'Cerradas', value: views.filter((r) => r.state === 'Cerrada').length, to: '/solicitudes?status=Cerrada', icon: 'lock', tone: 'bg-surface2 text-muted' },
+  ] as const
   const unseen = useUnseenCodes()
   const attention = sortByUrgency(
     views.filter((r) => attentionFor(user.role, r, unseen)),
@@ -39,7 +39,14 @@ export function HomePage() {
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
         {kpis.map((k) => (
-          <KpiCard key={k.label} label={k.label} value={k.value} valueClassName={k.tone} onClick={() => navigate(k.to)} />
+          <KpiCard
+            key={k.label}
+            label={k.label}
+            value={k.value}
+            icon={k.icon}
+            iconClassName={k.tone}
+            onClick={() => navigate(k.to)}
+          />
         ))}
       </div>
       <div className="flex flex-wrap items-start gap-3.5">

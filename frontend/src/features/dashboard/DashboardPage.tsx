@@ -7,7 +7,7 @@ import { useNow } from '../../shared/hooks/useNow'
 import { buildCsv } from '../../shared/lib/csv'
 import { downloadText } from '../../shared/lib/download'
 import { cn } from '../../shared/lib/cn'
-import { Button, Card, CardTitle, PageHeader, PriorityBadge, Segmented, Select, Skeleton, useToast } from '../../shared/ui'
+import { Button, Card, CardTitle, Icon, KpiCard, PageHeader, PriorityBadge, Segmented, Select, Skeleton, useToast } from '../../shared/ui'
 import { useSessionUser } from '../auth'
 import { slaTextClass, withSla } from '../requests'
 import { useIndicators } from './api'
@@ -22,12 +22,12 @@ const RANGES = [
 
 // "Más es mejor" para cada indicador (define si la variación se pinta verde o roja).
 const KPI_META = [
-  { key: 'registered', label: 'Solicitudes registradas', higherIsBetter: true, suffix: '' },
-  { key: 'pending', label: 'Pendientes', higherIsBetter: false, suffix: '' },
-  { key: 'attended', label: 'Atendidas', higherIsBetter: true, suffix: '' },
-  { key: 'resolvedPct', label: '% resueltas', higherIsBetter: true, suffix: '%' },
-  { key: 'avgAttentionHours', label: 'Tiempo promedio de atención', higherIsBetter: false, suffix: ' h' },
-  { key: 'overdue', label: 'Solicitudes vencidas', higherIsBetter: false, suffix: '' },
+  { key: 'registered', label: 'Solicitudes registradas', higherIsBetter: true, suffix: '', icon: 'inbox', iconTone: 'bg-surface2 text-muted' },
+  { key: 'pending', label: 'Pendientes', higherIsBetter: false, suffix: '', icon: 'clock', iconTone: 'bg-warn-bg text-warn-fg' },
+  { key: 'attended', label: 'Atendidas', higherIsBetter: true, suffix: '', icon: 'checkCircle', iconTone: 'bg-ok-bg text-ok-fg' },
+  { key: 'resolvedPct', label: '% resueltas', higherIsBetter: true, suffix: '%', icon: 'chart', iconTone: 'bg-info-bg text-info-fg' },
+  { key: 'avgAttentionHours', label: 'Tiempo promedio de atención', higherIsBetter: false, suffix: ' h', icon: 'zap', iconTone: 'bg-surface2 text-muted' },
+  { key: 'overdue', label: 'Solicitudes vencidas', higherIsBetter: false, suffix: '', icon: 'alert', iconTone: 'bg-err-bg text-err-fg' },
 ] as const
 
 /** Dashboard con los nueve indicadores del enunciado (supervisor: su área; administrador: todas). */
@@ -82,6 +82,7 @@ export function DashboardPage() {
               </Select>
             )}
             <Button onClick={exportCsv} disabled={!data}>
+              <Icon name="download" size={16} />
               Exportar
             </Button>
           </>
@@ -96,21 +97,27 @@ export function DashboardPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
             {KPI_META.map((k) => {
               const kpi = data.kpis[k.key]
               const tone = kpiTone(kpi.deltaPct, k.higherIsBetter)
               return (
-                <Card key={k.key} role="group" aria-label={k.label} className="p-3.5">
-                  <div className="text-xs text-muted">{k.label}</div>
-                  <div className="my-0.5 text-[26px] font-bold">
-                    {k.key === 'avgAttentionHours' && kpi.value === 0 ? '—' : `${kpi.value}${k.suffix}`}
+                <KpiCard
+                  key={k.key}
+                  label={k.label}
+                  icon={k.icon}
+                  iconClassName={k.iconTone}
+                  value={k.key === 'avgAttentionHours' && kpi.value === 0 ? '—' : `${kpi.value}${k.suffix}`}
+                  trend={{
+                    text: `${Math.abs(kpi.deltaPct)}% vs. periodo anterior`,
+                    tone: kpi.deltaPct === 0 ? 'neutral' : tone,
+                    direction: kpi.deltaPct === 0 ? undefined : kpi.deltaPct > 0 ? 'up' : 'down',
+                  }}
+                >
+                  <div className="mt-2">
+                    <Sparkline series={kpi.series} color={tone === 'good' ? 'var(--good)' : 'var(--bad)'} />
                   </div>
-                  <div className={cn('text-xs font-semibold', tone === 'good' ? 'text-ok-fg' : 'text-err-fg')}>
-                    {kpi.deltaPct > 0 ? '▲' : '▼'} {Math.abs(kpi.deltaPct)}% vs. periodo anterior
-                  </div>
-                  <Sparkline series={kpi.series} color={tone === 'good' ? 'var(--good)' : 'var(--bad)'} />
-                </Card>
+                </KpiCard>
               )
             })}
           </div>

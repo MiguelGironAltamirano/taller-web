@@ -22,8 +22,8 @@ export const registerSchema = z
     type: z.enum(REQUESTER_TYPES),
     password: z
       .string()
-      .min(PASSWORD_MIN, `Mínimo ${PASSWORD_MIN} caracteres.`)
-      .max(72, 'Máximo 72 caracteres.')
+      .min(PASSWORD_MIN, `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`)
+      .max(72, 'La contraseña puede tener como máximo 72 caracteres.')
       .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), 'Incluye al menos una letra y un número.'),
     confirm: z.string(),
   })

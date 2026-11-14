@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { ApiError, apiPut } from '../../shared/api/client'
-import { Alert, Button, Field, Input, Modal, ModalActions, useToast } from '../../shared/ui'
+import { Alert, Button, Field, Modal, ModalActions, PasswordInput, useToast } from '../../shared/ui'
 import { changePasswordSchema, type ChangePasswordValues } from './schemas/auth'
 
 type Props = { open: boolean; onClose: () => void }
@@ -44,13 +44,13 @@ export function ChangePasswordModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={close} title="Cambiar contraseña" onSubmit={onSubmit} width="min(400px,92%)">
       <Field label="Contraseña actual" error={errors.current?.message}>
-        {(a) => <Input {...a} type="password" autoComplete="current-password" invalid={!!errors.current} {...register('current')} />}
+        {(a) => <PasswordInput {...a} autoComplete="current-password" invalid={!!errors.current} {...register('current')} />}
       </Field>
       <Field label="Nueva contraseña" error={errors.next?.message}>
-        {(a) => <Input {...a} type="password" autoComplete="new-password" invalid={!!errors.next} {...register('next')} />}
+        {(a) => <PasswordInput {...a} autoComplete="new-password" invalid={!!errors.next} {...register('next')} />}
       </Field>
       <Field label="Confirmar nueva contraseña" error={errors.confirm?.message}>
-        {(a) => <Input {...a} type="password" autoComplete="new-password" invalid={!!errors.confirm} {...register('confirm')} />}
+        {(a) => <PasswordInput {...a} autoComplete="new-password" invalid={!!errors.confirm} {...register('confirm')} />}
       </Field>
       {errors.root && <Alert>{errors.root.message}</Alert>}
       <ModalActions>

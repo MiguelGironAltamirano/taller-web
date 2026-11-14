@@ -29,38 +29,37 @@ export function NavList({ role, counts, collapsed = false, large = false, onNavi
           <div key={item.to} className="contents">
             {item.section &&
               (collapsed ? (
-                i > 0 && <div className="mx-2 my-2 h-px bg-line" />
+                i > 0 && <div className="mx-3 my-2.5 h-px bg-line" />
               ) : (
-                <div className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[.06em] text-muted">
+                <div className={cn('px-3 pb-1.5 text-[11px] font-medium text-muted', i > 0 ? 'pt-5' : 'pt-2')}>
                   {item.section}
                 </div>
               ))}
             <Link
               to={item.to}
-              title={item.label}
+              title={collapsed ? item.label : undefined}
               aria-current={active ? 'page' : undefined}
               onClick={onNavigate}
               className={cn(
-                'relative flex items-center gap-2.5 rounded-lg text-fg no-underline hover:bg-surface2 hover:no-underline',
-                large ? 'h-12 gap-3 px-3' : 'h-[38px] text-sm',
-                collapsed ? 'justify-center px-0' : large ? '' : 'px-3',
-                active ? 'bg-primary-soft font-bold text-primary-fg' : 'font-medium',
+                'group relative flex items-center gap-2.5 rounded-lg no-underline transition-colors hover:no-underline',
+                large ? 'h-12 gap-3 px-3' : 'h-9 text-[13.5px]',
+                collapsed ? 'mx-auto w-11 justify-center px-0' : large ? '' : 'px-2.5',
+                active
+                  ? 'bg-primary-soft font-semibold text-primary-fg'
+                  : 'font-medium text-muted hover:bg-surface2 hover:text-fg',
               )}
             >
-              {!large && (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'absolute bottom-2 top-2 w-[3px] rounded-r-[3px]',
-                    collapsed ? '-left-2' : '-left-3',
-                    active ? 'bg-primary' : 'bg-transparent',
-                  )}
-                />
-              )}
-              <Icon name={item.icon} size={large ? 20 : 18} className="shrink-0" />
-              {!collapsed && <span className="flex-1 whitespace-nowrap">{item.label}</span>}
+              <Icon
+                name={item.icon}
+                size={large ? 20 : 18}
+                strokeWidth={active ? 2 : 1.75}
+                className={cn('shrink-0', active ? 'text-primary-fg' : 'text-muted group-hover:text-fg')}
+              />
+              {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
               {count > 0 && !collapsed && <CountBadge value={count} variant={item.badge === 'open' ? 'neutral' : 'primary'} />}
-              {count > 0 && collapsed && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-primary" />}
+              {count > 0 && collapsed && (
+                <span className="absolute right-1 top-1 size-2 rounded-full bg-primary ring-2 ring-surface" />
+              )}
             </Link>
           </div>
         )
