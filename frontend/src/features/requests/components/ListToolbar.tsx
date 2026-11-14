@@ -32,7 +32,7 @@ export function ListToolbar({ filters, categories, technicians, canKanban, mode,
           value={filters.q}
           onChange={(e) => onChange({ q: e.target.value })}
           placeholder="Buscar por código o texto"
-          className="h-9 w-full rounded-lg border border-line bg-surface pl-[34px] pr-2.5 max-md:h-11"
+          className="h-9 w-full rounded-lg border border-line bg-surface pl-[34px] pr-2.5 text-fg placeholder:text-muted transition-[border-color,box-shadow] hover:border-line-strong focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 max-md:h-11"
         />
       </div>
       <Select
@@ -100,6 +100,7 @@ export function ListToolbar({ filters, categories, technicians, canKanban, mode,
           ))}
         </Select>
       )}
+      <span className="hidden flex-1 md:block" />
       {canKanban && (
         <Segmented
           label="Vista"

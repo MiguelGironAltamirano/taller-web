@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
-import { stateIndex } from '../../../shared/domain'
 import { useNow } from '../../../shared/hooks/useNow'
 import { dateFull, dateLong } from '../../../shared/lib/format'
-import { Card, CardTitle, KpiCard, OverdueBadge, StatusBadge } from '../../../shared/ui'
+import { Card, CardTitle, Icon, KpiCard } from '../../../shared/ui'
 import { useSessionUser } from '../../auth'
 import { useNotifications } from '../../notifications'
 import { useRequestRows } from '../api'
+import { AttentionPanel } from '../components/AttentionPanel'
+import { attentionFor, sortByUrgency, useUnseenCodes } from '../lib/attention'
 import { isOpen, withSla } from '../lib/view'
 
 /** Inicio del solicitante: resumen de sus solicitudes, lo que requiere atención y actividad reciente. */
@@ -24,10 +25,11 @@ export function HomePage() {
     { label: 'Vencidas', value: views.filter((r) => r.sla.overdue).length, to: '/solicitudes?view=venc', tone: 'text-err-fg' },
     { label: 'Cerradas', value: views.filter((r) => r.state === 'Cerrada').length, to: '/solicitudes?status=Cerrada', tone: 'text-muted' },
   ]
-  const attention = views
-    .filter((r) => r.state === 'Resuelta' || r.sla.overdue)
-    .sort((a, b) => stateIndex(b.state) - stateIndex(a.state))
-    .slice(0, 6)
+  const unseen = useUnseenCodes()
+  const attention = sortByUrgency(
+    views.filter((r) => attentionFor(user.role, r, unseen)),
+    unseen,
+  ).map((row) => ({ row, attention: attentionFor(user.role, row, unseen)!, unseen: unseen.has(row.code) }))
 
   return (
     <>
@@ -41,28 +43,26 @@ export function HomePage() {
         ))}
       </div>
       <div className="flex flex-wrap items-start gap-3.5">
-        <Card className="min-w-0 flex-[2_1_560px] p-4">
-          <CardTitle className="mb-2.5 text-base">Requieren tu atención</CardTitle>
-          {attention.length === 0 && <div className="py-4 text-muted">No tienes acciones pendientes.</div>}
-          <div className="flex flex-col">
-            {attention.map((r) => (
-              <button
-                key={r.code}
-                type="button"
-                onClick={() => navigate(`/solicitudes/${r.code}`)}
-                className="flex flex-wrap items-center gap-2.5 border-0 border-t border-line bg-transparent px-1 py-2.5 text-left text-fg hover:bg-surface2"
-              >
-                <span className="w-[130px] text-[13px] font-semibold">{r.code}</span>
-                <span className="min-w-[140px] flex-1">
-                  {r.category}
-                  <span className="text-muted"> · {r.room}</span>
-                </span>
-                <StatusBadge state={r.state} />
-                {r.sla.overdue && <OverdueBadge />}
-              </button>
-            ))}
-          </div>
-        </Card>
+        <div className="min-w-0 flex-[2_1_560px]">
+          {attention.length > 0 ? (
+            <AttentionPanel
+              items={attention}
+              max={6}
+              onOpen={(code) => navigate(`/solicitudes/${code}`)}
+              onShowAll={() => navigate('/solicitudes?view=attention')}
+            />
+          ) : (
+            <Card className="flex items-center gap-3 p-4">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-ok-bg text-ok-fg">
+                <Icon name="check" size={18} strokeWidth={2.25} />
+              </span>
+              <div>
+                <div className="font-semibold">Todo al día</div>
+                <div className="text-[13px] text-muted">No tienes solicitudes que requieran tu acción.</div>
+              </div>
+            </Card>
+          )}
+        </div>
         <Card className="min-w-0 flex-[1_1_280px] p-4">
           <CardTitle className="mb-2.5 text-base">Actividad reciente</CardTitle>
           <div className="flex flex-col gap-3">

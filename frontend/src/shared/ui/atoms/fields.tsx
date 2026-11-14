@@ -41,7 +41,10 @@ type SelectProps = ComponentProps<'select'> & { invalid?: boolean }
 
 export function Select({ invalid, className, children, ...rest }: SelectProps) {
   return (
-    <select className={controlClass(invalid, cn(!hasHeight(className) && 'h-10', 'px-2', className))} {...rest}>
+    <select
+      className={controlClass(invalid, cn('ui-select', !hasHeight(className) && 'h-10', 'pl-3', className))}
+      {...rest}
+    >
       {children}
     </select>
   )

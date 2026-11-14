@@ -192,19 +192,25 @@ describe('SatisfactionPanel: solicitud cerrada', () => {
   const confirmed = (rating: RequestDetailView['rating']) =>
     detail({ state: 'Cerrada', closureReason: 'CONFIRMADA', rating })
 
-  it('muestra al solicitante su calificación, sin formulario', () => {
+  it('muestra al solicitante su calificación y la solución aplicada', () => {
     renderPanel(confirmed({ score: 4, comment: 'Muy rápido' }))
 
     expect(screen.getByRole('img', { name: 'Tu calificación: 4 de 5 estrellas' })).toBeInTheDocument()
-    expect(screen.getByText('“Muy rápido”')).toBeInTheDocument()
+    expect(screen.getByText('Se cambió el tomacorriente')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enviar calificación' })).not.toBeInTheDocument()
   })
 
-  it('el personal ve la calificación del solicitante', () => {
+  it('el personal ve la calificación del solicitante y la solución aplicada', () => {
     renderPanel(confirmed({ score: 2, comment: '' }), SUPERVISOR)
 
     expect(screen.getByRole('heading', { name: 'Calificación del solicitante' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Calificación: 2 de 5 estrellas' })).toBeInTheDocument()
+    expect(screen.getByText('Se cambió el tomacorriente')).toBeInTheDocument()
+  })
+
+  it('sin calificación, el solicitante puede calificar después y ve la solución', () => {
+    renderPanel(confirmed(null))
+    expect(screen.getByText('Se cambió el tomacorriente')).toBeInTheDocument()
   })
 
   it('sin calificación, el solicitante puede calificar después', async () => {
