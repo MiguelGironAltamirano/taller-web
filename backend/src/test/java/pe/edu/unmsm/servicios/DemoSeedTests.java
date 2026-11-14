@@ -64,6 +64,19 @@ class DemoSeedTests {
 		assertThat(count("select count(distinct requester_id) from service_requests")).isGreaterThanOrEqualTo(4);
 	}
 
+	/** The supervisors and requesters of db/seed-dev are referenced by email, never inserted again. */
+	@Test
+	void reusesTheSeedDevUsersInsteadOfDuplicatingThem() {
+		assertThat(count("""
+				select count(*) from service_requests r join users u on u.id = r.requester_id
+				 where u.email in ('docente@unmsm.edu.pe', 'administrativo@unmsm.edu.pe')""")).isPositive();
+		assertThat(count("""
+				select count(distinct u.email) from request_history h join users u on u.id = h.actor_id
+				 where u.email in ('supervisor.infraestructura@unmsm.edu.pe', 'supervisora.informatica@unmsm.edu.pe',
+				                   'supervisor.administrativo@unmsm.edu.pe')""")).isEqualTo(3);
+		assertThat(count("select count(*) from users where id between 101 and 103 or id between 110 and 111")).isZero();
+	}
+
 	@Test
 	void everyHistoryFollowsTheStateMachineAndEndsInTheCurrentStatus() {
 		Map<Long, List<Map<String, Object>>> byRequest = new LinkedHashMap<>();

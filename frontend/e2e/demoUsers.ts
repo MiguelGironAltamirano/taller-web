@@ -13,7 +13,7 @@ export const demoUsers = {
 /** Accounts used by the journeys. Mutating journeys stay in the Mantenimiento area (id 1). */
 export const accounts = {
   estudiante: { email: 'estudiante@unmsm.edu.pe', name: 'Estudiante Demo', home: '/inicio' },
-  docente: { email: 'docente@unmsm.edu.pe', name: 'Ana Lucía Gutiérrez Vega', home: '/inicio' },
+  docente: { email: 'docente@unmsm.edu.pe', name: 'Docente Demo', home: '/inicio' },
   supervisor: { email: 'supervisor.mantenimiento@unmsm.edu.pe', name: 'Supervisora Mantenimiento', home: '/dashboard' },
   /** Read-only journeys (dashboard, team): no spec writes requests in Servicios Administrativos (area 4). */
   supervisorAdministrativo: { email: 'supervisor.administrativo@unmsm.edu.pe', name: 'Supervisor Servicios Administrativos', home: '/dashboard' },
