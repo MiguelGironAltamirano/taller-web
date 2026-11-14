@@ -139,8 +139,8 @@ El detalle del backend todavía no incluye comentarios, evidencias, solución ni
 ### Documentación
 
 - [x] Contrato de catálogos y solicitudes: `docs/api/contrato-v1.md` y `docs/api/ui-extensions.md`
-- [ ] Notas del manual de usuario sobre el registro de solicitudes
-- [ ] Manual técnico del módulo (semana 15)
+- [x] Notas del manual de usuario sobre el registro de solicitudes: `docs/manual/usuario-registro-solicitudes.md`
+- [x] Manual técnico del módulo (semana 15): `docs/manual/tecnico-catalog-requests.md`
 
 ### Avisos
 
