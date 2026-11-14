@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 
 import pe.edu.unmsm.servicios.requests.application.HistoryView;
 import pe.edu.unmsm.servicios.requests.application.PageView;
+import pe.edu.unmsm.servicios.requests.application.RatingView;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
 import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestScope;
@@ -123,14 +124,23 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 		String closure = rs.getString("closure_reason");
 		long requestId = rs.getLong("id");
 		return new RequestDetailView(summary(rs, now), rs.getLong("requester_id"), rs.getLong("area_id"), technician,
-				closure == null ? null : ClosureReason.valueOf(closure), history(requestId), List.of());
+				closure == null ? null : ClosureReason.valueOf(closure), history(requestId), List.of(),
+				rating(requestId));
 	}
 
+	private RatingView rating(long requestId) {
+		return jdbc.query("select score, comment from ratings where request_id = ?",
+				(rs, row) -> new RatingView(rs.getInt("score"), rs.getString("comment")), requestId)
+				.stream().findFirst().orElse(null);
+	}
+
+	/** Entries the system writes (the 72 h auto-close) have no actor and are shown as "Sistema". */
 	private List<HistoryView> history(long requestId) {
 		return jdbc.query("""
-				select h.from_status, h.to_status, actor.full_name as actor_name, h.reason, h.created_at
+				select h.from_status, h.to_status, coalesce(actor.full_name, 'Sistema') as actor_name, h.reason,
+				       h.created_at
 				  from request_history h
-				  join users actor on actor.id = h.actor_id
+				  left join users actor on actor.id = h.actor_id
 				 where h.request_id = ?
 				 order by h.created_at, h.id
 				""", (rs, row) -> {

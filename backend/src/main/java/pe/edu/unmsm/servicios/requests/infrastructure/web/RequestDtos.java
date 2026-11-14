@@ -61,7 +61,7 @@ public final class RequestDtos {
 			String status, Instant createdAt, Instant dueAt, boolean overdue, String description,
 			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
 			String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
-			List<HistoryResponse> history, List<String> allowedTransitions) {
+			List<HistoryResponse> history, List<String> allowedTransitions, RatingResponse rating) {
 
 		public static DetailResponse from(RequestDetailView d) {
 			RequestSummaryView s = d.summary();
@@ -73,9 +73,13 @@ public final class RequestDtos {
 					new PersonRef(d.requesterId(), s.requesterName()), new AreaRef(d.areaId(), s.areaName()),
 					technician, d.closureReason() == null ? null : d.closureReason().name(),
 					d.history().stream().map(HistoryResponse::from).toList(),
-					d.allowedTransitions().stream().map(Enum::name).toList());
+					d.allowedTransitions().stream().map(Enum::name).toList(),
+					d.rating() == null ? null : new RatingResponse(d.rating().score(), d.rating().comment()));
 		}
 
+	}
+
+	public record RatingResponse(int score, String comment) {
 	}
 
 	record PageResponse(List<SummaryResponse> items, int page, int size, long total) {
