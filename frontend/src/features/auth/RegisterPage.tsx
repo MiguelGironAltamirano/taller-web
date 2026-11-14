@@ -14,7 +14,7 @@ const STRENGTH = [
   { color: '#dc2626', label: 'Débil' },
   { color: '#d97706', label: 'Regular' },
   { color: '#65a30d', label: 'Buena' },
-  { color: '#16a34a', label: 'Fuerte' },
+  { color: 'var(--good)', label: 'Fuerte' },
 ]
 
 // Campos del contrato de la API → campos del formulario.
