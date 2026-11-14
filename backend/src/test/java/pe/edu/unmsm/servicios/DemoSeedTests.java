@@ -118,10 +118,10 @@ class DemoSeedTests {
 		assertThat(count("select count(*) from service_requests where status <> 'CERRADA' and status <> 'RESUELTA'"
 				+ " and solution is not null")).as("solution only once resolved").isZero();
 		assertThat(count("""
-				select count(*) from request_ratings rt join service_requests r on r.id = rt.request_id
-				 where r.closure_reason <> 'CONFIRMADA' or rt.requester_id <> r.requester_id"""))
+				select count(*) from ratings rt join service_requests r on r.id = rt.request_id
+				 where r.closure_reason <> 'CONFIRMADA'"""))
 			.isZero();
-		assertThat(count("select count(*) from request_ratings")).isPositive();
+		assertThat(count("select count(*) from ratings")).isPositive();
 	}
 
 	@Test
@@ -210,7 +210,7 @@ class DemoSeedTests {
 				select (select count(*) from users) as users, (select count(*) from service_requests) as requests,
 				       (select count(*) from request_history) as history, (select count(*) from comments) as comments,
 				       (select count(*) from notifications) as notifications,
-				       (select count(*) from request_ratings) as ratings,
+				       (select count(*) from ratings) as ratings,
 				       (select count(*) from triage_rule_keywords) as keywords,
 				       (select group_concat(code order by id) from service_requests) as codes""");
 	}

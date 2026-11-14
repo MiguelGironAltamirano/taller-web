@@ -52,7 +52,7 @@ public class RateRequest {
 		if (ratings.findByRequestId(request.id()).isPresent()) {
 			throw new RatingNotAllowedException("Ya calificaste esta solicitud");
 		}
-		Rating rating = Rating.give(request.id(), user.id(), score, comment, clock.instant());
+		Rating rating = Rating.give(request.id(), score, comment, clock.instant());
 		ratings.save(rating);
 		return rating;
 	}

@@ -90,7 +90,6 @@ class RateRequestTest {
 		Rating rating = useCase.execute(OWNER, CODE, 4, " Buen trabajo ");
 
 		assertThat(rating.requestId()).isEqualTo(10L);
-		assertThat(rating.requesterId()).isEqualTo(4L);
 		assertThat(rating.score()).isEqualTo(4);
 		assertThat(rating.comment()).isEqualTo("Buen trabajo");
 		assertThat(rating.createdAt()).isEqualTo(NOW);

@@ -14,12 +14,11 @@ import org.springframework.stereotype.Repository;
 import pe.edu.unmsm.servicios.satisfaction.application.RatingRepository;
 import pe.edu.unmsm.servicios.satisfaction.domain.Rating;
 
-/** Ratings in {@code request_ratings}; timestamps are stored as UTC wall-clock values, like the rest of the schema. */
+/** Ratings in {@code ratings}; timestamps are stored as UTC wall-clock values, like the rest of the schema. */
 @Repository
 class JdbcRatingRepository implements RatingRepository {
 
-	private static final String SELECT = "select request_id, requester_id, score, comment, created_at "
-			+ "from request_ratings";
+	private static final String SELECT = "select request_id, score, comment, created_at from ratings";
 
 	private final JdbcTemplate jdbc;
 
@@ -29,9 +28,8 @@ class JdbcRatingRepository implements RatingRepository {
 
 	@Override
 	public void save(Rating rating) {
-		jdbc.update("insert into request_ratings (request_id, requester_id, score, comment, created_at) "
-				+ "values (?, ?, ?, ?, ?)", rating.requestId(), rating.requesterId(), rating.score(), rating.comment(),
-				utc(rating.createdAt()));
+		jdbc.update("insert into ratings (request_id, score, comment, created_at) values (?, ?, ?, ?)",
+				rating.requestId(), rating.score(), rating.comment(), utc(rating.createdAt()));
 	}
 
 	@Override
@@ -47,8 +45,8 @@ class JdbcRatingRepository implements RatingRepository {
 	}
 
 	private static Rating toRating(ResultSet rs, int row) throws SQLException {
-		return new Rating(rs.getLong("request_id"), rs.getLong("requester_id"), rs.getInt("score"),
-				rs.getString("comment"), rs.getObject("created_at", LocalDateTime.class).toInstant(ZoneOffset.UTC));
+		return new Rating(rs.getLong("request_id"), rs.getInt("score"), rs.getString("comment"),
+				rs.getObject("created_at", LocalDateTime.class).toInstant(ZoneOffset.UTC));
 	}
 
 	private static LocalDateTime utc(Instant instant) {

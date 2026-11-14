@@ -144,7 +144,7 @@ Reglas:
 
 ## Triage
 
-> Estado: acordado e **implementado** en el backend (módulo `triage`, migración `V20261026_0100`). Los mocks del frontend siguen las mismas reglas.
+> Estado: acordado e **implementado** en el backend (módulo `triage`, migración `V20261114_0100`). Los mocks del frontend siguen las mismas reglas.
 
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|

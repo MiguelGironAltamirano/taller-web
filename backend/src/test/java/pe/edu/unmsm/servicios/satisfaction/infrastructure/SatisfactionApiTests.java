@@ -77,7 +77,7 @@ class SatisfactionApiTests {
 	}
 
 	private HttpResponse<String> rate(String user, String code, String json) throws Exception {
-		return api.post("/api/v1/requests/" + code + "/rating", json, api.login(user));
+		return api.post("/api/v1/requests/" + code + "/rating", json, user == null ? null : api.login(user));
 	}
 
 	@Test
@@ -119,14 +119,23 @@ class SatisfactionApiTests {
 		String code = confirmedRequest();
 		assertThat(rate(STUDENT, code, "{\"score\":4}").statusCode()).isEqualTo(200);
 
-		ApiClient.assertProblem(rate(STUDENT, code, "{\"score\":1}"), 409);
-		assertThat(jdbc.queryForObject("select score from request_ratings", Integer.class)).isEqualTo(4);
+		HttpResponse<String> second = rate(STUDENT, code, "{\"score\":1}");
+		ApiClient.assertProblem(second, 409);
+		assertThat(ApiClient.<String>read(second, "$.detail")).isEqualTo("Ya calificaste esta solicitud");
+		assertThat(jdbc.queryForObject("select score from ratings", Integer.class)).isEqualTo(4);
 	}
 
 	@Test
 	void onlyARequestClosedByConfirmationCanBeRated() throws Exception {
 		String open = createRequest();
-		ApiClient.assertProblem(rate(STUDENT, open, "{\"score\":4}"), 409);
+		HttpResponse<String> notClosed = rate(STUDENT, open, "{\"score\":4}");
+		ApiClient.assertProblem(notClosed, 409);
+		assertThat(ApiClient.<String>read(notClosed, "$.detail"))
+				.isEqualTo("Solo se puede calificar una solicitud cuya solución confirmaste");
+
+		String resolved = createRequest();
+		jdbc.update("update service_requests set status = 'RESUELTA', technician_id = 3 where code = ?", resolved);
+		ApiClient.assertProblem(rate(STUDENT, resolved, "{\"score\":4}"), 409);
 
 		String unresolved = createRequest();
 		jdbc.update("update service_requests set status = 'CERRADA', closure_reason = 'NO_PROCEDE' where code = ?",
@@ -143,15 +152,26 @@ class SatisfactionApiTests {
 	void anInvalidScoreOrCommentIsRejectedWithTheFieldError() throws Exception {
 		String code = confirmedRequest();
 
-		for (String body : List.of("{}", "{\"score\":0}", "{\"score\":6}")) {
+		for (String body : List.of("{}", "{\"comment\":\"ok\"}", "{\"score\":0}", "{\"score\":6}")) {
 			HttpResponse<String> response = rate(STUDENT, code, body);
 			ApiClient.assertProblem(response, 400);
-			assertThat(ApiClient.<String>read(response, "$.errors.score")).as(body).isNotBlank();
+			assertThat(ApiClient.<String>read(response, "$.errors.score")).as(body)
+					.isEqualTo("Califica de 1 a 5 estrellas");
 		}
 		HttpResponse<String> longComment = rate(STUDENT, code,
-				"{\"score\":3,\"comment\":\"" + "x".repeat(501) + "\"}");
+				"{\"score\":3,\"comment\":\"" + "x".repeat(1001) + "\"}");
 		ApiClient.assertProblem(longComment, 400);
 		assertThat(ApiClient.<String>read(longComment, "$.errors.comment")).isNotBlank();
+		assertThat(jdbc.queryForObject("select count(*) from ratings", Integer.class)).isZero();
+
+		HttpResponse<String> longest = rate(STUDENT, code,
+				"{\"score\":3,\"comment\":\"" + "x".repeat(1000) + "\"}");
+		assertThat(longest.statusCode()).as(longest.body()).isEqualTo(200);
+	}
+
+	@Test
+	void withoutATokenIs401() throws Exception {
+		assertThat(rate(null, "SOL-2026-000001", "{\"score\":4}").statusCode()).isEqualTo(401);
 	}
 
 	@Test
@@ -162,7 +182,7 @@ class SatisfactionApiTests {
 		ApiClient.assertProblem(rate(TECHNICIAN, code, "{\"score\":4}"), 403);
 		ApiClient.assertProblem(rate(OTHER_STUDENT, code, "{\"score\":4}"), 404);
 		ApiClient.assertProblem(rate(STUDENT, "SOL-2026-999999", "{\"score\":4}"), 404);
-		assertThat(jdbc.queryForObject("select count(*) from request_ratings", Integer.class)).isZero();
+		assertThat(jdbc.queryForObject("select count(*) from ratings", Integer.class)).isZero();
 	}
 
 	@Test
