@@ -6,7 +6,7 @@ export { stateIcon } from './atoms/state-icon'
 export { Avatar } from './atoms/Avatar'
 export { BrandMark, BrandLogo } from './atoms/BrandMark'
 export { Field, Input, PasswordInput, Select, Textarea, Switch } from './atoms/fields'
-export { Skeleton, SkeletonRows, EmptyState, Alert, ProgressBar } from './atoms/feedback'
+export { Skeleton, SkeletonRows, EmptyState, ErrorState, Alert, ProgressBar } from './atoms/feedback'
 
 // Molecules
 export { Card, CardTitle, PageHeader, SectionIcon, KpiCard } from './molecules/layout'

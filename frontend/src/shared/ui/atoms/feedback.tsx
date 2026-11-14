@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '../../lib/cn'
+import { Button } from './Button'
 import { Icon, type IconName } from './Icon'
 
 /** Esqueleto de carga. */
@@ -35,6 +36,31 @@ export function EmptyState({ icon = 'file', title, description, action, compact 
       <div className="font-semibold">{title}</div>
       {description && <div className="max-w-sm text-muted">{description}</div>}
       {action}
+    </div>
+  )
+}
+
+type ErrorStateProps = {
+  title: string
+  description?: string
+  /** Vuelve a pedir los datos; el botón "Reintentar" muestra que está cargando mientras `retrying`. */
+  onRetry: () => void
+  retrying?: boolean
+  compact?: boolean
+}
+
+/** Estado de error de una carga: explica qué falló y siempre ofrece reintentar (plan de Lita §5). */
+export function ErrorState({ title, description, onRetry, retrying = false, compact }: ErrorStateProps) {
+  return (
+    <div role="alert" className={cn('flex flex-col items-center gap-2 px-4 text-center', compact ? 'py-6' : 'py-8')}>
+      <div className="grid size-12 place-items-center rounded-xl bg-err-bg text-err-fg">
+        <Icon name="alert" size={24} />
+      </div>
+      <div className="font-semibold">{title}</div>
+      {description && <div className="max-w-sm text-muted">{description}</div>}
+      <Button onClick={onRetry} loading={retrying} className="mt-1">
+        Reintentar
+      </Button>
     </div>
   )
 }

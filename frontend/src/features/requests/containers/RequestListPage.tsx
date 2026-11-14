@@ -6,7 +6,7 @@ import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue'
 import { useNow } from '../../../shared/hooks/useNow'
 import { LIST_TITLES } from '../../../shared/domain'
 import { downloadText } from '../../../shared/lib/download'
-import { Button, Card, EmptyState, Icon, PageHeader, Pagination, SkeletonRows, useToast } from '../../../shared/ui'
+import { Button, Card, EmptyState, ErrorState, Icon, PageHeader, Pagination, SkeletonRows, useToast } from '../../../shared/ui'
 import { useSessionUser } from '../../auth'
 import { KanbanBoard, useTechnicians } from '../../workflow'
 import { fetchAllRequestRows, useRequestCounts, useRequestPage, useRequestRows } from '../api'
@@ -191,7 +191,12 @@ export function RequestListPage() {
         </div>
         {isLoading && <SkeletonRows count={5} rowClass={p.density === 'comfy' ? 'h-12' : 'h-10'} />}
         {isError && (
-          <EmptyState icon="file" title="No pudimos cargar las solicitudes" description="Inténtalo de nuevo en unos momentos." />
+          <ErrorState
+            title="No pudimos cargar las solicitudes"
+            description="Revisa tu conexión y vuelve a intentarlo."
+            onRetry={() => void list.refetch()}
+            retrying={list.isFetching}
+          />
         )}
         {!isLoading && !isError && total === 0 && (
           <EmptyState

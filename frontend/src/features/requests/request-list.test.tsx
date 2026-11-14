@@ -74,6 +74,28 @@ describe('Bandeja con filtros y paginación del servidor', () => {
     expect(listCalls.filter((p) => p.get('size') === '10')).toHaveLength(0)
   })
 
+  it('si la página no carga, ofrece reintentar y muestra las solicitudes al lograrlo', async () => {
+    let failures = 1
+    server.use(
+      http.get('*/api/v1/requests', ({ request }) => {
+        if (new URL(request.url).searchParams.get('size') === '10' && failures > 0) {
+          failures -= 1
+          return HttpResponse.json({ title: 'Error', status: 500 }, { status: 500 })
+        }
+        return undefined
+      }),
+    )
+    renderApp('/solicitudes')
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No pudimos cargar las solicitudes')
+    await userEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }))
+
+    const total = getDb().requests.length
+    expect(await screen.findByText(`${total} de ${total} solicitudes`)).toBeInTheDocument()
+    expect(screen.queryByText('No pudimos cargar las solicitudes')).not.toBeInTheDocument()
+  })
+
   it('los contadores por estado vienen de /requests/counts', async () => {
     renderApp('/solicitudes')
     const resolved = getDb().requests.filter((r) => r.status === 'RESUELTA').length
