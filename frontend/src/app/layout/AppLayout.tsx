@@ -5,7 +5,7 @@ import { usePersistedFlag } from '../../shared/hooks/usePersistedFlag'
 import { useTheme } from '../../shared/hooks/useTheme'
 import { ChangePasswordModal, useAuth, useSessionUser } from '../../features/auth'
 import { NotificationsPanel, useUnreadCount } from '../../features/notifications'
-import { isOpenRow, useRequestRows } from '../../features/requests'
+import { openCount, useRequestCounts, useRequestRows } from '../../features/requests'
 import { NAV } from '../navigation'
 import { CommandPalette, type PaletteItem } from './CommandPalette'
 import { BottomNav, MobileDrawer } from './MobileNav'
@@ -30,8 +30,9 @@ export function AppLayout() {
   const [passwordOpen, setPasswordOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
 
+  // La paleta de comandos busca entre las solicitudes ya cargadas (la misma consulta que usa Inicio).
   const rows = useRequestRows().data
-  const counts = { open: rows?.filter(isOpenRow).length ?? 0, unread: useUnreadCount() }
+  const counts = { open: openCount(useRequestCounts().data), unread: useUnreadCount() }
 
   // Cada cambio de ruta vuelve al inicio del contenido.
   useEffect(() => {

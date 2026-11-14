@@ -3,16 +3,17 @@ import type {
   ChangePriorityBody,
   CreateCommentBody,
   CreateRequestBody,
-  Page,
   RateBody,
   RequestStatus,
   TransitionBody,
 } from '../../shared/api/types'
+import { RATING_COMMENT_MAX } from '../../shared/api/types'
 import { statusToState } from '../../shared/api/mappers'
 import { computeDueAt } from '../../features/workflow/lib/sla'
 import { codeOf, getDb, type MockRequest, type MockUser } from '../db'
 import { forbidden, notFound, problem, secured } from '../http'
-import { areaIdOf, detailOf, findByCode, inScope, notify, summaryOf } from '../views'
+import { countRequests, listRequests, parseListQuery } from '../requestList'
+import { areaIdOf, detailOf, findByCode, inScope, notify } from '../views'
 
 const actorLabel = (u: MockUser) =>
   u.role === 'SUPERVISOR' ? `${u.fullName} (Supervisor)` : u.role === 'ADMINISTRADOR' ? `${u.fullName} (Administrador)` : u.fullName
@@ -54,35 +55,16 @@ export const requestHandlers = [
   http.get(
     '*/api/v1/requests',
     secured(null, ({ request, user }) => {
-      const url = new URL(request.url)
-      const status = url.searchParams.get('status')
-      const page = Math.max(0, Number(url.searchParams.get('page') ?? 0))
-      const size = Math.min(500, Math.max(1, Number(url.searchParams.get('size') ?? 20)))
-      const from = url.searchParams.get('from')
-      const to = url.searchParams.get('to')
-      const areaId = url.searchParams.get('areaId')
-      if (from && to && to < from) {
-        return problem(400, 'Bad Request', 'La solicitud contiene datos inválidos', {
-          to: 'La fecha final no puede ser anterior a la inicial',
-        })
-      }
-      // Días inclusive en hora de Lima (UTC-5, sin horario de verano), como el servidor.
-      const lower = from ? Date.parse(`${from}T00:00:00-05:00`) : -Infinity
-      const upper = to ? Date.parse(`${to}T00:00:00-05:00`) + 24 * 3_600_000 : Infinity
-      const all = getDb()
-        .requests.filter(
-          (r) =>
-            inScope(r, user) &&
-            (!status || r.status === status) &&
-            r.createdAt >= lower &&
-            r.createdAt < upper &&
-            (!areaId || areaIdOf(r) === Number(areaId)),
-        )
-        .sort((a, b) => a.dueAt - b.dueAt)
-        .map((r) => summaryOf(r))
-      const body: Page<ReturnType<typeof summaryOf>> = { items: all.slice(page * size, page * size + size), page, size, total: all.length }
-      return HttpResponse.json(body)
+      const parsed = parseListQuery(new URL(request.url).searchParams)
+      if ('errors' in parsed) return problem(400, 'Bad Request', 'La solicitud contiene datos inválidos', parsed.errors)
+      return HttpResponse.json(listRequests(user, parsed.query))
     }),
+  ),
+
+  // Antes de `/requests/:code` para que "counts" no se tome como un código.
+  http.get(
+    '*/api/v1/requests/counts',
+    secured(null, ({ user }) => HttpResponse.json(countRequests(user))),
   ),
 
   http.post(
@@ -101,7 +83,6 @@ export const requestHandlers = [
       if (description.length < 20 || description.length > 2000) {
         errors.description = 'La descripción debe tener entre 20 y 2000 caracteres.'
       }
-      if ((body.evidences?.length ?? 0) > 5) errors.evidences = 'Máximo 5 archivos.'
       if (Object.keys(errors).length) return problem(400, 'Datos no válidos', 'Revisa los campos marcados.', errors)
 
       const now = Date.now()
@@ -123,12 +104,8 @@ export const requestHandlers = [
         solution: null,
         rating: null,
         comments: [],
-        evidences: (body.evidences ?? []).map((e) => ({
-          id: ++db.nextId,
-          fileName: e.fileName,
-          kind: /\.pdf$/i.test(e.fileName) ? ('PDF' as const) : ('IMG' as const),
-          sizeBytes: e.sizeBytes,
-        })),
+        // Evidences arrive afterwards through POST /requests/{code}/evidences, as in the real API.
+        evidences: [],
         history: [],
       }
       pushHistory(created, { from: null, to: 'REGISTRADA', actor: user.fullName, reason: 'Solicitud creada' })
@@ -223,6 +200,8 @@ export const requestHandlers = [
           break
         case 'reject':
           r.status = 'EN_ATENCION'
+          // Como en el backend: la solución rechazada deja de ser la propuesta.
+          r.solution = null
           pushHistory(r, { from, to: r.status, actor, reason: `Solución rechazada: ${reason}` })
           if (r.technicianId) notify([r.technicianId], `La solución de ${code} fue rechazada por el solicitante.`, code)
           toRequester(`Tu solicitud ${code} volvió a En atención por rechazo de la solución.`)
@@ -250,9 +229,13 @@ export const requestHandlers = [
       const r = findByCode(String(params.code))
       if (!r || !inScope(r, user)) return notFound()
       const body = (await request.json()) as ChangePriorityBody
+      // Mismo orden que el backend: 409 (resuelta o cerrada) antes que 400 (prioridad inválida o sin cambio).
+      if (r.status === 'RESUELTA' || r.status === 'CERRADA') return problem(409, 'Transición inválida', 'La solicitud ya no admite cambios.')
       const priority = db.priorities.find((p) => p.id === body.priorityId)
       if (!priority) return problem(400, 'Datos no válidos', 'Prioridad inexistente.', { priorityId: 'Selecciona una prioridad.' })
-      if (r.status === 'RESUELTA' || r.status === 'CERRADA') return problem(409, 'Transición inválida', 'La solicitud ya no admite cambios.')
+      if (priority.id === r.priorityId) {
+        return problem(400, 'Datos no válidos', 'La prioridad no cambió.', { priorityId: 'Elige una prioridad distinta de la actual' })
+      }
       const previous = db.priorities.find((p) => p.id === r.priorityId)!
       r.priorityId = priority.id
       r.dueAt = computeDueAt(r.createdAt, priority.slaHours)
@@ -315,19 +298,44 @@ export const requestHandlers = [
   ),
 
   http.post(
+    '*/api/v1/requests/:code/evidences',
+    secured(null, async ({ request, params, user }) => {
+      const r = findByCode(String(params.code))
+      if (!r || !inScope(r, user)) return notFound()
+      const file = (await request.formData()).get('file')
+      if (!(file instanceof File) || !/\.(jpe?g|png|pdf)$/i.test(file.name)) {
+        return problem(400, 'Datos no válidos', 'Solo se permiten JPG, PNG o PDF.', { file: 'Solo se permiten JPG, PNG o PDF.' })
+      }
+      if (r.evidences.length >= 5) return problem(409, 'Límite alcanzado', 'La solicitud ya tiene 5 evidencias.')
+      const evidence = {
+        id: ++getDb().nextId,
+        fileName: file.name,
+        kind: /\.pdf$/i.test(file.name) ? ('PDF' as const) : ('IMG' as const),
+        sizeBytes: file.size,
+      }
+      r.evidences.push(evidence)
+      return HttpResponse.json(evidence, { status: 201 })
+    }),
+  ),
+
+  http.post(
     '*/api/v1/requests/:code/rating',
     secured(['SOLICITANTE'], async ({ request, params, user }) => {
       const r = findByCode(String(params.code))
       if (!r || r.requesterId !== user.id) return notFound()
       // La calificación es opcional y se guarda después de confirmar la solución (que ya cerró la solicitud).
       if (r.status !== 'CERRADA' || r.closureReason !== 'CONFIRMADA') {
-        return problem(409, 'Transición inválida', 'Solo se puede calificar una solicitud cuya solución confirmaste.')
+        return problem(409, 'Conflict', 'Solo se puede calificar una solicitud cuya solución confirmaste')
       }
-      if (r.rating) return problem(409, 'Transición inválida', 'Ya calificaste esta solicitud.')
+      if (r.rating) return problem(409, 'Conflict', 'Ya calificaste esta solicitud')
+      // Mismos mensajes que el backend (Rating.give): un error por campo, ambos a la vez si los dos fallan.
       const body = (await request.json()) as RateBody
-      if (!Number.isInteger(body.score) || body.score < 1 || body.score > 5) {
-        return problem(400, 'Datos no válidos', 'La calificación debe ser de 1 a 5.', { score: 'Califica de 1 a 5 estrellas.' })
+      const errors: Record<string, string> = {}
+      if (!Number.isInteger(body.score) || body.score < 1 || body.score > 5) errors.score = 'Califica de 1 a 5 estrellas'
+      if ((body.comment?.trim().length ?? 0) > RATING_COMMENT_MAX) {
+        errors.comment = `El comentario no puede superar los ${RATING_COMMENT_MAX} caracteres`
       }
+      if (Object.keys(errors).length) return problem(400, 'Bad Request', 'La calificación contiene datos inválidos', errors)
       r.rating = { score: body.score, comment: body.comment?.trim() || null }
       return HttpResponse.json(detailOf(r, user))
     }),

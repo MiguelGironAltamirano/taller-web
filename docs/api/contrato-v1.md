@@ -21,27 +21,41 @@ Cookie `refresh_token`: `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; M
 | Método y ruta | Acceso | Respuesta |
 |---|---|---|
 | `GET /catalogs` | Token | `200` `Catalogs` |
-| `GET /users/technicians?areaId={id}` | Rol `SUPERVISOR` | `200` `[ { id, fullName } ]` técnicos activos del área |
+| `GET /users/technicians?areaId={id}` | Rol `SUPERVISOR` (solo su área) | `200` `[ { id, fullName, activeRequests } ]` técnicos activos del área; `activeRequests` cuenta sus solicitudes `ASIGNADA` y `EN_ATENCION` |
 
 ## Solicitudes
 
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
 | `POST /requests` | Rol `SOLICITANTE` | `{ categoryId, locationId, description, priorityId }` | `201` `RequestDetail` · `400` |
-| `GET /requests?status=&from=&to=&areaId=&overdue=&page=0&size=20` | Token | — | `200` `Page<RequestSummary>` filtrado por rol y por los filtros opcionales · `400` fecha mal formada, `to` anterior a `from` o estado inexistente |
+| `GET /requests?status=&areaId=&categoryId=&priorityId=&technicianId=&unassigned=&overdue=&q=&from=&to=&sort=&page=0&size=20` | Token | — | `200` `Page<RequestSummary>` filtrado por rol y por los parámetros (ver [Listado de solicitudes](#listado-de-solicitudes)) · `400` parámetro inválido |
+| `GET /requests/counts` | Token | — | `200` `RequestCounts` sobre todo lo visible para el usuario |
 | `GET /requests/{code}` | Token, con visibilidad | — | `200` `RequestDetail` · `404` si no existe o no es visible |
-| `POST /requests/{code}/transitions` | Token, según la tabla de transiciones | `{ to, reason?, technicianId? }` | `200` `RequestDetail` · `400` falta un dato obligatorio · `403` rol no autorizado · `409` transición inválida |
-
-Filtros del listado (todos opcionales y combinables con AND; nunca amplían lo que el rol puede ver):
-
-| Parámetro | Valor | Regla |
-|---|---|---|
-| `status` | Estado de la solicitud | Igual al estado indicado |
-| `from`, `to` | Fecha `AAAA-MM-DD` | Fecha de registro entre ambos días, **inclusive**, en hora de Lima (`America/Lima`); se puede enviar solo uno |
-| `areaId` | Id de un área | Solicitudes de esa área; un supervisor o técnico que pide un área ajena recibe la página vacía |
-| `overdue` | `true` o `false` | `true`: solo las vencidas (no llegaron a `RESUELTA` antes de `dueAt`); `false`: solo las no vencidas |
+| `POST /requests/{code}/transitions` | Token, según la tabla de transiciones | `{ to, reason?, technicianId?, closureReason? }` | `200` `RequestDetail` · `400` falta un dato obligatorio · `403` rol no autorizado · `409` transición inválida |
+| `PATCH /requests/{code}/priority` | Rol `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `400` prioridad inexistente o igual a la actual · `403` · `404` · `409` si está `RESUELTA` o `CERRADA` |
+| `POST /requests/{code}/rating` | Rol `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con `rating` · `400` · `403` · `404` · `409` si no está `CERRADA` por confirmación o ya fue calificada |
 
 Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNICO` las asignadas a él; `ADMINISTRADOR` todas.
+
+### Listado de solicitudes
+
+`GET /requests` filtra, ordena y pagina en el servidor. Todos los parámetros son opcionales y se combinan con AND; la regla de visibilidad del rol se aplica siempre, de modo que un filtro solo puede reducir el resultado (por ejemplo, un `SOLICITANTE` que envía `technicianId` sigue viendo únicamente sus solicitudes, y un `SUPERVISOR` que envía otra `areaId` obtiene una página vacía).
+
+| Parámetro | Valor | Semántica |
+|---|---|---|
+| `status` | Uno o varios `RequestStatus`, repetidos (`status=A&status=B`) o separados por comas (`status=A,B`) | El estado es alguno de los indicados |
+| `areaId`, `categoryId`, `priorityId`, `technicianId` | Entero positivo | Igualdad con el área, la categoría, la prioridad o el técnico asignado |
+| `unassigned` | `true` / `false` | `true`: sin técnico asignado. No se combina con `technicianId` (`400`) |
+| `overdue` | `true` / `false` | Misma regla que el campo `overdue`: no llegó a `RESUELTA` ni `CERRADA` y `dueAt` ya pasó. `false` devuelve las que no están vencidas |
+| `q` | Texto de hasta 100 caracteres; se recorta | Aparece en el código, la descripción, el nombre del solicitante, la categoría o el ambiente. No distingue mayúsculas ni tildes (colación de MySQL); `%` y `_` se tratan como caracteres literales |
+| `from`, `to` | Fecha `AAAA-MM-DD` | Fecha de registro entre ambos días, **inclusive**, en hora de Lima (`America/Lima`); se puede enviar solo uno. `to` no puede ser anterior a `from` (el mismo día sí vale) |
+| `sort` | `newest` (por defecto), `oldest`, `due`, `priority` | `newest`/`oldest`: por fecha de registro. `due`: primero las pendientes y, dentro de cada grupo, la fecha límite más próxima. `priority`: de mayor a menor prioridad y luego las más recientes. Cada orden termina en un desempate estable, así las páginas no se solapan |
+| `page` | Entero ≥ 0 (por defecto `0`) | Página, empezando en cero. Una página posterior a la última devuelve `items` vacío con el `total` real |
+| `size` | Entero entre 1 y 500 (por defecto `20`) | Elementos por página |
+
+- Un valor inválido (estado u orden desconocido, id no numérico, booleano distinto de `true`/`false`, fecha mal formada, `page` negativa, `size` fuera de rango, `to` anterior a `from`) responde `400` `ProblemDetail` con `errors` por parámetro, todos a la vez. `page` y `size` fuera de rango ya no se ajustan en silencio.
+- **Decisión documentada (integración de filtros):** `from` y `to` son días de calendario de Lima, no instantes UTC, para que la interfaz envíe directamente lo que elige el usuario en un selector de fecha y el servidor aplique la zona horaria (la misma que usa el año del código). Es la única excepción a la convención de fechas ISO-8601 en UTC, y solo afecta a estos dos parámetros de consulta; las respuestas siguen en UTC.
+- `GET /requests/counts` devuelve los contadores de la bandeja sobre todo lo visible para el usuario, sin otros filtros: `total`, `overdue` y `byStatus` con los seis estados (cero si no hay ninguna).
 
 Transiciones (`to`, quién, requisito):
 
@@ -108,13 +122,34 @@ Reglas:
 - `POST /admin/locations` reutiliza la facultad y el pabellón si ya existen con ese nombre y crea los niveles que falten.
 - Solo se eliminan ambientes sin solicitudes; si su pabellón y su facultad quedan sin hijos ni solicitudes, también se eliminan.
 
+## Administración: auditoría y configuración
+
+Acceso: solo rol `ADMINISTRADOR` (`403` otro rol, `401` sin token).
+
+| Método y ruta | Cuerpo | Respuesta |
+|---|---|---|
+| `GET /admin/audit?q=` | — | `200` `AuditEvent[]` |
+| `GET /admin/config` | — | `200` `AppConfig` |
+| `PUT /admin/config` | `AppConfig` | `200` `AppConfig` · `400` con `errors.<campo>` |
+
+`AuditEvent`: `{ id, createdAt, actorName, requestCode, detail }`. `AppConfig`: `{ autoCloseHours, emailNotifications, triageSuggestions }`.
+
+Reglas:
+
+- La auditoría se deriva del historial de cambios de las solicitudes (`request_history`): como máximo 40 eventos, del más reciente al más antiguo. `id` es el del registro de historial.
+- `detail` tiene la forma `<estado origen> → <estado destino> · <motivo>`, con las etiquetas de estado en español (`Registrada`, `En evaluación`, `Asignada`, `En atención`, `Resuelta`, `Cerrada`). El origen de la creación es `—` y el tramo ` · <motivo>` se omite cuando no hay motivo.
+- `q` (opcional) filtra por nombre del actor, código de solicitud o motivo (sin distinguir mayúsculas ni tildes, colación de MySQL), o por la etiqueta del estado de origen o destino. `%` y `_` se tratan como caracteres literales. Vacío lista todo.
+- `autoCloseHours` es un entero mayor a 0; `emailNotifications` y `triageSuggestions` son obligatorios. Valores iniciales: `72`, `false`, `true`.
+- Efecto inmediato (se leen en cada uso): `autoCloseHours` define el plazo del cierre automático y, con `triageSuggestions = false`, `POST /triage/suggestions` responde siempre `200` con `null`.
+- Cada cambio de configuración registra quién lo hizo y cuándo (`updated_by`, `updated_at`).
+
 ## Triage
 
-> Estado: acordado, **por implementar** en el backend (release candidate, semanas 10–12). El frontend ya lo consume contra la API simulada con estas mismas formas.
+> Estado: acordado e **implementado** en el backend (módulo `triage`, migración `V20261114_0100`). Los mocks del frontend siguen las mismas reglas.
 
 | Método y ruta | Acceso | Cuerpo | Respuesta |
 |---|---|---|---|
-| `POST /triage/suggestions` | Rol `SOLICITANTE` | `{ description }` | `200` `{ categoryId, priorityId }`, o `200` con cuerpo `null` si ninguna regla coincide · `400` |
+| `POST /triage/suggestions` | Rol `SOLICITANTE` | `{ description }` | `200` `{ categoryId, priorityId }`, o `200` con cuerpo `null` si ninguna regla coincide o si el administrador desactivó las sugerencias (`triageSuggestions = false`) · `400` |
 | `GET /admin/triage-rules` | Rol `ADMINISTRADOR` | — | `200` `[TriageRule]` ordenadas por `id` |
 | `POST /admin/triage-rules` | Rol `ADMINISTRADOR` | `TriageRuleBody` | `201` `TriageRule` · `400` |
 | `PUT /admin/triage-rules/{id}` | Rol `ADMINISTRADOR` | `TriageRuleBody` | `200` `TriageRule` · `400` · `404` |
@@ -129,14 +164,17 @@ Reglas:
 - Sugerencia (spec §5.1): se normalizan la descripción y las palabras clave (minúsculas, sin tildes). Una palabra clave coincide si aparece en la descripción como palabra o frase completa. Para cada regla **activa** cuya categoría siga activa se cuentan sus palabras clave que coinciden; gana la de **más coincidencias** y, si hay empate, la de menor `id` (la más antigua). Con cero coincidencias en todas, la respuesta es `null`.
 - La descripción se acepta con 1 a 2000 caracteres; el frontend pide la sugerencia cuando hay al menos 8.
 - La sugerencia no se guarda: el solicitante puede aceptarla o cambiarla, y `POST /requests` recibe lo que finalmente elija.
+- Errores: `400` en formato *problem details* con `errors` por campo (`keywords`, `categoryId`, `priorityId`; `description` en la sugerencia), igual que el resto de la administración; `404` si la regla no existe. En `PUT` el cuerpo reemplaza la regla completa, por lo que `active` omitido vale `true`.
+- Detalles de implementación: «palabra completa» significa que la palabra clave no está pegada a otra letra o dígito (los espacios y signos de puntuación separan); los espacios repetidos cuentan como uno; cada palabra clave cuenta una sola vez aunque se repita en el texto; dos palabras clave que solo difieren en tildes se consideran repetidas. Sin coincidencias, el cuerpo es el literal JSON `null` con `Content-Type: application/json`.
+- Las migraciones no crean reglas iniciales: se registran desde la administración (o con los datos de demostración). El interruptor `triageSuggestions` de la configuración del sistema aún no se aplica en el backend.
 
 ## Dashboard (indicadores)
 
-> Estado: acordado, **por implementar** en el backend (release candidate, semanas 10–12). El frontend ya lo consume contra la API simulada con estas mismas formas.
+> Estado: **implementado** en el backend (módulo `dashboard`). La API simulada del frontend aplica las mismas reglas.
 
 | Método y ruta | Acceso | Respuesta |
 |---|---|---|
-| `GET /dashboard/indicators?range=7\|30\|mes&areaId=` | Roles `SUPERVISOR` y `ADMINISTRADOR` | `200` `DashboardIndicators` · `400` `range` inválido · `403` otro rol |
+| `GET /dashboard/indicators?range=7\|30\|mes&areaId=` | Roles `SUPERVISOR` y `ADMINISTRADOR` | `200` `DashboardIndicators` · `400` `range` inválido, o `areaId` inexistente o inactiva (con `errors`) · `403` otro rol |
 | `GET /dashboard/team` | Rol `SUPERVISOR` | `200` `[ { id, fullName, assigned, inProgress, overdue, capacity } ]` · `403` otro rol |
 
 Alcance y periodo:
@@ -167,7 +205,20 @@ Además:
 - `slaCompliancePct`: de las atendidas, porcentaje que llegó a `RESUELTA` antes de `dueAt`, con un decimal; `0` si no hay atendidas.
 - `dueSoon`: hasta 10 `RequestSummary` del alcance que hoy no están `RESUELTA` ni `CERRADA` y vencen en las próximas 24 horas, ordenadas por `dueAt` (no depende del periodo).
 - `GET /dashboard/team`: técnicos activos del área del supervisor, con sus solicitudes en `ASIGNADA` (`assigned`), en `EN_ATENCION` (`inProgress`) y abiertas con `dueAt` pasado (`overdue`); `capacity` es la carga de referencia por técnico, configurable con `app.dashboard.technician-capacity` (por defecto `8`).
-- El módulo `dashboard` lee las solicitudes y su historial mediante un puerto de consulta del módulo `requests` (por acordar con su responsable al implementarlo); no escribe en sus tablas.
+- `series` de cada KPI: el mismo cálculo del KPI aplicado a las solicitudes registradas cada día (por ejemplo, `resolvedPct` del día es el porcentaje de las registradas ese día que ya fueron atendidas). Los conteos se devuelven como números (`4.0` equivale a `4`).
+- Una solicitud que llegó a `RESUELTA` y luego se reabrió cuenta como pendiente, no como atendida, mientras no vuelva a `RESUELTA` o `CERRADA`; su tiempo de atención se mide siempre hasta la **primera** resolución.
+- `dueSoon` incluye las que vencen en `(ahora, ahora + 24 h]`, ordenadas por `dueAt`.
+- `GET /dashboard/team` ordena los técnicos por nombre. La carga que muestra el frontend es `assigned + inProgress` frente a `capacity`.
+- Un `SUPERVISOR` sin área asignada recibe `403` en ambos endpoints.
+
+Lectura de datos (sin acceso a tablas de otros módulos):
+
+- El módulo `requests` publica el puerto de solo lectura `RequestAnalyticsQuery` (`requests.application`), implementado en `requests.infrastructure.persistence.JdbcRequestAnalyticsQuery`:
+  - `List<RequestAnalyticsRow> registeredBetween(Long areaId, Instant from, Instant to)`: solicitudes registradas en `[from, to)`.
+  - `List<RequestAnalyticsRow> openRequests(Long areaId)`: solicitudes que hoy no están `RESUELTA` ni `CERRADA`.
+  - `areaId` `null` significa todas las áreas; el puerto no aplica reglas de visibilidad, las decide quien lo usa.
+- `RequestAnalyticsRow = (code, status, categoryName, priorityName, areaId, areaName, technicianId, technicianName, locationName, createdAt, dueAt, firstResolvedAt)`, donde `firstResolvedAt` es la primera vez que pasó a `RESUELTA` según el historial. Expone `isOpen()`, `isOverdue(now)` (la misma regla `Sla.isOverdue` de `GET /requests`) y `wasAttended()`.
+- El módulo `dashboard` obtiene los nombres de áreas y el orden de prioridades con `CatalogLookup`, y los técnicos activos con `TechnicianDirectory` (módulo `workflow`). Todos los cálculos se hacen en Java puro (`dashboard.domain`) con un `Clock` inyectable; no escribe en ninguna tabla.
 
 ## Reglas de acceso reutilizables
 
@@ -199,12 +250,32 @@ StateInfo     = { order, status: RequestStatus, description }
 TokenResponse = { accessToken, expiresIn, user: UserSummary }
 Catalogs      = { areas: [{ id, name }], categories: [{ id, name, areaId }],
                   priorities: [{ id, name, slaHours }], locations: [{ id, name, kind, parentId }] }
-RequestSummary = { code, categoryName, locationName, priorityName, status, createdAt, dueAt, overdue }
-RequestDetail  = RequestSummary & { description, requester: { id, fullName }, area: { id, name },
-                  technician: { id, fullName } | null, closureReason: string | null,
-                  history: [{ fromStatus, toStatus, actorName, reason, createdAt }],
-                  allowedTransitions: RequestStatus[] }
-Page<T>        = { items: T[], page, size, total }
+RequestSummary = { code, categoryName, locationName, priorityName, status, createdAt, dueAt, overdue,
+                  description, requesterName, areaName, technicianName, facultyName, pavilionName, roomName }
+RequestDetail  = RequestSummary & { requester: { id, fullName }, area: { id, name },
+                  technician: { id, fullName } | null, closureReason: ClosureReason | null,
+                  history: [{ fromStatus, toStatus, actorName, reason, createdAt, note: string | null }],
+                  allowedTransitions: RequestStatus[], allowedActions: WorkflowAction[],
+                  comments: [{ id, authorName, text, createdAt }],
+                  evidences: [{ id, fileName, kind: 'IMG' | 'PDF', sizeBytes }],
+                  solution: string | null, rating: { score, comment: string | null } | null,
+                  autoCloseAt: string | null }
+ClosureReason  = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
+WorkflowAction = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
+Page<T>        = { items: T[], page, size, total, totalPages }
+RequestCounts  = { total, overdue, byStatus: { [RequestStatus]: number } }
 ```
 
 `allowedTransitions` lo calcula el servidor para el usuario que consulta; el frontend solo muestra botones para esos estados.
+
+`allowedActions` también lo calcula el servidor: son las acciones de interfaz detrás de las transiciones que el usuario puede ejecutar (`noproc` y `dup` para el cierre sin resolver) más `prio`, que se ofrece al supervisor del área mientras la solicitud no esté `RESUELTA` ni `CERRADA`. La respuesta del solicitante a una solución (confirmar o rechazar) se lee de `allowedTransitions`.
+
+Otros campos del detalle:
+
+- `solution`: comentario de solución del técnico; se guarda al pasar a `RESUELTA`, se conserva al cerrar y se borra si el solicitante la rechaza.
+- `history[].note`: solo en cambios que no cambian de estado; el cambio de prioridad registra `Prioridad Alta → Prioridad Media` y en `reason` el nuevo vencimiento (hora de Lima). El nuevo `dueAt` es la fecha de registro más las horas del SLA de la nueva prioridad.
+- `comments` y `evidences`: los mismos datos que `GET /requests/{code}/comments` y `GET /requests/{code}/evidences`.
+- `autoCloseAt`: solo cuando `status = RESUELTA` (en otro caso `null`). Fecha ISO-8601 (UTC) a partir de la cual el backend puede cerrar automáticamente la solicitud: última entrada a `RESUELTA` + `autoCloseHours` vigente. Lo ve cualquier usuario que vea la solicitud, así el solicitante conoce su plazo sin leer `/admin/config`. El cierre ocurre en la siguiente ejecución del proceso posterior a esa hora.
+- `rating`: `null` hasta que el solicitante califica. Calificar no cambia el estado; la solicitud ya se cerró con la transición `RESUELTA → CERRADA`.
+- `closureReason = 'AUTOMATICA'`: cierre automático por falta de confirmación. El backend cierra las solicitudes que permanecen en `RESUELTA` al menos `autoCloseHours` horas (configuración del administrador, `72` por defecto) contadas desde la última entrada a `RESUELTA` según el historial. La entrada de historial la registra el sistema: `actorName` es `Sistema` y `reason` es `Cierre automático: el solicitante no confirmó la solución en <N> h`. Una solicitud cerrada así no se puede calificar (`409`). Detalles en [`ui-extensions.md`](ui-extensions.md#cierre-automático).
+- `history[].actorName`: nombre del usuario que hizo el cambio, o `Sistema` cuando lo hizo el backend (cierre automático). Lo mismo aplica a `AuditEvent.actorName`.

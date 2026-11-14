@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../shared/api/client'
 import type {
   AdminUser,
+  AppConfig,
+  AuditEvent,
   Catalogs,
   CreateRequestBody,
+  DashboardIndicators,
   Page,
   RequestDetail,
   RequestSummary,
+  TeamMemberLoad,
   TokenResponse,
+  TriageRuleDto,
 } from '../shared/api/types'
 import { sessionStore } from '../shared/session/session-store'
 import { server } from '../test/msw-server'
@@ -207,6 +212,8 @@ describe('flujo de estados', () => {
     expect((await transition(code, { to: 'EN_ATENCION' })).status).toBe('EN_ATENCION')
     const resolved = await transition(code, { to: 'RESUELTA', reason: 'Se cambió el tomacorriente' })
     expect(resolved.solution).toBe('Se cambió el tomacorriente')
+    expect(assigned.autoCloseAt).toBeNull()
+    expect(Date.parse(resolved.autoCloseAt!) - Date.parse(resolved.history.at(-1)!.createdAt)).toBe(72 * 3_600_000)
 
     await loginAs(SOLICITANTE)
     const closed = await transition(code, { to: 'CERRADA' })
@@ -265,6 +272,9 @@ describe('flujo de estados', () => {
     const changed = await apiPatch<RequestDetail>(`/requests/${code}/priority`, { priorityId: critical.id })
     expect((Date.parse(changed.dueAt) - Date.parse(changed.createdAt)) / 3_600_000).toBe(8)
     expect(changed.priorityName).toBe('Crítica')
+    expect(changed.history.at(-1)?.note).toBe('Prioridad Alta → Prioridad Crítica')
+    // Elegir la misma prioridad no es un cambio (igual que el backend).
+    expect(await status(apiPatch(`/requests/${code}/priority`, { priorityId: critical.id }))).toBe(400)
   })
 
   it('el solicitante puede rechazar una solución y vuelve a En atención', async () => {
@@ -275,6 +285,7 @@ describe('flujo de estados', () => {
     expect(await status(transition(resolved.code, { to: 'EN_ATENCION', reason: 'corto' }))).toBe(400)
     const back = await transition(resolved.code, { to: 'EN_ATENCION', reason: 'Sigue la fuga en el techo' })
     expect(back.status).toBe('EN_ATENCION')
+    expect(back.solution).toBeNull()
   })
 
   it('genera notificaciones al cambiar de estado', async () => {
@@ -297,6 +308,36 @@ describe('triage', () => {
       priorityId: catalogs.priorities.find((p) => p.name === 'Crítica')!.id,
     })
     expect(await apiPost('/triage/suggestions', { description: 'Texto sin relación alguna con reglas' })).toBeNull()
+  })
+
+  it('valida la descripción y solo responde al solicitante', async () => {
+    expect(await status(apiPost('/triage/suggestions', { description: '   ' }))).toBe(400)
+    expect(await status(apiPost('/triage/suggestions', { description: 'x'.repeat(2001) }))).toBe(400)
+    await loginAs(ADMIN)
+    expect(await status(apiPost('/triage/suggestions', { description: 'No hay luz en el aula' }))).toBe(403)
+  })
+
+  it('las reglas se guardan limpias y validan categoría activa, prioridad y palabras clave', async () => {
+    await loginAs(ADMIN)
+    const categoryId = catalogs.categories[0].id
+    const priorityId = catalogs.priorities[0].id
+    const created = await apiPost<TriageRuleDto>('/admin/triage-rules', {
+      keywords: ['  Zumbido ', 'ZUMBIDO', 'Ruido   Fuerte'],
+      categoryId,
+      priorityId,
+    })
+    expect(created).toMatchObject({ keywords: ['zumbido', 'ruido fuerte'], active: true })
+    const ids = (await apiGet<TriageRuleDto[]>('/admin/triage-rules')).map((r) => r.id)
+    expect(ids).toEqual([...ids].sort((a, b) => a - b))
+
+    const invalid = await apiPost('/admin/triage-rules', { keywords: ['x'], categoryId: 999, priorityId: 999 }).catch(
+      (e: ApiError) => e,
+    )
+    expect(invalid).toBeInstanceOf(ApiError)
+    expect(Object.keys((invalid as ApiError).fieldErrors ?? {})).toEqual(['keywords', 'categoryId', 'priorityId'])
+
+    expect(await status(apiDelete(`/admin/triage-rules/${created.id}`))).toBe(200)
+    expect(await status(apiDelete(`/admin/triage-rules/${created.id}`))).toBe(404)
   })
 })
 
@@ -377,6 +418,23 @@ describe('administración', () => {
     expect(await status(apiDelete(`/admin/locations/${room.id}`))).toBe(200)
   })
 
+  it('configuración: valores por defecto como en el backend y horas mayores a 0', async () => {
+    await loginAs(ADMIN)
+    expect(await apiGet<AppConfig>('/admin/config')).toEqual({ autoCloseHours: 72, emailNotifications: false, triageSuggestions: true })
+    expect(await status(apiPut('/admin/config', { autoCloseHours: 0, emailNotifications: false, triageSuggestions: true }))).toBe(400)
+    const saved = await apiPut<AppConfig>('/admin/config', { autoCloseHours: 48, emailNotifications: true, triageSuggestions: false })
+    expect(saved.autoCloseHours).toBe(48)
+  })
+
+  it('auditoría: máximo 40 eventos, más recientes primero y sin separador vacío', async () => {
+    await loginAs(ADMIN)
+    const events = await apiGet<AuditEvent[]>('/admin/audit', { q: '' })
+    expect(events.length).toBeGreaterThan(0)
+    expect(events.length).toBeLessThanOrEqual(40)
+    expect([...events].sort((a, b) => b.createdAt.localeCompare(a.createdAt))).toEqual(events)
+    expect(events.every((e) => !e.detail.endsWith('· '))).toBe(true)
+  })
+
   it('el administrador no puede desactivarse ni cambiar su propio rol', async () => {
     const { user } = await loginAs(ADMIN)
     expect(await status(apiPatch(`/admin/users/${user.id}/active`, { active: false }))).toBe(409)
@@ -395,5 +453,38 @@ describe('administración', () => {
     expect(res.areaName).toBe('Mantenimiento e Infraestructura')
     expect(res.kpis.registered.value).toBeGreaterThan(0)
     expect(res.byPriority).toHaveLength(4)
+  })
+
+  it('el dashboard sigue el contrato: una serie por día, timeline coherente y dueSoon acotado', async () => {
+    await loginAs(ADMIN)
+    for (const range of ['7', '30', 'mes'] as const) {
+      const res = await apiGet<DashboardIndicators>('/dashboard/indicators', { range })
+      expect(res.areaName).toBeNull()
+      expect(res.timeline).toHaveLength(res.rangeDays)
+      for (const kpi of Object.values(res.kpis)) expect(kpi.series).toHaveLength(res.rangeDays)
+      expect(res.timeline.reduce((a, b) => a + b, 0)).toBe(res.kpis.registered.value)
+      expect(res.kpis.pending.value + res.kpis.attended.value).toBeLessThanOrEqual(res.kpis.registered.value)
+      expect(res.dueSoon.length).toBeLessThanOrEqual(10)
+    }
+    expect((await apiGet<DashboardIndicators>('/dashboard/indicators', { range: '7' })).rangeDays).toBe(7)
+  })
+
+  it('el dashboard rechaza un rango inválido o un área inexistente, y otros roles', async () => {
+    await loginAs(ADMIN)
+    expect(await status(apiGet('/dashboard/indicators', { range: '15' }))).toBe(400)
+    expect(await status(apiGet('/dashboard/indicators', { areaId: 999 }))).toBe(400)
+    expect(await status(apiGet('/dashboard/team'))).toBe(403)
+    await loginAs(TECNICO)
+    expect(await status(apiGet('/dashboard/indicators'))).toBe(403)
+  })
+
+  it('el equipo separa asignadas y en atención, con capacidad 8', async () => {
+    await loginAs(SUPERVISOR)
+    const team = await apiGet<TeamMemberLoad[]>('/dashboard/team')
+    expect(team.length).toBeGreaterThan(0)
+    for (const t of team) {
+      expect(t.capacity).toBe(8)
+      expect(t.overdue).toBeLessThanOrEqual(t.assigned + t.inProgress)
+    }
   })
 })

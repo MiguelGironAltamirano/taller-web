@@ -109,7 +109,7 @@ export function TimelineChart({ series, startLabel }: { series: number[]; startL
         <span>{startLabel}</span>
         <span>hoy</span>
       </div>
-      <SrSummary data={series.map((value, i) => ({ label: `Tramo ${i + 1}`, value }))} />
+      <SrSummary data={series.map((value, i) => ({ label: `Día ${i + 1}`, value }))} />
     </div>
   )
 }

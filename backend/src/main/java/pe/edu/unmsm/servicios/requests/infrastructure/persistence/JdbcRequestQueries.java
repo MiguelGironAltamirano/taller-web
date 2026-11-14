@@ -6,22 +6,26 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import pe.edu.unmsm.servicios.requests.application.HistoryView;
 import pe.edu.unmsm.servicios.requests.application.PageView;
-import pe.edu.unmsm.servicios.requests.application.RatingView;
+import pe.edu.unmsm.servicios.requests.application.RequestCountsView;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
-import pe.edu.unmsm.servicios.requests.application.RequestFilter;
+import pe.edu.unmsm.servicios.requests.application.RequestListCriteria;
 import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestScope;
+import pe.edu.unmsm.servicios.requests.application.RequestSort;
 import pe.edu.unmsm.servicios.requests.application.RequestSummaryView;
 import pe.edu.unmsm.servicios.requests.application.TechnicianWorkload;
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
@@ -32,12 +36,16 @@ import pe.edu.unmsm.servicios.requests.domain.Sla;
 @Repository
 class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 
-	private static final String SELECT = """
+	private static final String COLUMNS = """
 			select r.id, r.code, r.status, r.created_at, r.due_at, r.description, r.requester_id, r.area_id,
-			       r.technician_id, r.closure_reason,
+			       r.technician_id, r.closure_reason, r.solution,
 			       c.name as category_name, p.name as priority_name,
 			       room.name as room_name, pav.name as pavilion_name, fac.name as faculty_name,
 			       u.full_name as requester_name, a.name as area_name, t.full_name as technician_name
+			""";
+
+	/** Every join is on a mandatory foreign key except the technician, so none of them changes the row count. */
+	private static final String FROM = """
 			  from service_requests r
 			  join categories c on c.id = r.category_id
 			  join priorities p on p.id = r.priority_id
@@ -49,8 +57,21 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 			  left join users t on t.id = r.technician_id
 			""";
 
-	/** Statuses that stop the SLA clock; keep in step with RequestStatus.isFinished. */
-	private static final String FINISHED = "'RESUELTA', 'CERRADA'";
+	private static final String SELECT = COLUMNS + FROM;
+
+	/** Statuses that no longer count against the SLA, as a SQL list built from the domain rule. */
+	private static final String FINISHED = Arrays.stream(RequestStatus.values()).filter(RequestStatus::isFinished)
+			.map(status -> "'" + status.name() + "'").collect(Collectors.joining(", ", "(", ")"));
+
+	/** SQL equivalent of {@link Sla#isOverdue}; its only parameter is the current instant. */
+	private static final String OVERDUE = "(r.status not in " + FINISHED + " and r.due_at < ?)";
+
+	/** Allow-listed orders; each ends with the id so consecutive pages never overlap. */
+	private static final Map<RequestSort, String> ORDER = Map.of(
+			RequestSort.NEWEST, "r.created_at desc, r.id desc",
+			RequestSort.OLDEST, "r.created_at asc, r.id asc",
+			RequestSort.DUE, "case when r.status in " + FINISHED + " then 1 else 0 end, r.due_at asc, r.id asc",
+			RequestSort.PRIORITY, "p.sort_order asc, r.created_at desc, r.id desc");
 
 	private final JdbcTemplate jdbc;
 
@@ -59,42 +80,35 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 	}
 
 	@Override
-	public PageView<RequestSummaryView> search(RequestScope scope, RequestFilter filter, int page, int size,
-			Instant now) {
+	public PageView<RequestSummaryView> search(RequestScope scope, RequestListCriteria criteria, Instant now) {
 		List<Object> args = new ArrayList<>();
-		StringBuilder where = new StringBuilder(scopeClause(scope, args));
-		if (filter.status() != null) {
-			where.append(" and r.status = ?");
-			args.add(filter.status().name());
-		}
-		if (filter.createdFrom() != null) {
-			where.append(" and r.created_at >= ?");
-			args.add(utc(filter.createdFrom()));
-		}
-		if (filter.createdBefore() != null) {
-			where.append(" and r.created_at < ?");
-			args.add(utc(filter.createdBefore()));
-		}
-		if (filter.areaId() != null) {
-			where.append(" and r.area_id = ?");
-			args.add(filter.areaId());
-		}
-		if (filter.overdue() != null) {
-			// Same rule as Sla.isOverdue: not finished and past the due date.
-			where.append(filter.overdue() ? " and r.status not in (" + FINISHED + ") and r.due_at < ?"
-					: " and not (r.status not in (" + FINISHED + ") and r.due_at < ?)");
-			args.add(utc(now));
-		}
-		Long total = jdbc.queryForObject("select count(*) from service_requests r where " + where, Long.class,
-				args.toArray());
+		String where = scopeClause(scope, args) + filterClause(criteria, now, args);
+		Long total = jdbc.queryForObject("select count(*)" + FROM + " where " + where, Long.class, args.toArray());
 
 		List<Object> pageArgs = new ArrayList<>(args);
-		pageArgs.add(size);
-		pageArgs.add((long) page * size);
+		pageArgs.add(criteria.size());
+		pageArgs.add((long) criteria.page() * criteria.size());
 		List<RequestSummaryView> items = jdbc.query(
-				SELECT + " where " + where + " order by r.created_at desc, r.id desc limit ? offset ?",
+				SELECT + " where " + where + " order by " + ORDER.get(criteria.sort()) + " limit ? offset ?",
 				(rs, row) -> summary(rs, now), pageArgs.toArray());
-		return new PageView<>(items, page, size, total == null ? 0 : total);
+		return new PageView<>(items, criteria.page(), criteria.size(), total == null ? 0 : total);
+	}
+
+	@Override
+	public RequestCountsView count(RequestScope scope, Instant now) {
+		List<Object> args = new ArrayList<>();
+		args.add(utc(now));
+		String where = scopeClause(scope, args);
+		Map<RequestStatus, Long> byStatus = new EnumMap<>(RequestStatus.class);
+		long[] overdue = { 0 };
+		jdbc.query("select r.status, count(*) as total, sum(case when " + OVERDUE
+				+ " then 1 else 0 end) as overdue from service_requests r where " + where + " group by r.status",
+				rs -> {
+					byStatus.put(RequestStatus.valueOf(rs.getString("status")), rs.getLong("total"));
+					overdue[0] += rs.getLong("overdue");
+				}, args.toArray());
+		long total = byStatus.values().stream().mapToLong(Long::longValue).sum();
+		return new RequestCountsView(total, overdue[0], byStatus);
 	}
 
 	@Override
@@ -140,26 +154,73 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 		}
 	}
 
+	/**
+	 * The optional filters, each one a fixed fragment with {@code ?} placeholders: user input only ever travels as
+	 * a bound parameter. They narrow the scope clause, never widen it.
+	 */
+	private static String filterClause(RequestListCriteria criteria, Instant now, List<Object> args) {
+		StringBuilder where = new StringBuilder();
+		if (!criteria.statuses().isEmpty()) {
+			List<RequestStatus> statuses = criteria.statuses().stream().sorted().toList();
+			where.append(" and r.status in (").append(String.join(", ", statuses.stream().map(s -> "?").toList()))
+					.append(')');
+			statuses.forEach(status -> args.add(status.name()));
+		}
+		equal(where, args, "r.area_id", criteria.areaId());
+		equal(where, args, "r.category_id", criteria.categoryId());
+		equal(where, args, "r.priority_id", criteria.priorityId());
+		equal(where, args, "r.technician_id", criteria.technicianId());
+		if (criteria.unassigned()) {
+			where.append(" and r.technician_id is null");
+		}
+		if (criteria.overdue() != null) {
+			where.append(criteria.overdue() ? " and " : " and not ").append(OVERDUE);
+			args.add(utc(now));
+		}
+		if (criteria.createdFrom() != null) {
+			where.append(" and r.created_at >= ?");
+			args.add(utc(criteria.createdFrom()));
+		}
+		if (criteria.createdBefore() != null) {
+			where.append(" and r.created_at < ?");
+			args.add(utc(criteria.createdBefore()));
+		}
+		if (criteria.hasText()) {
+			String pattern = "%" + escapeLike(criteria.text()) + "%";
+			where.append(" and (r.code like ? escape '!' or r.description like ? escape '!'"
+					+ " or u.full_name like ? escape '!' or c.name like ? escape '!' or room.name like ? escape '!')");
+			for (int i = 0; i < 5; i++) {
+				args.add(pattern);
+			}
+		}
+		return where.toString();
+	}
+
+	private static void equal(StringBuilder where, List<Object> args, String column, Long value) {
+		if (value != null) {
+			where.append(" and ").append(column).append(" = ?");
+			args.add(value);
+		}
+	}
+
+	/** {@code %} and {@code _} typed by the user are literal characters, not wildcards. */
+	private static String escapeLike(String text) {
+		return text.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+	}
+
 	private RequestDetailView detail(ResultSet rs, Instant now) throws SQLException {
 		long technicianId = rs.getLong("technician_id");
 		Long technician = rs.wasNull() ? null : technicianId;
 		String closure = rs.getString("closure_reason");
 		long requestId = rs.getLong("id");
-		return new RequestDetailView(summary(rs, now), rs.getLong("requester_id"), rs.getLong("area_id"), technician,
-				closure == null ? null : ClosureReason.valueOf(closure), history(requestId), List.of(),
-				rating(requestId));
+		return new RequestDetailView(requestId, summary(rs, now), rs.getLong("requester_id"), rs.getLong("area_id"),
+				technician, closure == null ? null : ClosureReason.valueOf(closure), rs.getString("solution"),
+				history(requestId));
 	}
 
-	private RatingView rating(long requestId) {
-		return jdbc.query("select score, comment from ratings where request_id = ?",
-				(rs, row) -> new RatingView(rs.getInt("score"), rs.getString("comment")), requestId)
-				.stream().findFirst().orElse(null);
-	}
-
-	/** Entries the system writes (the 72 h auto-close) have no actor and are shown as "Sistema". */
 	private List<HistoryView> history(long requestId) {
 		return jdbc.query("""
-				select h.from_status, h.to_status, coalesce(actor.full_name, 'Sistema') as actor_name, h.reason,
+				select h.from_status, h.to_status, coalesce(actor.full_name, 'Sistema') as actor_name, h.reason, h.note,
 				       h.created_at
 				  from request_history h
 				  left join users actor on actor.id = h.actor_id
@@ -169,7 +230,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 			String from = rs.getString("from_status");
 			return new HistoryView(from == null ? null : RequestStatus.valueOf(from),
 					RequestStatus.valueOf(rs.getString("to_status")), rs.getString("actor_name"),
-					rs.getString("reason"), instant(rs, "created_at"));
+					rs.getString("reason"), instant(rs, "created_at"), rs.getString("note"));
 		}, requestId);
 	}
 
@@ -186,14 +247,13 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 				pavilion, room);
 	}
 
-	/** Binds an instant as the UTC wall-clock value the columns hold, whatever the JVM zone is. */
-	private static LocalDateTime utc(Instant instant) {
-		return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
-	}
-
 	/** Timestamps are stored as UTC wall-clock values (see hibernate.jdbc.time_zone). */
 	private static Instant instant(ResultSet rs, String column) throws SQLException {
 		return rs.getObject(column, LocalDateTime.class).toInstant(ZoneOffset.UTC);
+	}
+
+	private static LocalDateTime utc(Instant instant) {
+		return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
 	}
 
 }

@@ -13,7 +13,7 @@ El detalle devolvía siempre `allowedTransitions: []` y no había endpoint para 
 
 ## Scope
 In: `POST /api/v1/requests/{codigo}/transitions`, `GET /api/v1/users/technicians`, transiciones permitidas en el detalle, ajuste del frontend y de los mocks.
-Out: cierre automático a las 72 h, comentarios y evidencias (AngelCarrasco), calificación (Lita).
+Out: comentarios y evidencias (AngelCarrasco), calificación (Lita).
 
 ## Tasks
 - [x] Dominio: `StateMachine` pura, comandos y excepciones (409 → 403 → 400)
@@ -24,6 +24,6 @@ Out: cierre automático a las 72 h, comentarios y evidencias (AngelCarrasco), ca
 - [x] Corrección de `WorkflowApiTests`: sin ids de usuario fijos (`users.id` es AUTO_INCREMENT)
 - [ ] Pruebas de interfaz de workflow y satisfacción
 - [ ] Verificación manual de punta a punta con el backend real
-- [ ] Cierre automático a las 72 h
+- [x] Cierre automático a las 72 h (FL6, rama `feature/fl-autoclose`; commits `5c3a9d9`, `4cc8db9`, `db571b6`). `AutoCloseJob` (`@Scheduled`, `app.workflow.auto-close.*`) ejecuta `AutoCloseUnconfirmedRequests`: cierra con `AUTOMATICA` las solicitudes en `RESUELTA` desde hace `autoCloseHours` (configuración del administrador) contadas desde la última entrada a `RESUELTA` del historial; cada una en su propia transacción con bloqueo y nueva comprobación (idempotente). El historial lo registra el sistema (`actor_id = NULL`, migración `V20261026_0400`, mostrado como `Sistema`) y se notifica a solicitante, técnico y supervisores. Evidencia: `StateMachineTest`, `AutoCloseUnconfirmedRequestsTest` (6), `AutoCloseApiTests` (6, MySQL real, incluye `409` al calificar), `AutoCloseJobTests` (2), `AutoCloseJobWiringTests` (2); `./mvnw verify`: 539 pruebas, 0 fallos. También: `SuggestTriage` respeta `triageSuggestions` (commit `0599526`, `SuggestTriageTest` y `TriageApiTests`).
 - [x] Documentación de Fase I en `docs/fase-1/` (problema, requerimientos, épicas e historias con BDD, arquitectura, wireframes, evidencia)
 - [ ] Revisión de `docs/fase-1/` por el equipo antes de la semana 10

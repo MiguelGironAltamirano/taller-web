@@ -1,10 +1,10 @@
 package pe.edu.unmsm.servicios.satisfaction.domain;
 
-/** Only a request whose solution the requester confirmed (Cerrada, CONFIRMADA) can be rated. */
+/** The request cannot be rated now: it was not closed by confirmation or it is already rated (409). */
 public class RatingNotAllowedException extends RuntimeException {
 
-	public RatingNotAllowedException(String code) {
-		super("Solo se puede calificar una solicitud cuya solución confirmaste: " + code);
+	public RatingNotAllowedException(String message) {
+		super(message);
 	}
 
 }

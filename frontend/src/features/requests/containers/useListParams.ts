@@ -1,13 +1,18 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
-import type { ListFilters, ListSort, ListView, ServerFilters } from '../lib/filters'
+import type { ListFilters, ListSort, ListView } from '../lib/filters'
 
 const VIEWS: ListView[] = ['all', 'attention', 'venc', 'open', 'confirm', 'critsa']
 const SORTS: ListSort[] = ['due', 'new', 'prio']
 
+/** Categoría, prioridad, técnico y área viajan por id; cualquier otro valor (enlaces antiguos por nombre) se ignora. */
+const idParam = (value: string | null) => (value && /^[1-9]\d*$/.test(value) ? value : '')
+
+/** Días `AAAA-MM-DD`; cualquier otro valor se ignora. */
+const dayParam = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '')
+
 export type ListParams = {
   filters: ListFilters
-  server: ServerFilters
   mode: 'table' | 'kanban'
   density: 'comfy' | 'compact'
   pageSize: number
@@ -28,14 +33,16 @@ export function useListParams() {
     return {
       filters: {
         q: params.get('q') ?? '',
-        category: params.get('cat') ?? '',
-        priority: params.get('prio') ?? '',
-        technician: params.get('tech') ?? '',
+        category: idParam(params.get('cat')),
+        priority: idParam(params.get('prio')),
+        technician: idParam(params.get('tech')),
+        area: idParam(params.get('area')),
+        from: dayParam(params.get('from')),
+        to: dayParam(params.get('to')),
         status: params.get('status') ?? '',
         view: VIEWS.includes(view) ? view : 'all',
         sort: SORTS.includes(sort) ? sort : 'due',
       },
-      server: { from: params.get('from') ?? '', to: params.get('to') ?? '', areaId: params.get('area') ?? '' },
       mode: params.get('mode') === 'kanban' ? 'kanban' : 'table',
       density: params.get('dens') === 'compact' ? 'compact' : 'comfy',
       pageSize: [10, 25, 50].includes(size) ? size : 10,
@@ -63,24 +70,19 @@ export function useListParams() {
 
   const setFilters = useCallback(
     (patch: Partial<ListFilters>) => {
-      const map: Record<string, string> = {
+      const map: Record<keyof ListFilters, string> = {
         q: 'q',
         category: 'cat',
         priority: 'prio',
         technician: 'tech',
+        area: 'area',
+        from: 'from',
+        to: 'to',
         status: 'status',
         view: 'view',
         sort: 'sort',
       }
-      set(Object.fromEntries(Object.entries(patch).map(([k, v]) => [map[k], v as string])))
-    },
-    [set],
-  )
-
-  const setServer = useCallback(
-    (patch: Partial<ServerFilters>) => {
-      const map = { from: 'from', to: 'to', areaId: 'area' } as const
-      set(Object.fromEntries(Object.entries(patch).map(([k, v]) => [map[k as keyof ServerFilters], v as string])))
+      set(Object.fromEntries(Object.entries(patch).map(([k, v]) => [map[k as keyof ListFilters], v as string])))
     },
     [set],
   )
@@ -93,7 +95,6 @@ export function useListParams() {
   return {
     ...state,
     setFilters,
-    setServer,
     clearFilters,
     setMode: (mode: 'table' | 'kanban') => set({ mode: mode === 'kanban' ? 'kanban' : null }, false),
     setDensity: (d: 'comfy' | 'compact') => set({ dens: d === 'compact' ? 'compact' : null }, false),

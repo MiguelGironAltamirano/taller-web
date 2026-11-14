@@ -7,120 +7,147 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
+import pe.edu.unmsm.servicios.requests.domain.RequestChangeForbiddenException;
 import pe.edu.unmsm.servicios.requests.domain.RequestHistoryEntry;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
+import pe.edu.unmsm.servicios.satisfaction.domain.InvalidRatingException;
 import pe.edu.unmsm.servicios.satisfaction.domain.Rating;
-import pe.edu.unmsm.servicios.satisfaction.domain.RatingAlreadyExistsException;
 import pe.edu.unmsm.servicios.satisfaction.domain.RatingNotAllowedException;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 
 class RateRequestTest {
 
-	private static final Instant NOW = Instant.parse("2026-11-13T12:00:00Z");
+	private static final Instant CREATED = Instant.parse("2026-10-16T10:00:00Z");
+	private static final Instant NOW = Instant.parse("2026-10-20T15:00:00Z");
 	private static final String CODE = "SOL-2026-000001";
-	private static final long REQUESTER_ID = 4;
-	private static final AuthenticatedUser OWNER = new AuthenticatedUser(REQUESTER_ID, "a@unmsm.edu.pe", "Owner",
+
+	private static final AuthenticatedUser OWNER = new AuthenticatedUser(4, "o@unmsm.edu.pe", "Owner", "SOLICITANTE");
+	private static final AuthenticatedUser OTHER_REQUESTER = new AuthenticatedUser(5, "r@unmsm.edu.pe", "Other",
 			"SOLICITANTE");
-	private static final AuthenticatedUser OTHER = new AuthenticatedUser(5, "b@unmsm.edu.pe", "Other", "SOLICITANTE");
+	private static final AuthenticatedUser SUPERVISOR = new AuthenticatedUser(2, "s@unmsm.edu.pe", "Sup", "SUPERVISOR",
+			1L);
 
-	private final FakeRatings ratings = new FakeRatings();
+	private final Map<String, ServiceRequest> requests = new HashMap<>();
+	private final Map<Long, Rating> ratings = new HashMap<>();
+	private final List<Rating> saved = new ArrayList<>();
 
-	private RateRequest useCase(RequestStatus status, ClosureReason closure) {
-		ServiceRequest request = new ServiceRequest(10L, CODE, REQUESTER_ID, 1, 3, "Descripción de prueba suficiente",
-				2, status, 1, 3L, closure, NOW, NOW, NOW);
-		RequestStateStore store = new RequestStateStore() {
-			@Override
-			public Optional<ServiceRequest> findByCodeForUpdate(String code) {
-				return CODE.equals(code) ? Optional.of(request) : Optional.empty();
-			}
+	private final RequestStateStore store = new RequestStateStore() {
 
-			@Override
-			public ServiceRequest update(ServiceRequest r, RequestHistoryEntry entry) {
-				throw new AssertionError("Rating must not change the request");
-			}
-		};
-		return new RateRequest(store, ratings, Clock.fixed(NOW, ZoneOffset.UTC));
+		@Override
+		public Optional<ServiceRequest> findByCodeForUpdate(String code) {
+			return Optional.ofNullable(requests.get(code));
+		}
+
+		@Override
+		public ServiceRequest update(ServiceRequest request, RequestHistoryEntry entry) {
+			throw new AssertionError("rating never changes the request");
+		}
+
+	};
+
+	private final RatingRepository repository = new RatingRepository() {
+
+		@Override
+		public void save(Rating rating) {
+			saved.add(rating);
+			ratings.put(rating.requestId(), rating);
+		}
+
+		@Override
+		public Optional<Rating> findByRequestId(long requestId) {
+			return Optional.ofNullable(ratings.get(requestId));
+		}
+
+		@Override
+		public List<Rating> findCreatedBetween(Instant from, Instant to) {
+			return List.copyOf(ratings.values());
+		}
+
+	};
+
+	private final RateRequest useCase = new RateRequest(store, repository, Clock.fixed(NOW, ZoneOffset.UTC));
+
+	private void request(RequestStatus status, ClosureReason closure) {
+		requests.put(CODE, new ServiceRequest(10L, CODE, 4, 1, 3, "Descripción de la solicitud", 2, status, 1, 3L,
+				closure, null, CREATED, CREATED.plusSeconds(86400), CREATED));
 	}
 
 	@Test
-	void ownerRatesARequestWhoseSolutionTheyConfirmed() {
-		Rating rating = useCase(RequestStatus.CERRADA, ClosureReason.CONFIRMADA).execute(OWNER, CODE, 4, " Bien ");
+	void theOwnerRatesARequestClosedByConfirmation() {
+		request(RequestStatus.CERRADA, ClosureReason.CONFIRMADA);
 
-		assertThat(ratings.saved).singleElement().satisfies(saved -> {
-			assertThat(saved.requestId()).isEqualTo(10L);
-			assertThat(saved.score()).isEqualTo(4);
-			assertThat(saved.comment()).isEqualTo("Bien");
-			assertThat(saved.createdAt()).isEqualTo(NOW);
-		});
-		assertThat(rating.id()).isNotNull();
+		Rating rating = useCase.execute(OWNER, CODE, 4, " Buen trabajo ");
+
+		assertThat(rating.requestId()).isEqualTo(10L);
+		assertThat(rating.score()).isEqualTo(4);
+		assertThat(rating.comment()).isEqualTo("Buen trabajo");
+		assertThat(rating.createdAt()).isEqualTo(NOW);
+		assertThat(saved).containsExactly(rating);
 	}
 
 	@Test
-	void anotherUsersRequestIsReportedAsNotFound() {
-		assertThatThrownBy(() -> useCase(RequestStatus.CERRADA, ClosureReason.CONFIRMADA).execute(OTHER, CODE, 4, null))
-				.isInstanceOf(RequestNotFoundException.class);
-		assertThat(ratings.saved).isEmpty();
-	}
-
-	@Test
-	void unknownCodeIsReportedAsNotFound() {
-		assertThatThrownBy(
-				() -> useCase(RequestStatus.CERRADA, ClosureReason.CONFIRMADA).execute(OWNER, "SOL-2026-999999", 4, null))
-				.isInstanceOf(RequestNotFoundException.class);
-	}
-
-	@Test
-	void resolvedButNotConfirmedCannotBeRated() {
-		assertThatThrownBy(() -> useCase(RequestStatus.RESUELTA, null).execute(OWNER, CODE, 4, null))
-				.isInstanceOf(RatingNotAllowedException.class);
-	}
-
-	@Test
-	void requestsClosedWithoutTheRequestersConfirmationCannotBeRated() {
-		for (ClosureReason closure : List.of(ClosureReason.NO_PROCEDE, ClosureReason.DUPLICADA,
-				ClosureReason.AUTOMATICA)) {
-			assertThatThrownBy(() -> useCase(RequestStatus.CERRADA, closure).execute(OWNER, CODE, 4, null))
-					.as(closure.name())
+	void aRequestNotClosedByConfirmationCannotBeRated() {
+		for (RequestStatus status : List.of(RequestStatus.REGISTRADA, RequestStatus.EN_ATENCION,
+				RequestStatus.RESUELTA)) {
+			request(status, null);
+			assertThatThrownBy(() -> useCase.execute(OWNER, CODE, 5, null)).as(status.name())
 					.isInstanceOf(RatingNotAllowedException.class);
 		}
-		assertThat(ratings.saved).isEmpty();
+		for (ClosureReason closure : List.of(ClosureReason.NO_PROCEDE, ClosureReason.DUPLICADA,
+				ClosureReason.AUTOMATICA)) {
+			request(RequestStatus.CERRADA, closure);
+			assertThatThrownBy(() -> useCase.execute(OWNER, CODE, 5, null)).as(closure.name())
+					.isInstanceOf(RatingNotAllowedException.class);
+		}
+		assertThat(saved).isEmpty();
 	}
 
 	@Test
 	void aRequestIsRatedOnlyOnce() {
-		RateRequest rate = useCase(RequestStatus.CERRADA, ClosureReason.CONFIRMADA);
-		rate.execute(OWNER, CODE, 5, null);
+		request(RequestStatus.CERRADA, ClosureReason.CONFIRMADA);
+		useCase.execute(OWNER, CODE, 4, null);
 
-		assertThatThrownBy(() -> rate.execute(OWNER, CODE, 3, null)).isInstanceOf(RatingAlreadyExistsException.class);
-		assertThat(ratings.saved).hasSize(1);
+		assertThatThrownBy(() -> useCase.execute(OWNER, CODE, 2, null)).isInstanceOf(RatingNotAllowedException.class);
+		assertThat(saved).hasSize(1);
 	}
 
-	private static final class FakeRatings implements RatingStore {
+	@Test
+	void theConflictIsReportedBeforeInvalidData() {
+		request(RequestStatus.RESUELTA, null);
 
-		private final List<Rating> saved = new ArrayList<>();
+		assertThatThrownBy(() -> useCase.execute(OWNER, CODE, 9, null)).isInstanceOf(RatingNotAllowedException.class);
+	}
 
-		@Override
-		public Rating save(Rating rating) {
-			Rating stored = new Rating((long) saved.size() + 1, rating.requestId(), rating.score(), rating.comment(),
-					rating.createdAt());
-			saved.add(stored);
-			return stored;
-		}
+	@Test
+	void anInvalidScoreIsRejected() {
+		request(RequestStatus.CERRADA, ClosureReason.CONFIRMADA);
 
-		@Override
-		public boolean existsForRequest(long requestId) {
-			return saved.stream().anyMatch(r -> r.requestId() == requestId);
-		}
+		assertThatThrownBy(() -> useCase.execute(OWNER, CODE, 0, null)).isInstanceOf(InvalidRatingException.class);
+		assertThat(saved).isEmpty();
+	}
 
+	@Test
+	void onlyTheOwnerMayRate() {
+		request(RequestStatus.CERRADA, ClosureReason.CONFIRMADA);
+
+		assertThatThrownBy(() -> useCase.execute(OTHER_REQUESTER, CODE, 5, null))
+				.isInstanceOf(RequestNotFoundException.class);
+		assertThatThrownBy(() -> useCase.execute(SUPERVISOR, CODE, 5, null))
+				.isInstanceOf(RequestChangeForbiddenException.class);
+		assertThatThrownBy(() -> useCase.execute(OWNER, "SOL-2026-999999", 5, null))
+				.isInstanceOf(RequestNotFoundException.class);
+		assertThat(saved).isEmpty();
 	}
 
 }

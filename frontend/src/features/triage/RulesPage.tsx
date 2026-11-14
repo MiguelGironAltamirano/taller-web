@@ -55,6 +55,13 @@ function RuleDrawer({ rule, onClose }: { rule: TriageRuleDto | null; onClose: ()
       toast('Regla guardada')
       onClose()
     } catch (e) {
+      const fields = e instanceof ApiError ? e.fieldErrors : undefined
+      if (fields?.keywords || fields?.categoryId || fields?.priorityId) {
+        for (const name of ['keywords', 'categoryId', 'priorityId'] as const) {
+          if (fields[name]) setError(name, { message: fields[name] })
+        }
+        return
+      }
       setError('root', { message: e instanceof ApiError ? e.detail || e.title : 'No pudimos guardar la regla.' })
     }
   })
@@ -146,35 +153,43 @@ export function RulesPage() {
           {!isLoading && rules.length === 0 && (
             <EmptyState icon="zap" title="Aún no hay reglas" description="Crea una regla para sugerir categoría y prioridad." compact />
           )}
-          {rules.map((r) => (
-            <div
-              key={r.id}
-              className={cn('flex flex-wrap items-center gap-3 border-b border-line px-4 py-3', !r.active && 'opacity-55')}
-            >
-              <div className="flex min-w-[220px] flex-1 flex-wrap gap-1">
-                {r.keywords.map((k) => (
-                  <span key={k} className="inline-flex h-6 items-center rounded-full bg-surface2 px-2 text-xs">
-                    {k}
-                  </span>
-                ))}
-              </div>
-              <div className="text-[13px]">
-                → <b>{r.categoryName}</b>
-              </div>
-              <PriorityBadge priority={(r.priorityName as Priority) ?? 'Media'} />
-              <Switch checked={r.active} onChange={() => toggle(r)} label={`Regla activa: ${r.keywords.join(', ')}`} />
-              <Button size="sm" onClick={() => setEditing(r)}>
-                Editar
-              </Button>
-              <Button
-                size="sm"
-                className="text-err-fg"
-                onClick={() => remove.mutate(r.id, { onSuccess: () => toast('Regla eliminada') })}
-              >
-                Eliminar
-              </Button>
-            </div>
-          ))}
+          {rules.length > 0 && (
+            <ul aria-label="Reglas de triage" className="m-0 list-none p-0">
+              {rules.map((r) => (
+                // Inactive rules are muted with tokens instead of opacity, which broke the text contrast (WCAG 1.4.3).
+                <li
+                  key={r.id}
+                  className={cn('flex flex-wrap items-center gap-3 border-b border-line px-4 py-3', !r.active && 'bg-surface2 text-muted')}
+                >
+                  <div className="flex min-w-[220px] flex-1 flex-wrap gap-1">
+                    {r.keywords.map((k) => (
+                      <span
+                        key={k}
+                        className={cn('inline-flex h-6 items-center rounded-full px-2 text-xs', r.active ? 'bg-surface2' : 'bg-surface')}
+                      >
+                        {k}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="text-[13px]">
+                    → <b>{r.categoryName}</b>
+                  </div>
+                  <PriorityBadge priority={(r.priorityName as Priority) ?? 'Media'} />
+                  <Switch checked={r.active} onChange={() => toggle(r)} label={`Regla activa: ${r.keywords.join(', ')}`} />
+                  <Button size="sm" onClick={() => setEditing(r)}>
+                    Editar
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="text-err-fg"
+                    onClick={() => remove.mutate(r.id, { onSuccess: () => toast('Regla eliminada') })}
+                  >
+                    Eliminar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
         <Card className="flex min-w-0 flex-[1_1_280px] flex-col gap-2.5 p-4">
           <CardTitle className="mb-0">Probador</CardTitle>

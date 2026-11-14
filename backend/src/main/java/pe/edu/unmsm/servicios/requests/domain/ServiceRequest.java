@@ -4,9 +4,13 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * A service request. {@code solution} is the text the technician proposed when resolving it; it is kept once the
+ * request is closed and dropped when the requester rejects it.
+ */
 public record ServiceRequest(Long id, String code, long requesterId, long categoryId, long locationId,
 		String description, long priorityId, RequestStatus status, long areaId, Long technicianId,
-		ClosureReason closureReason, Instant createdAt, Instant dueAt, Instant updatedAt) {
+		ClosureReason closureReason, String solution, Instant createdAt, Instant dueAt, Instant updatedAt) {
 
 	public static final int DESCRIPTION_MIN = 20;
 	public static final int DESCRIPTION_MAX = 2000;
@@ -31,18 +35,48 @@ public record ServiceRequest(Long id, String code, long requesterId, long catego
 			throw new InvalidRequestException(Map.of("description", message));
 		});
 		return new ServiceRequest(null, code, requesterId, categoryId, locationId, description.strip(), priorityId,
-				RequestStatus.REGISTRADA, areaId, null, null, now, Sla.dueAt(now, slaHours), now);
+				RequestStatus.REGISTRADA, areaId, null, null, null, now, Sla.dueAt(now, slaHours), now);
 	}
 
 	public boolean isOverdue(Instant now) {
 		return Sla.isOverdue(status, dueAt, now);
 	}
 
-	/** The same request after a transition; creation data and the due date do not change. */
+	/**
+	 * The same request after a transition; creation data and the due date do not change. Reaching
+	 * {@code RESUELTA} records {@code proposedSolution}; going back to {@code EN_ATENCION} (the requester rejected
+	 * it) drops the solution; any other step keeps it.
+	 */
 	public ServiceRequest transitionedTo(RequestStatus newStatus, Long newTechnicianId, ClosureReason newClosureReason,
-			Instant now) {
+			String proposedSolution, Instant now) {
+		String newSolution = switch (newStatus) {
+			case RESUELTA -> proposedSolution;
+			case EN_ATENCION -> null;
+			default -> solution;
+		};
 		return new ServiceRequest(id, code, requesterId, categoryId, locationId, description, priorityId, newStatus,
-				areaId, newTechnicianId, newClosureReason, createdAt, dueAt, now);
+				areaId, newTechnicianId, newClosureReason, newSolution, createdAt, dueAt, now);
+	}
+
+	/**
+	 * The same request with another priority. The due date is recalculated from the registration date with the SLA
+	 * of the new priority, as if it had been registered with it. A resolved or closed request no longer changes.
+	 */
+	public ServiceRequest withPriority(long newPriorityId, int slaHours, Instant now) {
+		requirePriorityChangeAllowed();
+		if (newPriorityId == priorityId) {
+			throw new InvalidRequestException(Map.of("priorityId", "Elige una prioridad distinta de la actual"));
+		}
+		return new ServiceRequest(id, code, requesterId, categoryId, locationId, description, newPriorityId, status,
+				areaId, technicianId, closureReason, solution, createdAt, Sla.dueAt(createdAt, slaHours), now);
+	}
+
+	/** Fails with a conflict when the status no longer admits a priority change. */
+	public void requirePriorityChangeAllowed() {
+		if (!status.allowsPriorityChange()) {
+			throw new RequestNotModifiableException("La solicitud ya está " + (status == RequestStatus.RESUELTA
+					? "resuelta" : "cerrada") + " y no admite cambios de prioridad");
+		}
 	}
 
 }

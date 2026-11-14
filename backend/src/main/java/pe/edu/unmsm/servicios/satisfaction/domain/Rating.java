@@ -1,23 +1,33 @@
 package pe.edu.unmsm.servicios.satisfaction.domain;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-public record Rating(Long id, long requestId, int score, String comment, Instant createdAt) {
+/**
+ * The satisfaction rating a requester gives to a request after confirming its solution (spec §6): a score from 1
+ * to 5 and an optional comment. Rating is optional and does not change the status of the request.
+ */
+public record Rating(long requestId, int score, String comment, Instant createdAt) {
 
 	public static final int SCORE_MIN = 1;
 	public static final int SCORE_MAX = 5;
 	public static final int COMMENT_MAX = 1000;
 
-	/** A blank comment is stored as no comment; spaces around the text do not count. */
-	public static Rating of(long requestId, int score, String comment, Instant now) {
-		if (score < SCORE_MIN || score > SCORE_MAX) {
-			throw new InvalidRatingException("score", "La calificación debe ser de 1 a 5");
+	/** Validates the score and the comment; a blank comment is the same as no comment. */
+	public static Rating give(long requestId, Integer score, String comment, Instant now) {
+		Map<String, String> errors = new LinkedHashMap<>();
+		if (score == null || score < SCORE_MIN || score > SCORE_MAX) {
+			errors.put("score", "Califica de " + SCORE_MIN + " a " + SCORE_MAX + " estrellas");
 		}
-		String normalized = comment == null || comment.isBlank() ? null : comment.strip();
-		if (normalized != null && normalized.length() > COMMENT_MAX) {
-			throw new InvalidRatingException("comment", "El comentario no puede superar los 1000 caracteres");
+		String text = comment == null || comment.isBlank() ? null : comment.strip();
+		if (text != null && text.length() > COMMENT_MAX) {
+			errors.put("comment", "El comentario no puede superar los " + COMMENT_MAX + " caracteres");
 		}
-		return new Rating(null, requestId, score, normalized, now);
+		if (!errors.isEmpty()) {
+			throw new InvalidRatingException(errors);
+		}
+		return new Rating(requestId, score, text, now);
 	}
 
 }

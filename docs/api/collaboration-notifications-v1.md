@@ -232,8 +232,10 @@ Lista vacía si no hay evidencias.
 
 | Evento | Quién notificar | Excluir |
 |---|---|---|
-| Cambio de estado (cualquier transición) | Solicitante, técnico asignado (si hay), supervisores activos del área | El actor de la transición |
+| Cambio de estado (cualquier transición) | Solicitante, técnico asignado (si hay), supervisores activos del área | El actor de la transición; en una asignación o reasignación, también el técnico asignado |
 | Asignación o reasignación | Técnico asignado (el nuevo) | El actor (supervisor) |
+
+> **Decisión documentada:** en una asignación o reasignación el técnico asignado recibe **una sola** notificación, la de asignación (`"Se te asignó la solicitud …"`) o, si la solicitud ya estaba asignada a otro técnico (`ASIGNADA` → `ASIGNADA`), la de reasignación (`"Se te reasignó la solicitud …"`), y no la genérica de cambio de estado (`"… pasó a Asignada."`). El solicitante y los supervisores sí reciben la de cambio de estado. Lo implementa `NotificationRecipients.forAssignmentTransition`; el texto lo elige `CreateNotificationsForTransition` con `RequestTransitionedEvent.isReassignment()` (estado de origen `ASIGNADA`). El técnico anterior no recibe notificación por la reasignación.
 | Comentario nuevo | Solicitante, técnico asignado (si hay), supervisores activos del área | El autor del comentario |
 
 **Texto de notificación (en español):**
@@ -242,7 +244,7 @@ Lista vacía si no hay evidencias.
 - Reasignación: `"Se te reasignó la solicitud <SOL-AAAA-NNNNNN>."`.
 - Comentario: `"<Nombre del autor> comentó en la solicitud <SOL-AAAA-NNNNNN>."`.
 
-**Cierre automático (72 h, módulo de Lita):** el mismo mecanismo de notificación queda previsto mediante un puerto `NotificationService.notify(List<Long> recipientIds, String text, String requestCode)`. Lita lo invoca desde su módulo `satisfaction` sin depender de la implementación concreta.
+**Cierre automático (implementado en `workflow`):** usa el mismo evento `RequestTransitionedEvent` y el mismo listener que las transiciones de usuario. El evento no tiene actor (`actorId = null`), así que no se excluye a nadie: se notifica al solicitante, al técnico asignado y a los supervisores activos del área. Texto: `"La solicitud <SOL-AAAA-NNNNNN> se cerró automáticamente porque la solución no se confirmó a tiempo."`. Ver [`ui-extensions.md`, Cierre automático](ui-extensions.md#cierre-automático).
 
 ---
 

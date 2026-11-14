@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -14,9 +15,11 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import pe.edu.unmsm.servicios.requests.domain.InvalidRequestException;
+import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
+import pe.edu.unmsm.servicios.shared.domain.SystemSettings;
 
 class GetAndListRequestsTest {
 
@@ -28,7 +31,7 @@ class GetAndListRequestsTest {
 			"Facultad → Pabellón → Aula 101", "Alta", RequestStatus.ASIGNADA, NOW, NOW.plusSeconds(3600), false,
 			"El tomacorriente del aula no funciona", "Estudiante Demo", "Mantenimiento", "Técnico Demo", "Facultad",
 			"Pabellón", "Aula 101");
-	private static final RequestDetailView DETAIL = new RequestDetailView(SUMMARY, 4, 1, 3L, null, List.of(),
+	private static final RequestDetailView DETAIL = new RequestDetailView(1L, SUMMARY, 4, 1, 3L, null, null,
 			List.of());
 
 	private static final AuthenticatedUser OWNER = new AuthenticatedUser(4, "a@unmsm.edu.pe", "Owner", "SOLICITANTE");
@@ -45,31 +48,99 @@ class GetAndListRequestsTest {
 	private static final AuthenticatedUser ADMIN = new AuthenticatedUser(1, "ad@unmsm.edu.pe", "Admin",
 			"ADMINISTRADOR");
 
+	// Resolved, rejected by the requester and resolved again: the deadline counts from the latest resolution.
+	private static final RequestDetailView RESOLVED = new RequestDetailView(2L, new RequestSummaryView(
+			"SOL-2026-000002", "Electricidad", "Facultad → Pabellón → Aula 101", "Alta", RequestStatus.RESUELTA,
+			NOW.minus(Duration.ofHours(10)), NOW, false, "El tomacorriente del aula no funciona", "Estudiante Demo",
+			"Mantenimiento", "Técnico Demo", "Facultad", "Pabellón", "Aula 101"), 4, 1, 3L, null, "Se cambió",
+			List.of(new HistoryView(null, RequestStatus.REGISTRADA, "Estudiante Demo", "Solicitud creada",
+					NOW.minus(Duration.ofHours(10)), null),
+					new HistoryView(RequestStatus.EN_ATENCION, RequestStatus.RESUELTA, "Técnico Demo", "Solución: x",
+							NOW.minus(Duration.ofHours(5)), null),
+					new HistoryView(RequestStatus.RESUELTA, RequestStatus.EN_ATENCION, "Estudiante Demo", "Sigue",
+							NOW.minus(Duration.ofHours(4)), null),
+					new HistoryView(RequestStatus.EN_ATENCION, RequestStatus.RESUELTA, "Técnico Demo", "Solución: y",
+							NOW.minus(Duration.ofHours(2)), null)));
+
+	private int autoCloseHours = 48;
+
 	private final List<RequestScope> scopes = new ArrayList<>();
-	private int lastPage;
-	private int lastSize;
-	private RequestFilter lastFilter;
+	private RequestListCriteria lastCriteria;
+	private Instant lastNow;
 
 	private final RequestQueries queries = new RequestQueries() {
 
 		@Override
-		public PageView<RequestSummaryView> search(RequestScope scope, RequestFilter filter, int page, int size,
-				Instant now) {
+		public PageView<RequestSummaryView> search(RequestScope scope, RequestListCriteria criteria, Instant now) {
 			scopes.add(scope);
-			lastFilter = filter;
-			lastPage = page;
-			lastSize = size;
-			return new PageView<>(List.of(SUMMARY), page, size, 1);
+			lastCriteria = criteria;
+			lastNow = now;
+			return new PageView<>(List.of(SUMMARY), criteria.page(), criteria.size(), 1);
+		}
+
+		@Override
+		public RequestCountsView count(RequestScope scope, Instant now) {
+			scopes.add(scope);
+			lastNow = now;
+			return new RequestCountsView(1, 0, java.util.Map.of(RequestStatus.ASIGNADA, 1L));
 		}
 
 		@Override
 		public Optional<RequestDetailView> findDetail(String code, Instant now) {
-			return DETAIL.summary().code().equals(code) ? Optional.of(DETAIL) : Optional.empty();
+			return Optional.ofNullable(code.equals(DETAIL.summary().code()) ? DETAIL
+					: code.equals(RESOLVED.summary().code()) ? RESOLVED : null);
 		}
 
 	};
 
-	private final GetRequest get = new GetRequest(queries, (user, view) -> List.of(RequestStatus.EN_ATENCION), CLOCK);
+	private final GetRequest get = new GetRequest(queries, (user, view) -> List.of(RequestStatus.EN_ATENCION),
+			(user, view) -> List.of(RequestAction.REASSIGN), new RequestCollaboration() {
+
+				@Override
+				public List<CommentView> comments(long requestId) {
+					return List.of(new CommentView(7, "Técnico Demo", "Voy en camino", NOW));
+				}
+
+				@Override
+				public List<EvidenceView> evidences(long requestId) {
+					return List.of(new EvidenceView(9, "foto.jpg", "IMG", 2048));
+				}
+
+			}, requestId -> Optional.of(new RatingView(5, "Excelente")),
+			() -> new SystemSettings(autoCloseHours, false, true), CLOCK);
+
+	@Test
+	void aResolvedRequestCarriesTheAutomaticClosureDeadlineOfItsLatestResolution() {
+		RequestDetailView detail = get.execute(OWNER, "SOL-2026-000002");
+
+		assertThat(detail.autoCloseAt()).isEqualTo(NOW.minus(Duration.ofHours(2)).plus(Duration.ofHours(48)));
+	}
+
+	@Test
+	void theDeadlineFollowsTheCurrentSettingOfTheAdministrator() {
+		autoCloseHours = 24;
+
+		assertThat(get.execute(OWNER, "SOL-2026-000002").autoCloseAt())
+				.isEqualTo(NOW.minus(Duration.ofHours(2)).plus(Duration.ofHours(24)));
+	}
+
+	@Test
+	void aRequestThatIsNotResolvedHasNoDeadline() {
+		assertThat(get.execute(OWNER, "SOL-2026-000001").autoCloseAt()).isNull();
+	}
+
+	@Test
+	void theDetailCarriesTheRatingOfTheSatisfactionModule() {
+		assertThat(get.execute(OWNER, "SOL-2026-000001").rating()).isEqualTo(new RatingView(5, "Excelente"));
+	}
+
+	@Test
+	void theDetailCarriesTheCommentsAndEvidencesOfTheCollaborationModule() {
+		RequestDetailView detail = get.execute(OWNER, "SOL-2026-000001");
+
+		assertThat(detail.comments()).extracting(CommentView::text).containsExactly("Voy en camino");
+		assertThat(detail.evidences()).extracting(EvidenceView::fileName).containsExactly("foto.jpg");
+	}
 	private final ListRequests list = new ListRequests(queries, CLOCK);
 
 	@Test
@@ -99,11 +170,19 @@ class GetAndListRequestsTest {
 	}
 
 	@Test
+	void theSupervisorOfTheAreaIsAlsoOfferedThePriorityChange() {
+		assertThat(get.execute(SUPERVISOR, "SOL-2026-000001").allowedActions())
+				.containsExactly(RequestAction.REASSIGN, RequestAction.PRIORITY);
+		assertThat(get.execute(TECHNICIAN, "SOL-2026-000001").allowedActions())
+				.containsExactly(RequestAction.REASSIGN);
+	}
+
+	@Test
 	void listScopeFollowsTheRoleOfTheUser() {
-		list.execute(OWNER, RequestFilter.NONE, 0, 20);
-		list.execute(SUPERVISOR, RequestFilter.NONE, 0, 20);
-		list.execute(TECHNICIAN, RequestFilter.NONE, 0, 20);
-		list.execute(ADMIN, RequestFilter.NONE, 0, 20);
+		list.execute(OWNER, RequestListCriteria.firstPage());
+		list.execute(SUPERVISOR, RequestListCriteria.firstPage());
+		list.execute(TECHNICIAN, RequestListCriteria.firstPage());
+		list.execute(ADMIN, RequestListCriteria.firstPage());
 
 		assertThat(scopes).extracting(RequestScope::role)
 				.containsExactly("SOLICITANTE", "SUPERVISOR", "TECNICO", "ADMINISTRADOR");
@@ -113,54 +192,77 @@ class GetAndListRequestsTest {
 	}
 
 	@Test
-	void listClampsPageAndSize() {
-		list.execute(ADMIN, RequestFilter.NONE, -3, 0);
-		assertThat(lastPage).isZero();
-		assertThat(lastSize).isEqualTo(1);
+	void listPassesTheCriteriaAndTheClockToTheQuery() {
+		RequestListCriteria criteria = new RequestListCriteria(null, null, 2L, null, null, true, true, "aula", null,
+				null, RequestSort.DUE, 3, 50);
 
-		list.execute(ADMIN, RequestFilter.NONE, 2, 100000);
-		assertThat(lastPage).isEqualTo(2);
-		assertThat(lastSize).isEqualTo(ListRequests.MAX_PAGE_SIZE);
+		PageView<RequestSummaryView> page = list.execute(ADMIN, criteria);
+
+		assertThat(lastCriteria).isSameAs(criteria);
+		assertThat(lastNow).isEqualTo(NOW);
+		assertThat(page.page()).isEqualTo(3);
+		assertThat(page.totalPages()).isEqualTo(1);
+	}
+
+	@Test
+	void countersUseTheScopeOfTheUserAndIncludeEveryStatus() {
+		RequestCountsView counts = list.counts(TECHNICIAN);
+
+		assertThat(scopes).extracting(RequestScope::role).containsExactly("TECNICO");
+		assertThat(lastNow).isEqualTo(NOW);
+		assertThat(counts.byStatus()).hasSize(RequestStatus.values().length)
+				.containsEntry(RequestStatus.ASIGNADA, 1L).containsEntry(RequestStatus.CERRADA, 0L);
+	}
+
+	@Test
+	void totalPagesRoundsUp() {
+		assertThat(new PageView<>(List.of(), 0, 20, 0).totalPages()).isZero();
+		assertThat(new PageView<>(List.of(), 0, 20, 20).totalPages()).isEqualTo(1);
+		assertThat(new PageView<>(List.of(), 0, 20, 21).totalPages()).isEqualTo(2);
+	}
+
+	/** Days and the rest of the filters, as the controller would receive them. */
+	private static RequestListCriteria parse(String status, String from, String to, String areaId, String overdue) {
+		return RequestListCriteria.parse(new RequestListCriteria.Params(status == null ? null : List.of(status), areaId,
+				null, null, null, null, overdue, null, from, to, null, null, null));
 	}
 
 	@Test
 	void listPassesTheFiltersToTheQuery() {
-		RequestFilter filter = new RequestFilter(RequestStatus.ASIGNADA, LocalDate.parse("2026-10-01"),
-				LocalDate.parse("2026-10-15"), 2L, true);
+		RequestListCriteria criteria = parse("ASIGNADA", "2026-10-01", "2026-10-15", "2", "true");
 
-		list.execute(ADMIN, filter, 0, 20);
+		list.execute(ADMIN, criteria);
 
-		assertThat(lastFilter).isEqualTo(filter);
+		assertThat(lastCriteria.statuses()).containsExactly(RequestStatus.ASIGNADA);
+		assertThat(lastCriteria.from()).isEqualTo(LocalDate.parse("2026-10-01"));
+		assertThat(lastCriteria.to()).isEqualTo(LocalDate.parse("2026-10-15"));
+		assertThat(lastCriteria.areaId()).isEqualTo(2L);
+		assertThat(lastCriteria.overdue()).isTrue();
 	}
 
 	@Test
 	void aSingleDayRangeIsAccepted() {
-		LocalDate day = LocalDate.parse("2026-10-10");
+		list.execute(ADMIN, parse(null, "2026-10-10", "2026-10-10", null, null));
 
-		list.execute(ADMIN, new RequestFilter(null, day, day, null, null), 0, 20);
-
-		assertThat(lastFilter.from()).isEqualTo(day);
+		assertThat(lastCriteria.from()).isEqualTo(LocalDate.parse("2026-10-10"));
 	}
 
 	@Test
 	void aRangeThatEndsBeforeItStartsIsRejected() {
-		RequestFilter inverted = new RequestFilter(null, LocalDate.parse("2026-10-15"),
-				LocalDate.parse("2026-10-01"), null, null);
-
-		assertThatThrownBy(() -> list.execute(ADMIN, inverted, 0, 20)).isInstanceOf(InvalidRequestException.class)
+		assertThatThrownBy(() -> parse(null, "2026-10-15", "2026-10-01", null, null))
+				.isInstanceOf(InvalidRequestException.class)
 				.satisfies(ex -> assertThat(((InvalidRequestException) ex).errors()).containsKey("to"));
 	}
 
 	@Test
 	void theDayRangeFollowsTheLimaCalendar() {
-		RequestFilter filter = new RequestFilter(null, LocalDate.parse("2026-10-10"), LocalDate.parse("2026-10-10"),
-				null, null);
+		RequestListCriteria criteria = parse(null, "2026-10-10", "2026-10-10", null, null);
 
 		// 2026-10-10 in Lima (UTC-5) runs from 05:00Z to 05:00Z of the next day, end exclusive.
-		assertThat(filter.createdFrom()).isEqualTo(Instant.parse("2026-10-10T05:00:00Z"));
-		assertThat(filter.createdBefore()).isEqualTo(Instant.parse("2026-10-11T05:00:00Z"));
-		assertThat(RequestFilter.NONE.createdFrom()).isNull();
-		assertThat(RequestFilter.NONE.createdBefore()).isNull();
+		assertThat(criteria.createdFrom()).isEqualTo(Instant.parse("2026-10-10T05:00:00Z"));
+		assertThat(criteria.createdBefore()).isEqualTo(Instant.parse("2026-10-11T05:00:00Z"));
+		assertThat(RequestListCriteria.firstPage().createdFrom()).isNull();
+		assertThat(RequestListCriteria.firstPage().createdBefore()).isNull();
 	}
 
 }

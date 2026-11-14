@@ -95,6 +95,7 @@ export function toRequestDetail(d: RequestDetail): RequestDetailView {
     evidences: (d.evidences ?? []).map((e) => ({ id: e.id, name: e.fileName, kind: e.kind, sizeKb: Math.round(e.sizeBytes / 1024) })),
     solution: d.solution ?? null,
     rating: d.rating ? { score: d.rating.score, comment: d.rating.comment ?? '' } : null,
+    autoCloseAt: d.autoCloseAt ? Date.parse(d.autoCloseAt) : null,
     allowedActions: d.allowedActions ?? [],
     closureReason: d.closureReason ?? null,
   }

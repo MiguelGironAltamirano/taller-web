@@ -27,10 +27,10 @@ Implementar `PUT /api/v1/auth/password` (cambio de contraseña con verificación
 - [x] 7 - **Manejador de excepciones:** `AuthExceptionHandler` responde `400` con `errors: { currentPassword: "La contraseña actual no es correcta." }` para `InvalidCurrentPasswordException`. `MethodArgumentNotValidException` ya valida la nueva contraseña con `errors: { newPassword: "..." }`.
 
 ### Pruebas obligatorias (backend)
-- [ ] 8 - `AuthApiTests.changePasswordWithCorrectCurrentPasswordReturns204AndRevokesRefreshTokens` — escrita en `AuthApiTests.java`, pendiente de ejecutar en CI (sin Docker local).
-- [ ] 9 - `AuthApiTests.changePasswordWithWrongCurrentPasswordReturns400` — escrita en `AuthApiTests.java`, pendiente de ejecutar en CI.
-- [ ] 10 - `AuthApiTests.changePasswordWithInvalidNewPasswordReturns400` — escrita en `AuthApiTests.java`, pendiente de ejecutar en CI.
-- [ ] 11 - `AuthApiTests.changePasswordWithoutTokenReturns401` — escrita en `AuthApiTests.java`, pendiente de ejecutar en CI.
+- [x] 8 - `AuthApiTests.changePasswordWithCorrectCurrentPasswordReturns204AndRevokesRefreshTokens` — escrita en `AuthApiTests.java`; verde en local con Testcontainers (2026-10-26).
+- [x] 9 - `AuthApiTests.changePasswordWithWrongCurrentPasswordReturns400` — escrita en `AuthApiTests.java`; verde en local con Testcontainers (2026-10-26).
+- [x] 10 - `AuthApiTests.changePasswordWithInvalidNewPasswordReturns400` — escrita en `AuthApiTests.java`; verde en local con Testcontainers (2026-10-26).
+- [x] 11 - `AuthApiTests.changePasswordWithoutTokenReturns401` — escrita en `AuthApiTests.java`; verde en local con Testcontainers (2026-10-26).
 
 ### Pruebas obligatorias (frontend)
 - [x] 12 - `ChangePasswordModal.test.tsx`: error de contraseña actual incorrecta aparece en el campo `current`; éxito cierra el modal (2 pruebas en verde con Vitest).
@@ -59,5 +59,10 @@ Implementar `PUT /api/v1/auth/password` (cambio de contraseña con verificación
 3. Método `changePassword` en `AuthController`.
 
 ## Pendientes
-- [ ] Ejecución de pruebas de integración con Testcontainers en CI.
-- [ ] Prueba de humo manual de cambio de contraseña con el stack completo.
+- [ ] Ejecución de pruebas de integración con Testcontainers en CI (ya ejecutadas en local el 2026-10-26; falta observarlas en una ejecución de CI).
+- [x] Prueba de humo manual de cambio de contraseña con el stack completo (2026-10-26, stack Compose `tw-fl-infra` con `db/seed-dev`, usuario `tecnico.mantenimiento`: contraseña actual incorrecta 400, cambio 204, login con la anterior 401, login con la nueva 200).
+
+## Evidencia de verificación (2026-10-26)
+
+- Comando: `cd backend && mise exec -- ./mvnw verify` (Testcontainers con MySQL 8.4, Docker local), rama `feature/fl-infra` sobre `dev` 44d1e4d.
+- Resultado: `Tests run: 377, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`. Incluye `AuthApiTests` 17/17, `CollaborationApiTests` 6/6, `EvidenceApiTests` 12/12 y `NotificationsApiTests` 8/8; no hizo falta corregir pruebas ni código de producción.

@@ -98,9 +98,11 @@ export type RequestDetailView = RequestRow & {
   evidences: EvidenceItem[]
   solution: string | null
   rating: { score: number; comment: string } | null
+  /** Momento (ms) desde el que la solicitud Resuelta se cierra sola si nadie responde; null en otro estado. */
+  autoCloseAt: number | null
   allowedActions: WorkflowActionId[]
-  /** Solo en solicitudes cerradas; opcional para no exigirlo en los datos de prueba que no lo necesitan. */
-  closureReason?: ClosureReason | null
+  /** Por qué se cerró; null mientras la solicitud no está Cerrada. */
+  closureReason: ClosureReason | null
 }
 
 export type NotificationItem = {

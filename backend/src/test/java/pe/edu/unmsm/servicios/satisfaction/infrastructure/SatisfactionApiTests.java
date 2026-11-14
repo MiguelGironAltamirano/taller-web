@@ -3,6 +3,8 @@ package pe.edu.unmsm.servicios.satisfaction.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,9 +16,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import pe.edu.unmsm.servicios.TestcontainersConfiguration;
+import pe.edu.unmsm.servicios.satisfaction.application.RatingQueries;
 import pe.edu.unmsm.servicios.testsupport.ApiClient;
 
-/** POST /requests/{code}/rating as the contract defines it (docs/api/ui-extensions.md). */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
 		properties = "spring.flyway.locations=classpath:db/migration,classpath:db/seed-dev")
 @Import(TestcontainersConfiguration.class)
@@ -29,6 +31,7 @@ class SatisfactionApiTests {
 	// Inserted by these tests.
 	private static final String OTHER_STUDENT = "otro.calificador@unmsm.edu.pe";
 	private static final String DEMO_HASH = "$2b$10$hOCLn2iSSfARxF.PH/fQoeUJGY3u2dOY7aug6hnxrdiqia2rKKXvy";
+
 	private static final String VALID = "El tomacorriente del aula no funciona desde ayer";
 
 	@Value("${local.server.port}")
@@ -36,6 +39,9 @@ class SatisfactionApiTests {
 
 	@Autowired
 	JdbcTemplate jdbc;
+
+	@Autowired
+	RatingQueries ratings;
 
 	private ApiClient api;
 
@@ -45,180 +51,149 @@ class SatisfactionApiTests {
 		jdbc.update("delete from request_history");
 		jdbc.update("delete from service_requests");
 		jdbc.update("delete from request_code_sequences");
-		jdbc.update("insert ignore into users (full_name, email, password_hash, role, requester_type, area_id, active, "
-				+ "created_at) values ('Otro Calificador', ?, ?, 'SOLICITANTE', 'DOCENTE', null, true, utc_timestamp(6))",
+		jdbc.update("insert ignore into users (full_name, email, password_hash, role, requester_type, active, "
+				+ "created_at) values ('Otro Calificador', ?, ?, 'SOLICITANTE', 'DOCENTE', true, utc_timestamp(6))",
 				OTHER_STUDENT, DEMO_HASH);
 	}
 
-	private String resolved() throws Exception {
-		String code = ApiClient.read(api.post("/api/v1/requests",
+	private String createRequest() throws Exception {
+		HttpResponse<String> response = api.post("/api/v1/requests",
 				"{\"categoryId\":1,\"locationId\":3,\"description\":\"" + VALID + "\",\"priorityId\":2}",
-				api.login(STUDENT)), "$.code", String.class);
-		ok(transition(SUPERVISOR, code, "{\"to\":\"EN_EVALUACION\"}"));
-		ok(transition(SUPERVISOR, code, "{\"to\":\"ASIGNADA\",\"technicianId\":3}"));
-		ok(transition(TECHNICIAN, code, "{\"to\":\"EN_ATENCION\"}"));
-		ok(transition(TECHNICIAN, code, "{\"to\":\"RESUELTA\",\"reason\":\"Se cambió el tomacorriente\"}"));
-		return code;
+				api.login(STUDENT));
+		assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+		return ApiClient.read(response, "$.code", String.class);
 	}
 
-	private String confirmed() throws Exception {
-		String code = resolved();
-		ok(transition(STUDENT, code, "{\"to\":\"CERRADA\"}"));
+	/** A request resolved by the technician and closed by the requester's confirmation, through the API. */
+	private String confirmedRequest() throws Exception {
+		String code = createRequest();
+		jdbc.update("update service_requests set status = 'EN_ATENCION', technician_id = 3 where code = ?", code);
+		assertThat(api.post("/api/v1/requests/" + code + "/transitions",
+				"{\"to\":\"RESUELTA\",\"reason\":\"Se cambió el tomacorriente\"}", api.login(TECHNICIAN)).statusCode())
+				.isEqualTo(200);
+		assertThat(api.post("/api/v1/requests/" + code + "/transitions", "{\"to\":\"CERRADA\"}", api.login(STUDENT))
+				.statusCode()).isEqualTo(200);
 		return code;
-	}
-
-	private HttpResponse<String> transition(String user, String code, String json) throws Exception {
-		return api.post("/api/v1/requests/" + code + "/transitions", json, api.login(user));
 	}
 
 	private HttpResponse<String> rate(String user, String code, String json) throws Exception {
 		return api.post("/api/v1/requests/" + code + "/rating", json, user == null ? null : api.login(user));
 	}
 
-	private static void ok(HttpResponse<String> response) {
+	@Test
+	void theRequesterRatesAConfirmedRequestAndTheDetailShowsIt() throws Exception {
+		String code = confirmedRequest();
+
+		HttpResponse<String> response = rate(STUDENT, code, "{\"score\":4,\"comment\":\"  Muy rápido  \"}");
+
 		assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
-	}
-
-	private int ratingsOf(String code) {
-		return jdbc.queryForObject("select count(*) from ratings t join service_requests r on r.id = t.request_id "
-				+ "where r.code = ?", Integer.class, code);
-	}
-
-	// ───── 200 ─────
-
-	@Test
-	void theOwnerRatesAConfirmedRequestAndGetsTheDetailWithTheRating() throws Exception {
-		String code = confirmed();
-
-		HttpResponse<String> response = rate(STUDENT, code, "{\"score\":4,\"comment\":\"  Rápido y amable  \"}");
-
-		ok(response);
-		assertThat(ApiClient.<String>read(response, "$.code")).isEqualTo(code);
-		assertThat(ApiClient.<String>read(response, "$.status")).isEqualTo("CERRADA");
-		assertThat(ApiClient.<String>read(response, "$.closureReason")).isEqualTo("CONFIRMADA");
 		assertThat(ApiClient.<Integer>read(response, "$.rating.score")).isEqualTo(4);
-		assertThat(ApiClient.<String>read(response, "$.rating.comment")).isEqualTo("Rápido y amable");
+		assertThat(ApiClient.<String>read(response, "$.rating.comment")).isEqualTo("Muy rápido");
+		assertThat(ApiClient.<String>read(response, "$.status")).as("rating does not change the status")
+				.isEqualTo("CERRADA");
+		assertThat(ApiClient.<String>read(response, "$.solution")).isEqualTo("Se cambió el tomacorriente");
+		HttpResponse<String> seenBySupervisor = api.get("/api/v1/requests/" + code, api.login(SUPERVISOR));
+		assertThat(ApiClient.<Integer>read(seenBySupervisor, "$.rating.score")).isEqualTo(4);
+		assertThat(ApiClient.<List<String>>read(seenBySupervisor, "$.history[*].toStatus")).hasSize(3);
 	}
 
 	@Test
-	void theRatingIsPartOfTheDetailForEveryoneWhoSeesTheRequest() throws Exception {
-		String code = confirmed();
-		ok(rate(STUDENT, code, "{\"score\":5}"));
+	void theCommentIsOptional() throws Exception {
+		String code = confirmedRequest();
 
-		HttpResponse<String> detail = api.get("/api/v1/requests/" + code, api.login(SUPERVISOR));
+		HttpResponse<String> response = rate(STUDENT, code, "{\"score\":5}");
 
-		assertThat(ApiClient.<Integer>read(detail, "$.rating.score")).isEqualTo(5);
-		assertThat(ApiClient.<Object>read(detail, "$.rating.comment")).isNull();
+		assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+		assertThat(ApiClient.<Object>read(response, "$.rating.comment")).isNull();
 	}
 
 	@Test
-	void aRequestWithoutRatingHasANullRatingInTheDetail() throws Exception {
-		String code = confirmed();
+	void anUnratedRequestHasNoRating() throws Exception {
+		HttpResponse<String> response = api.get("/api/v1/requests/" + createRequest(), api.login(STUDENT));
 
-		HttpResponse<String> detail = api.get("/api/v1/requests/" + code, api.login(STUDENT));
-
-		assertThat(ApiClient.<Object>read(detail, "$.rating")).isNull();
+		assertThat(ApiClient.<Object>read(response, "$.rating")).isNull();
 	}
 
 	@Test
-	void ratingDoesNotChangeTheStatusNorTheHistory() throws Exception {
-		String code = confirmed();
-		int historyBefore = jdbc.queryForObject("select count(*) from request_history h join service_requests r "
-				+ "on r.id = h.request_id where r.code = ?", Integer.class, code);
+	void aRequestCanBeRatedOnlyOnce() throws Exception {
+		String code = confirmedRequest();
+		assertThat(rate(STUDENT, code, "{\"score\":4}").statusCode()).isEqualTo(200);
 
-		ok(rate(STUDENT, code, "{\"score\":3}"));
-
-		assertThat(jdbc.queryForObject("select count(*) from request_history h join service_requests r "
-				+ "on r.id = h.request_id where r.code = ?", Integer.class, code)).isEqualTo(historyBefore);
+		HttpResponse<String> second = rate(STUDENT, code, "{\"score\":1}");
+		ApiClient.assertProblem(second, 409);
+		assertThat(ApiClient.<String>read(second, "$.detail")).isEqualTo("Ya calificaste esta solicitud");
+		assertThat(jdbc.queryForObject("select score from ratings", Integer.class)).isEqualTo(4);
 	}
 
-	// ───── 400 ─────
+	@Test
+	void onlyARequestClosedByConfirmationCanBeRated() throws Exception {
+		String open = createRequest();
+		HttpResponse<String> notClosed = rate(STUDENT, open, "{\"score\":4}");
+		ApiClient.assertProblem(notClosed, 409);
+		assertThat(ApiClient.<String>read(notClosed, "$.detail"))
+				.isEqualTo("Solo se puede calificar una solicitud cuya solución confirmaste");
+
+		String resolved = createRequest();
+		jdbc.update("update service_requests set status = 'RESUELTA', technician_id = 3 where code = ?", resolved);
+		ApiClient.assertProblem(rate(STUDENT, resolved, "{\"score\":4}"), 409);
+
+		String unresolved = createRequest();
+		jdbc.update("update service_requests set status = 'CERRADA', closure_reason = 'NO_PROCEDE' where code = ?",
+				unresolved);
+		ApiClient.assertProblem(rate(STUDENT, unresolved, "{\"score\":4}"), 409);
+
+		String automatic = createRequest();
+		jdbc.update("update service_requests set status = 'CERRADA', closure_reason = 'AUTOMATICA' where code = ?",
+				automatic);
+		ApiClient.assertProblem(rate(STUDENT, automatic, "{\"score\":4}"), 409);
+	}
 
 	@Test
-	void scoresOutsideOneToFiveAreRejected() throws Exception {
-		String code = confirmed();
+	void anInvalidScoreOrCommentIsRejectedWithTheFieldError() throws Exception {
+		String code = confirmedRequest();
 
-		for (String body : new String[] { "{\"score\":0}", "{\"score\":6}", "{}", "{\"comment\":\"ok\"}" }) {
+		for (String body : List.of("{}", "{\"comment\":\"ok\"}", "{\"score\":0}", "{\"score\":6}")) {
 			HttpResponse<String> response = rate(STUDENT, code, body);
-			assertThat(response.statusCode()).as(body).isEqualTo(400);
-			assertThat(ApiClient.<String>read(response, "$.errors.score")).isEqualTo("Califica de 1 a 5 estrellas");
+			ApiClient.assertProblem(response, 400);
+			assertThat(ApiClient.<String>read(response, "$.errors.score")).as(body)
+					.isEqualTo("Califica de 1 a 5 estrellas");
 		}
-		assertThat(ratingsOf(code)).isZero();
+		HttpResponse<String> longComment = rate(STUDENT, code,
+				"{\"score\":3,\"comment\":\"" + "x".repeat(1001) + "\"}");
+		ApiClient.assertProblem(longComment, 400);
+		assertThat(ApiClient.<String>read(longComment, "$.errors.comment")).isNotBlank();
+		assertThat(jdbc.queryForObject("select count(*) from ratings", Integer.class)).isZero();
+
+		HttpResponse<String> longest = rate(STUDENT, code,
+				"{\"score\":3,\"comment\":\"" + "x".repeat(1000) + "\"}");
+		assertThat(longest.statusCode()).as(longest.body()).isEqualTo(200);
 	}
 
 	@Test
-	void aCommentLongerThan1000CharactersIsRejected() throws Exception {
-		String code = confirmed();
-
-		HttpResponse<String> response = rate(STUDENT, code,
-				"{\"score\":4,\"comment\":\"" + "a".repeat(1001) + "\"}");
-
-		assertThat(response.statusCode()).isEqualTo(400);
-		assertThat(ApiClient.<String>read(response, "$.errors.comment")).isNotBlank();
-	}
-
-	// ───── 401 / 404 ─────
-
-	@Test
-	void withoutTokenIs401() throws Exception {
+	void withoutATokenIs401() throws Exception {
 		assertThat(rate(null, "SOL-2026-000001", "{\"score\":4}").statusCode()).isEqualTo(401);
 	}
 
 	@Test
-	void anotherRequestersRequestIs404() throws Exception {
-		String code = confirmed();
+	void onlyTheOwningRequesterMayRate() throws Exception {
+		String code = confirmedRequest();
 
-		assertThat(rate(OTHER_STUDENT, code, "{\"score\":4}").statusCode()).isEqualTo(404);
-		assertThat(ratingsOf(code)).isZero();
+		ApiClient.assertProblem(rate(SUPERVISOR, code, "{\"score\":4}"), 403);
+		ApiClient.assertProblem(rate(TECHNICIAN, code, "{\"score\":4}"), 403);
+		ApiClient.assertProblem(rate(OTHER_STUDENT, code, "{\"score\":4}"), 404);
+		ApiClient.assertProblem(rate(STUDENT, "SOL-2026-999999", "{\"score\":4}"), 404);
+		assertThat(jdbc.queryForObject("select count(*) from ratings", Integer.class)).isZero();
 	}
 
 	@Test
-	void staffWhoCanSeeTheRequestCannotRateIt() throws Exception {
-		String code = confirmed();
+	void theReadPortListsTheRatingsOfAPeriod() throws Exception {
+		String code = confirmedRequest();
+		Instant before = Instant.now().minusSeconds(60);
+		rate(STUDENT, code, "{\"score\":2}");
 
-		assertThat(rate(SUPERVISOR, code, "{\"score\":4}").statusCode()).isEqualTo(404);
-		assertThat(rate(TECHNICIAN, code, "{\"score\":4}").statusCode()).isEqualTo(404);
-	}
-
-	@Test
-	void anUnknownCodeIs404() throws Exception {
-		assertThat(rate(STUDENT, "SOL-2026-999999", "{\"score\":4}").statusCode()).isEqualTo(404);
-	}
-
-	// ───── 409 ─────
-
-	@Test
-	void aResolvedRequestNotYetConfirmedIs409() throws Exception {
-		String code = resolved();
-
-		HttpResponse<String> response = rate(STUDENT, code, "{\"score\":4}");
-
-		assertThat(response.statusCode()).isEqualTo(409);
-		assertThat(ApiClient.<String>read(response, "$.detail"))
-				.isEqualTo("Solo se puede calificar una solicitud cuya solución confirmaste");
-	}
-
-	@Test
-	void aRequestClosedAsNotApplicableIs409() throws Exception {
-		String code = ApiClient.read(api.post("/api/v1/requests",
-				"{\"categoryId\":1,\"locationId\":3,\"description\":\"" + VALID + "\",\"priorityId\":2}",
-				api.login(STUDENT)), "$.code", String.class);
-		ok(transition(SUPERVISOR, code, "{\"to\":\"CERRADA\",\"closureReason\":\"NO_PROCEDE\"}"));
-
-		assertThat(rate(STUDENT, code, "{\"score\":4}").statusCode()).isEqualTo(409);
-	}
-
-	@Test
-	void rateTwiceIs409AndKeepsTheFirstRating() throws Exception {
-		String code = confirmed();
-		ok(rate(STUDENT, code, "{\"score\":5}"));
-
-		HttpResponse<String> second = rate(STUDENT, code, "{\"score\":1}");
-
-		assertThat(second.statusCode()).isEqualTo(409);
-		assertThat(ApiClient.<String>read(second, "$.detail")).isEqualTo("Ya calificaste esta solicitud");
-		assertThat(ratingsOf(code)).isEqualTo(1);
-		assertThat(jdbc.queryForObject("select score from ratings", Integer.class)).isEqualTo(5);
+		assertThat(ratings.findCreatedBetween(before, Instant.now().plusSeconds(60)))
+				.singleElement().satisfies(rating -> assertThat(rating.score()).isEqualTo(2));
+		assertThat(ratings.findCreatedBetween(before.minusSeconds(3600), before)).isEmpty();
 	}
 
 }

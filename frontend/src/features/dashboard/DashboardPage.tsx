@@ -9,7 +9,7 @@ import { downloadText } from '../../shared/lib/download'
 import { cn } from '../../shared/lib/cn'
 import { Button, Card, CardTitle, PageHeader, PriorityBadge, Segmented, Select, Skeleton, useToast } from '../../shared/ui'
 import { useSessionUser } from '../auth'
-import { slaBarColor, withSla } from '../requests'
+import { slaTextClass, withSla } from '../requests'
 import { useIndicators } from './api'
 import { HorizontalBars, PriorityDonut, SlaGauge, Sparkline, TimelineChart } from './components/Charts'
 import { kpiTone } from './lib/reports'
@@ -101,12 +101,12 @@ export function DashboardPage() {
               const kpi = data.kpis[k.key]
               const tone = kpiTone(kpi.deltaPct, k.higherIsBetter)
               return (
-                <Card key={k.key} className="p-3.5">
+                <Card key={k.key} role="group" aria-label={k.label} className="p-3.5">
                   <div className="text-xs text-muted">{k.label}</div>
                   <div className="my-0.5 text-[26px] font-bold">
                     {k.key === 'avgAttentionHours' && kpi.value === 0 ? '—' : `${kpi.value}${k.suffix}`}
                   </div>
-                  <div className={cn('text-xs font-semibold', tone === 'good' ? 'text-good' : 'text-err-fg')}>
+                  <div className={cn('text-xs font-semibold', tone === 'good' ? 'text-ok-fg' : 'text-err-fg')}>
                     {kpi.deltaPct > 0 ? '▲' : '▼'} {Math.abs(kpi.deltaPct)}% vs. periodo anterior
                   </div>
                   <Sparkline series={kpi.series} color={tone === 'good' ? 'var(--good)' : 'var(--bad)'} />
@@ -152,7 +152,7 @@ export function DashboardPage() {
                     <span className="min-w-[140px] flex-1">{r.category}</span>
                     <PriorityBadge priority={r.priority} />
                     <span className="w-[120px] text-xs text-muted">{r.technician ?? 'Sin asignar'}</span>
-                    <span className="text-xs font-semibold" style={{ color: slaBarColor(r.sla.tone) }}>
+                    <span className={cn('text-xs font-semibold', slaTextClass(r.sla.tone))}>
                       {r.sla.label}
                     </span>
                   </button>

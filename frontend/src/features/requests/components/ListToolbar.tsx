@@ -1,21 +1,22 @@
-import { PRIORITIES } from '../../../shared/domain'
 import { Icon, Segmented, Select } from '../../../shared/ui'
-import { VIEW_LABELS, type ListFilters, type ListSort, type ListView, type ServerFilters } from '../lib/filters'
+import { VIEW_LABELS, type ListFilters, type ListSort, type ListView } from '../lib/filters'
+
+/** Opción de un filtro: `value` es el id que se envía al servidor y `label` lo que se muestra. */
+export type FilterOption = { value: string; label: string }
 
 type Props = {
   filters: ListFilters
-  server: ServerFilters
-  /** Solo el administrador filtra por área; los demás roles ya ven una sola. */
-  areas: { id: number; name: string }[] | null
-  categories: string[]
+  categories: FilterOption[]
+  priorities: FilterOption[]
   /** Solo el supervisor filtra por técnico. */
-  technicians: string[] | null
+  technicians: FilterOption[] | null
+  /** Solo el administrador filtra por área; los demás roles ya ven una sola. */
+  areas: FilterOption[] | null
   /** Rol con tablero kanban (técnico, supervisor, administrador). */
   canKanban: boolean
   mode: 'table' | 'kanban'
   density: 'comfy' | 'compact'
   onChange: (patch: Partial<ListFilters>) => void
-  onServerChange: (patch: Partial<ServerFilters>) => void
   onMode: (mode: 'table' | 'kanban') => void
   onDensity: (d: 'comfy' | 'compact') => void
 }
@@ -25,15 +26,14 @@ const SORT_LABELS: Record<ListSort, string> = { due: 'Vencimiento', new: 'Más r
 /** Barra de herramientas del listado: búsqueda, filtros, vistas guardadas, orden, modo y densidad. */
 export function ListToolbar({
   filters,
-  server,
-  areas,
   categories,
+  priorities,
   technicians,
+  areas,
   canKanban,
   mode,
   density,
   onChange,
-  onServerChange,
   onMode,
   onDensity,
 }: Props) {
@@ -48,7 +48,7 @@ export function ListToolbar({
           aria-label="Buscar"
           value={filters.q}
           onChange={(e) => onChange({ q: e.target.value })}
-          placeholder="Buscar por código o texto"
+          placeholder="Buscar por código, texto, solicitante o ambiente"
           className="h-9 w-full rounded-lg border border-line bg-surface pl-[34px] pr-2.5 text-fg placeholder:text-muted transition-[border-color,box-shadow] hover:border-line-strong focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 max-md:h-11"
         />
       </div>
@@ -60,8 +60,8 @@ export function ListToolbar({
       >
         <option value="">Todas las categorías</option>
         {categories.map((c) => (
-          <option key={c} value={c}>
-            {c}
+          <option key={c.value} value={c.value}>
+            {c.label}
           </option>
         ))}
       </Select>
@@ -96,9 +96,9 @@ export function ListToolbar({
         className="h-9 w-auto max-md:h-11"
       >
         <option value="">Toda prioridad</option>
-        {PRIORITIES.map((p) => (
-          <option key={p} value={p}>
-            {p}
+        {priorities.map((p) => (
+          <option key={p.value} value={p.value}>
+            {p.label}
           </option>
         ))}
       </Select>
@@ -111,8 +111,8 @@ export function ListToolbar({
         >
           <option value="">Todos los técnicos</option>
           {technicians.map((t) => (
-            <option key={t} value={t}>
-              {t}
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </Select>
@@ -120,14 +120,14 @@ export function ListToolbar({
       {areas && (
         <Select
           aria-label="Área"
-          value={server.areaId}
-          onChange={(e) => onServerChange({ areaId: e.target.value })}
+          value={filters.area}
+          onChange={(e) => onChange({ area: e.target.value })}
           className="h-9 w-auto max-md:h-11"
         >
           <option value="">Todas las áreas</option>
           {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
+            <option key={a.value} value={a.value}>
+              {a.label}
             </option>
           ))}
         </Select>
@@ -136,9 +136,9 @@ export function ListToolbar({
         Desde
         <input
           type="date"
-          value={server.from}
-          max={server.to || undefined}
-          onChange={(e) => onServerChange({ from: e.target.value })}
+          value={filters.from}
+          max={filters.to || undefined}
+          onChange={(e) => onChange({ from: e.target.value })}
           className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg max-md:h-11"
         />
       </label>
@@ -146,9 +146,9 @@ export function ListToolbar({
         Hasta
         <input
           type="date"
-          value={server.to}
-          min={server.from || undefined}
-          onChange={(e) => onServerChange({ to: e.target.value })}
+          value={filters.to}
+          min={filters.from || undefined}
+          onChange={(e) => onChange({ to: e.target.value })}
           className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg max-md:h-11"
         />
       </label>

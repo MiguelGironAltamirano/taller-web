@@ -136,8 +136,9 @@ export function CalendarPage() {
                 <div
                   key={h}
                   className={cn(
-                    'pb-1 text-center text-[11px] font-semibold uppercase tracking-wider',
-                    i >= 5 ? 'text-muted/70' : 'text-muted',
+                    'pb-1 text-center text-[11px] uppercase tracking-wider text-muted',
+                    // The weekend stands out by weight, not by a lighter color (WCAG AA contrast).
+                    i >= 5 ? 'font-medium' : 'font-semibold',
                   )}
                 >
                   {h}

@@ -36,21 +36,25 @@ public class CreateNotificationsForTransition {
 		try {
 			List<Long> supervisorIds = areaSupervisorLookup.findSupervisorIdsOfArea(event.areaId());
 
-			if (event.isAssignment() && event.technicianId() != null) {
-				// Notificación específica de asignación al técnico
+			boolean assignment = event.isAssignment() && event.technicianId() != null;
+			if (assignment) {
+				// Notificación específica de asignación (o reasignación) al técnico
 				List<Long> assignmentRecipients = NotificationRecipients.forAssignment(event.technicianId(), event.actorId());
-				String assignmentText = NotificationText.forAssignment(event.code());
+				String assignmentText = event.isReassignment()
+						? NotificationText.forReassignment(event.code())
+						: NotificationText.forAssignment(event.code());
 				notificationService.notify(assignmentRecipients, assignmentText, event.requestId());
 			}
 
-			// Notificación general de cambio de estado
-			List<Long> recipients = NotificationRecipients.forTransition(
-					event.requesterId(),
-					event.technicianId(),
-					supervisorIds,
-					event.actorId()
-			);
-			String text = NotificationText.forTransition(event.code(), statusToLabel(event.toStatus()));
+			// Notificación general de cambio de estado (el técnico asignado ya recibió la suya)
+			List<Long> recipients = assignment
+					? NotificationRecipients.forAssignmentTransition(
+							event.requesterId(), event.technicianId(), supervisorIds, event.actorId())
+					: NotificationRecipients.forTransition(
+							event.requesterId(), event.technicianId(), supervisorIds, event.actorId());
+			String text = event.bySystem() && "CERRADA".equals(event.toStatus())
+					? NotificationText.forAutomaticClosure(event.code())
+					: NotificationText.forTransition(event.code(), statusToLabel(event.toStatus()));
 			notificationService.notify(recipients, text, event.requestId());
 		} catch (Exception e) {
 			log.error("Failed to generate notifications for transition event on {}: {}", event.code(), e.getMessage(), e);

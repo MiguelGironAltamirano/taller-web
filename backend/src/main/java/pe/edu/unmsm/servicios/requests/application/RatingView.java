@@ -1,5 +1,5 @@
 package pe.edu.unmsm.servicios.requests.application;
 
-/** The requester's satisfaction rating shown in the detail; the satisfaction module writes it. */
+/** A rating as shown in the request detail ({@code RatingDto}); {@code comment} may be null. */
 public record RatingView(int score, String comment) {
 }

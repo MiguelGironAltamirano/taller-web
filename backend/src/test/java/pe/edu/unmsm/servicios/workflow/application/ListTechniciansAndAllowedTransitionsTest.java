@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
 import pe.edu.unmsm.servicios.requests.application.RequestSummaryView;
 import pe.edu.unmsm.servicios.requests.application.TechnicianWorkload;
+import pe.edu.unmsm.servicios.requests.domain.RequestAction;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 import pe.edu.unmsm.servicios.workflow.domain.Technician;
@@ -84,7 +85,7 @@ class ListTechniciansAndAllowedTransitionsTest {
 		RequestSummaryView summary = new RequestSummaryView("SOL-2026-000001", "Electricidad", "F → P → A", "Alta",
 				status, now, now.plusSeconds(3600), false, "Descripción", "Owner", "Mantenimiento", null, "F", "P",
 				"A");
-		return new RequestDetailView(summary, requesterId, areaId, technicianId, null, List.of(), List.of());
+		return new RequestDetailView(1L, summary, requesterId, areaId, technicianId, null, null, List.of());
 	}
 
 	@Test
@@ -98,6 +99,17 @@ class ListTechniciansAndAllowedTransitionsTest {
 		assertThat(allowed.forUser(OWNER, detail(RequestStatus.RESUELTA, 4, 1, 3L)))
 				.containsExactlyInAnyOrder(RequestStatus.CERRADA, RequestStatus.EN_ATENCION);
 		assertThat(allowed.forUser(OWNER, detail(RequestStatus.REGISTRADA, 4, 1, null))).isEmpty();
+	}
+
+	@Test
+	void allowedActionsAreComputedForTheUserWhoAsks() {
+		WorkflowAllowedActions allowed = new WorkflowAllowedActions();
+
+		assertThat(allowed.forUser(SUPERVISOR, detail(RequestStatus.REGISTRADA, 4, 1, null)))
+				.containsExactly(RequestAction.EVAL, RequestAction.NO_PROCEDE, RequestAction.DUPLICATE);
+		assertThat(allowed.forUser(TECHNICIAN, detail(RequestStatus.EN_ATENCION, 4, 1, 3L)))
+				.containsExactly(RequestAction.RESOLVE);
+		assertThat(allowed.forUser(OWNER, detail(RequestStatus.RESUELTA, 4, 1, 3L))).isEmpty();
 	}
 
 }

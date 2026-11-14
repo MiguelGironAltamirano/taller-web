@@ -23,6 +23,7 @@ import {
   Textarea,
   useToast,
 } from '../../../shared/ui'
+import { uploadEvidences } from '../../collaboration'
 import { SuggestionBanner, useTriageSuggestion } from '../../triage'
 import { useCreateRequest } from '../api'
 import { DESCRIPTION_MAX, newRequestSchema, type NewRequestValues } from '../schemas/newRequest'
@@ -83,12 +84,10 @@ export function NewRequestPage() {
         locationId: rooms.find((r) => r.name === v.room)!.id,
         description: v.description.trim(),
         priorityId: catalogs!.priorities.find((p) => p.name === v.priority)!.id,
-        evidences: files.map((f) => ({ fileName: f.name, sizeBytes: f.size })),
       }
+      let res: Awaited<ReturnType<typeof create.mutateAsync>>
       try {
-        const res = await create.mutateAsync(body)
-        setCreated(res.code)
-        toast(`Solicitud ${res.code} registrada`)
+        res = await create.mutateAsync(body)
       } catch (e) {
         if (e instanceof ApiError && e.fieldErrors) {
           for (const [field, message] of Object.entries(e.fieldErrors)) {
@@ -97,6 +96,20 @@ export function NewRequestPage() {
           }
         }
         toast('Revisa los campos marcados', { bad: true })
+        return
+      }
+      // The request exists from here on: evidences go to it afterwards and a failed upload never undoes it.
+      const failed = await uploadEvidences(
+        res.code,
+        files.map((f) => f.file),
+      )
+      setCreated(res.code)
+      if (failed) {
+        toast(`Solicitud ${res.code} registrada, pero no pudimos adjuntar ${failed} evidencia(s). Súbelas desde el detalle.`, {
+          bad: true,
+        })
+      } else {
+        toast(`Solicitud ${res.code} registrada`)
       }
     },
     () => toast('Revisa los campos marcados', { bad: true }),

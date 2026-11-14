@@ -1,16 +1,26 @@
-import { REQUEST_STATES, isFinalState, type Priority, type RequestState } from '../../../shared/domain'
+import { REQUEST_STATES, type RequestState } from '../../../shared/domain'
+import { STATUS_ORDER, stateToStatus, statusToState } from '../../../shared/api/mappers'
+import type { RequestCounts, RequestListQuery, RequestSortParam, RequestStatus } from '../../../shared/api/types'
 import { buildCsv } from '../../../shared/lib/csv'
-import { dateLong, normalizeText } from '../../../shared/lib/format'
+import { dateLong } from '../../../shared/lib/format'
 import type { RowView } from './view'
 
 export type ListView = 'all' | 'attention' | 'venc' | 'open' | 'confirm' | 'critsa'
 export type ListSort = 'due' | 'new' | 'prio'
 
+/**
+ * Estado de los filtros de la bandeja tal como vive en la URL. `category`, `priority`, `technician` y `area`
+ * guardan el id (como texto) que espera el servidor; vacío significa "todos". `from` y `to` son días
+ * `AAAA-MM-DD` de la fecha de registro (inclusive, en hora de Lima, como los interpreta el servidor).
+ */
 export type ListFilters = {
   q: string
   category: string
   priority: string
   technician: string
+  area: string
+  from: string
+  to: string
   /** Un estado, `__venc` (vencidas) o vacío. */
   status: string
   view: ListView
@@ -26,70 +36,96 @@ export const VIEW_LABELS: Record<ListView, string> = {
   critsa: 'Críticas sin asignar',
 }
 
-/**
- * Filtros que resuelve el servidor (`GET /requests?from=&to=&areaId=`, ver `docs/api/contrato-v1.md`):
- * rango de fecha de registro (días `AAAA-MM-DD`, inclusive, hora de Lima) y área.
- */
-export type ServerFilters = { from: string; to: string; areaId: string }
-
-export const NO_SERVER_FILTERS: ServerFilters = { from: '', to: '', areaId: '' }
-
-/** Parámetros de consulta sin los filtros vacíos. */
-export function serverQuery(f: ServerFilters): Record<string, string> {
-  return Object.fromEntries(Object.entries(f).filter(([, v]) => v !== ''))
-}
-
 export const OVERDUE_STATUS = '__venc'
 
-const matchesView = (r: RowView, view: ListView, needsAttention?: (r: RowView) => boolean): boolean => {
-  switch (view) {
-    case 'attention':
-      return needsAttention?.(r) ?? false
-    case 'venc':
-      return r.sla.overdue
-    case 'open':
-      return !isFinalState(r.state)
-    case 'confirm':
-      return r.state === 'Resuelta'
-    case 'critsa':
-      return r.priority === 'Crítica' && !r.technician && !isFinalState(r.state)
-    default:
-      return true
+const OPEN_STATUSES: RequestStatus[] = ['REGISTRADA', 'EN_EVALUACION', 'ASIGNADA', 'EN_ATENCION']
+
+/** Estados en los que una solicitud puede requerir la atención del usuario (una cerrada nunca la requiere). */
+const ATTENTION_STATUSES: RequestStatus[] = [...OPEN_STATUSES, 'RESUELTA']
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+
+const SORT_PARAM: Record<ListSort, RequestSortParam> = { due: 'due', new: 'newest', prio: 'priority' }
+
+/**
+ * Traducción de los filtros de la interfaz a `GET /requests`:
+ * - `query`: parámetros listos (sin paginación).
+ * - `empty`: la combinación no puede devolver nada (p. ej. "Resuelta" con la vista "Abiertas"); no se consulta.
+ * - `pending`: falta un dato del catálogo (el id de la prioridad crítica) para construir la consulta.
+ */
+export type ServerPlan = { kind: 'query'; query: RequestListQuery } | { kind: 'empty' } | { kind: 'pending' }
+
+const positiveId = (value: string): number | undefined => {
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : undefined
+}
+
+export function toServerQuery(f: ListFilters, criticalPriorityId: number | undefined): ServerPlan {
+  // `null` = cualquier estado; cada restricción se intersecta con las anteriores.
+  const allowed: { statuses: RequestStatus[] | null } = { statuses: null }
+  const narrow = (only: RequestStatus[]) => {
+    allowed.statuses = allowed.statuses === null ? only : allowed.statuses.filter((s) => only.includes(s))
   }
+  const query: RequestListQuery = { sort: SORT_PARAM[f.sort] }
+  const q = f.q.trim()
+  if (q) query.q = q
+  query.categoryId = positiveId(f.category)
+  query.priorityId = positiveId(f.priority)
+  query.technicianId = positiveId(f.technician)
+  query.areaId = positiveId(f.area)
+  if (DAY.test(f.from)) query.from = f.from
+  if (DAY.test(f.to)) query.to = f.to
+  if (query.from && query.to && query.to < query.from) return { kind: 'empty' }
+
+  if (f.status === OVERDUE_STATUS) query.overdue = true
+  else if ((REQUEST_STATES as readonly string[]).includes(f.status)) narrow([stateToStatus(f.status as RequestState)])
+
+  switch (f.view) {
+    case 'attention':
+      // Depende de las notificaciones sin leer (dato del cliente): el servidor acota y la bandeja refina.
+      narrow(ATTENTION_STATUSES)
+      break
+    case 'venc':
+      query.overdue = true
+      break
+    case 'open':
+      narrow(OPEN_STATUSES)
+      break
+    case 'confirm':
+      narrow(['RESUELTA'])
+      break
+    case 'critsa':
+      if (criticalPriorityId === undefined) return { kind: 'pending' }
+      if (query.priorityId !== undefined && query.priorityId !== criticalPriorityId) return { kind: 'empty' }
+      if (query.technicianId !== undefined) return { kind: 'empty' }
+      query.priorityId = criticalPriorityId
+      query.unassigned = true
+      narrow(OPEN_STATUSES)
+      break
+    default:
+      break
+  }
+  if (allowed.statuses !== null) {
+    if (allowed.statuses.length === 0) return { kind: 'empty' }
+    query.status = allowed.statuses
+  }
+  return { kind: 'query', query: Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined)) as RequestListQuery }
 }
 
-/** Aplica búsqueda, filtros y vista guardada (la ordenación se hace aparte). */
-export function filterRows(rows: RowView[], f: ListFilters, needsAttention?: (r: RowView) => boolean): RowView[] {
-  const q = normalizeText(f.q.trim())
-  return rows.filter((r) => {
-    if (q && !normalizeText(`${r.code} ${r.description} ${r.category} ${r.room}`).includes(q)) return false
-    if (f.category && r.category !== f.category) return false
-    if (f.priority && r.priority !== f.priority) return false
-    if (f.technician && r.technician !== f.technician) return false
-    if (f.status === OVERDUE_STATUS) {
-      if (!r.sla.overdue) return false
-    } else if (f.status && r.state !== f.status) return false
-    return matchesView(r, f.view, needsAttention)
-  })
-}
+export type StripCounts = { total: number; overdue: number; byState: Record<RequestState, number> }
 
-const PRIORITY_ORDER: Record<Priority, number> = { Crítica: 0, Alta: 1, Media: 2, Baja: 3 }
-
-/** Ordena sin mutar el original: por vencimiento (finalizadas al final), recientes o prioridad. */
-export function sortRows(rows: RowView[], sort: ListSort): RowView[] {
-  const copy = [...rows]
-  if (sort === 'new') return copy.sort((a, b) => b.createdAt - a.createdAt)
-  if (sort === 'prio') return copy.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
-  return copy.sort((a, b) => Number(isFinalState(a.state)) - Number(isFinalState(b.state)) || a.dueAt - b.dueAt)
-}
-
-export function countByState(rows: RowView[]) {
+/** Contadores de `GET /requests/counts` con las etiquetas de la interfaz. */
+export function toStripCounts(counts: RequestCounts | undefined): StripCounts {
   const byState = Object.fromEntries(REQUEST_STATES.map((s) => [s, 0])) as Record<RequestState, number>
-  for (const r of rows) byState[r.state]++
-  return { total: rows.length, overdue: rows.filter((r) => r.sla.overdue).length, byState }
+  for (const status of STATUS_ORDER) byState[statusToState(status)] = counts?.byStatus[status] ?? 0
+  return { total: counts?.total ?? 0, overdue: counts?.overdue ?? 0, byState }
 }
 
-/** CSV de las filas mostradas (se descarga desde el botón "Exportar"). */
+/** Solicitudes abiertas según los contadores: las que aún no llegaron a "Resuelta". */
+export const openCount = (counts: RequestCounts | undefined) =>
+  counts ? OPEN_STATUSES.reduce((sum, s) => sum + (counts.byStatus[s] ?? 0), 0) : 0
+
+/** CSV de las filas exportadas (se descarga desde el botón "Exportar"). */
 export function toCsv(rows: RowView[]): string {
   return buildCsv(
     ['Código', 'Categoría', 'Ubicación', 'Prioridad', 'Estado', 'Responsable', 'Registro', 'Vencimiento', 'SLA', 'Descripción'],

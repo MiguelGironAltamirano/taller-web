@@ -3,9 +3,6 @@ import { apiPost } from '../../shared/api/client'
 import { notificationsKey, requestsKey } from '../../shared/api/keys'
 import type { RateBody, RequestDetail } from '../../shared/api/types'
 
-/** Máximo del comentario de la calificación (contrato: 1000 caracteres). */
-export const RATING_COMMENT_MAX = 1000
-
 function useRefresh() {
   const client = useQueryClient()
   return () => {

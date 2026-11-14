@@ -54,8 +54,8 @@ export type HistoryEntry = {
   actorName: string
   reason: string | null
   createdAt: string
-  /** EXTENSIÓN: texto libre para entradas que no cambian de estado (reasignación, prioridad). */
-  note?: string
+  /** EXTENSIÓN: describe los cambios que no cambian de estado (p. ej. prioridad); `null` en los cambios de estado. */
+  note?: string | null
 }
 
 export type WorkflowActionId = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
@@ -71,12 +71,15 @@ export type RequestDetail = RequestSummary & {
   closureReason: ClosureReason | null
   history: HistoryEntry[]
   allowedTransitions: RequestStatus[]
-  // EXTENSIÓN de otros módulos (workflow, collaboration, satisfaction): opcionales hasta que existan en el backend.
+  // EXTENSIÓN (workflow, collaboration, satisfaction): el backend ya las envía siempre; siguen opcionales para
+  // tolerar respuestas antiguas. `rating` es `null` hasta que el solicitante califica.
   allowedActions?: WorkflowActionId[]
   comments?: CommentDto[]
   evidences?: EvidenceDto[]
   solution?: string | null
   rating?: RatingDto | null
+  /** EXTENSIÓN: solo en `RESUELTA`; ISO-8601 desde el que el backend puede cerrar la solicitud automáticamente. */
+  autoCloseAt?: string | null
 }
 
 export type CreateRequestBody = {
@@ -84,8 +87,6 @@ export type CreateRequestBody = {
   locationId: number
   description: string
   priorityId: number
-  /** EXTENSIÓN: metadatos de las evidencias adjuntas (la subida real va aparte). */
-  evidences?: { fileName: string; sizeBytes: number }[]
 }
 
 export type TransitionBody = {
@@ -96,7 +97,40 @@ export type TransitionBody = {
   closureReason?: 'NO_PROCEDE' | 'DUPLICADA'
 }
 
-export type Page<T> = { items: T[]; page: number; size: number; total: number }
+export type Page<T> = { items: T[]; page: number; size: number; total: number; totalPages: number }
+
+/** Orden admitido por `GET /requests` (lista cerrada). */
+export type RequestSortParam = 'newest' | 'oldest' | 'due' | 'priority'
+
+/**
+ * Parámetros de `GET /requests`. Todos son opcionales y se combinan con AND dentro de la visibilidad del rol;
+ * `status` admite varios valores separados por comas. Ver `docs/api/contrato-v1.md`.
+ */
+export type RequestListQuery = {
+  status?: RequestStatus[]
+  areaId?: number
+  categoryId?: number
+  priorityId?: number
+  technicianId?: number
+  unassigned?: boolean
+  overdue?: boolean
+  q?: string
+  /** Días `AAAA-MM-DD` de la fecha de registro, ambos inclusive y en hora de Lima. */
+  from?: string
+  to?: string
+  sort?: RequestSortParam
+  page?: number
+  size?: number
+}
+
+/** Tamaño máximo de página que acepta `GET /requests`. */
+export const MAX_REQUEST_PAGE_SIZE = 500
+
+/** Máximo del comentario de `POST /requests/{code}/rating` (contrato: 1000 caracteres). */
+export const RATING_COMMENT_MAX = 1000
+
+/** `GET /requests/counts`: contadores de la bandeja (todos los estados presentes). */
+export type RequestCounts = { total: number; overdue: number; byStatus: Record<RequestStatus, number> }
 
 // ───────── EXTENSIONES del diseño ─────────
 

@@ -29,6 +29,7 @@ describe('addFiles', () => {
 
   it('limita a 5 archivos por solicitud', () => {
     const current: PickedFile[] = Array.from({ length: 5 }, (_, i) => ({
+      file: new File([], `f${i}.jpg`),
       name: `f${i}.jpg`,
       size: 1,
       isPdf: false,

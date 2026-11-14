@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react'
+import { Children, type ComponentProps, type ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
 /**
@@ -36,7 +36,11 @@ export function GridTable({ columns, minWidth = '600px', heads, children, label 
 
 type GridRowProps = Omit<ComponentProps<'div'>, 'role'> & { columns: string; interactive?: boolean }
 
-export function GridRow({ columns, interactive, className, style, ...rest }: GridRowProps) {
+/**
+ * Fila de `GridTable`. Cada hijo directo es una celda: se envuelve en `role="cell"` con `display: contents`, así el
+ * hijo sigue siendo el elemento de la cuadrícula CSS y la tabla cumple la estructura ARIA (fila → celdas).
+ */
+export function GridRow({ columns, interactive, className, style, children, ...rest }: GridRowProps) {
   return (
     <div
       role="row"
@@ -48,6 +52,14 @@ export function GridRow({ columns, interactive, className, style, ...rest }: Gri
       )}
       style={{ gridTemplateColumns: columns, ...style }}
       {...rest}
-    />
+    >
+      {Children.map(children, (child) =>
+        child === null || child === undefined || typeof child === 'boolean' ? child : (
+          <div role="cell" className="contents">
+            {child}
+          </div>
+        ),
+      )}
+    </div>
   )
 }

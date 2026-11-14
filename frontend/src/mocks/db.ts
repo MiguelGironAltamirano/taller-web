@@ -172,8 +172,8 @@ const REASONS = [
 
 const RULES: [string[], string, string, boolean][] = [
   [['chispa', 'humo', 'incendio', 'cortocircuito'], 'Electricidad', 'Crítica', true],
-  [['luz', 'foco', 'tomacorriente', 'enchufe', 'apagón', 'tablero', 'eléctric'], 'Electricidad', 'Alta', true],
-  [['wifi', 'internet', 'conexión', 'red '], 'Red e internet', 'Alta', true],
+  [['luz', 'foco', 'tomacorriente', 'enchufe', 'apagón', 'tablero', 'eléctrico'], 'Electricidad', 'Alta', true],
+  [['wifi', 'internet', 'conexión', 'red'], 'Red e internet', 'Alta', true],
   [['proyector', 'computadora', 'laptop', 'teclado', 'monitor'], 'Equipos de cómputo', 'Media', true],
   [['fuga', 'agua', 'caño', 'inodoro', 'baño', 'gotea'], 'Plomería y sanitarios', 'Alta', true],
   [['silla', 'carpeta', 'puerta', 'mesa', 'ventana', 'cerradura'], 'Mobiliario y carpintería', 'Baja', true],
@@ -329,7 +329,7 @@ export function createSeed(now: number): MockDb {
     requests,
     notifications,
     rules,
-    config: { autoCloseHours: 72, emailNotifications: true, triageSuggestions: true },
+    config: { autoCloseHours: 72, emailNotifications: false, triageSuggestions: true },
   }
 }
 

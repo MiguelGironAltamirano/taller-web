@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { RequestRow } from '../../../shared/domain'
-import { countByState, filterRows, sortRows, toCsv, type ListFilters } from './filters'
+import { openCount, toCsv, toServerQuery, toStripCounts, type ListFilters } from './filters'
 import { withSla, type RowView } from './view'
 
 const H = 3_600_000
 const NOW = new Date('2026-10-16T10:00:00-05:00').getTime()
+const CRITICAL = 1
 
 const base: RequestRow = {
   code: 'SOL-2026-000001',
@@ -23,73 +24,100 @@ const base: RequestRow = {
 }
 const row = (over: Partial<RequestRow>): RowView => withSla({ ...base, ...over }, NOW)
 
-const none: ListFilters = { q: '', category: '', priority: '', technician: '', status: '', view: 'all', sort: 'due' }
+const none: ListFilters = {
+  q: '',
+  category: '',
+  priority: '',
+  technician: '',
+  area: '',
+  from: '',
+  to: '',
+  status: '',
+  view: 'all',
+  sort: 'due',
+}
+const plan = (f: Partial<ListFilters>) => toServerQuery({ ...none, ...f }, CRITICAL)
+const OPEN = ['REGISTRADA', 'EN_EVALUACION', 'ASIGNADA', 'EN_ATENCION']
 
-const rows: RowView[] = [
-  row({ code: 'A', state: 'Registrada', technician: null, priority: 'Crítica', dueAt: NOW + 2 * H }),
-  row({ code: 'B', state: 'En atención', dueAt: NOW - 5 * H, priority: 'Alta' }), // vencida
-  row({ code: 'C', state: 'Resuelta', dueAt: NOW - 50 * H, priority: 'Baja' }), // resuelta: no vencida
-  row({ code: 'D', state: 'Cerrada', category: 'Red e internet', description: 'Sin wifi', priority: 'Media' }),
-  row({ code: 'E', state: 'Asignada', technician: 'Rosa Alarcón Díaz', createdAt: NOW - 1 * H, dueAt: NOW + 70 * H }),
-]
-const codes = (rs: RowView[]) => rs.map((r) => r.code)
+describe('toServerQuery', () => {
+  it('sin filtros solo envía el orden', () => {
+    expect(plan({})).toEqual({ kind: 'query', query: { sort: 'due' } })
+    expect(plan({ sort: 'new' })).toEqual({ kind: 'query', query: { sort: 'newest' } })
+    expect(plan({ sort: 'prio' })).toEqual({ kind: 'query', query: { sort: 'priority' } })
+  })
 
-describe('filterRows', () => {
-  it('sin filtros devuelve todo', () => {
-    expect(filterRows(rows, none)).toHaveLength(5)
+  it('envía texto recortado e ids numéricos de categoría, prioridad y técnico', () => {
+    expect(plan({ q: '  aula 12 ', category: '6', priority: '2', technician: '9' })).toEqual({
+      kind: 'query',
+      query: { sort: 'due', q: 'aula 12', categoryId: 6, priorityId: 2, technicianId: 9 },
+    })
+    expect(plan({ category: 'Electricidad' })).toEqual({ kind: 'query', query: { sort: 'due' } })
   })
-  it('busca por código, descripción, categoría y ambiente sin importar tildes', () => {
-    expect(codes(filterRows(rows, { ...none, q: 'wifi' }))).toEqual(['D'])
-    expect(codes(filterRows(rows, { ...none, q: 'aula 12' }))).toEqual(['A', 'B', 'C', 'D', 'E'])
-    expect(codes(filterRows(rows, { ...none, q: 'ELECTRICIDAD' }))).toEqual(['A', 'B', 'C', 'E'])
+
+  it('envía el área por id y el rango de fechas como días AAAA-MM-DD', () => {
+    expect(plan({ area: '3', from: '2026-10-01', to: '2026-10-15' })).toEqual({
+      kind: 'query',
+      query: { sort: 'due', areaId: 3, from: '2026-10-01', to: '2026-10-15' },
+    })
+    expect(plan({ from: '2026-10-10', to: '2026-10-10' }).kind).toBe('query')
+    expect(plan({ area: 'Soporte', from: 'ayer' })).toEqual({ kind: 'query', query: { sort: 'due' } })
+    expect(plan({ from: '2026-10-15', to: '2026-10-01' })).toEqual({ kind: 'empty' })
   })
-  it('filtra por categoría, prioridad y técnico', () => {
-    expect(codes(filterRows(rows, { ...none, category: 'Red e internet' }))).toEqual(['D'])
-    expect(codes(filterRows(rows, { ...none, priority: 'Crítica' }))).toEqual(['A'])
-    expect(codes(filterRows(rows, { ...none, technician: 'Rosa Alarcón Díaz' }))).toEqual(['E'])
+
+  it('traduce el estado de la interfaz al código del contrato y "Vencidas" a overdue', () => {
+    expect(plan({ status: 'En atención' })).toEqual({ kind: 'query', query: { sort: 'due', status: ['EN_ATENCION'] } })
+    expect(plan({ status: '__venc' })).toEqual({ kind: 'query', query: { sort: 'due', overdue: true } })
   })
-  it('filtra por estado, incluida la opción "vencidas"', () => {
-    expect(codes(filterRows(rows, { ...none, status: 'Resuelta' }))).toEqual(['C'])
-    expect(codes(filterRows(rows, { ...none, status: '__venc' }))).toEqual(['B'])
+
+  it('traduce las vistas guardadas', () => {
+    expect(plan({ view: 'venc' })).toEqual({ kind: 'query', query: { sort: 'due', overdue: true } })
+    expect(plan({ view: 'open' })).toEqual({ kind: 'query', query: { sort: 'due', status: OPEN } })
+    expect(plan({ view: 'confirm' })).toEqual({ kind: 'query', query: { sort: 'due', status: ['RESUELTA'] } })
+    // "Requieren mi atención" excluye las cerradas; el resto lo decide la bandeja con las notificaciones.
+    expect(plan({ view: 'attention' })).toEqual({ kind: 'query', query: { sort: 'due', status: [...OPEN, 'RESUELTA'] } })
+    expect(plan({ view: 'critsa' })).toEqual({
+      kind: 'query',
+      query: { sort: 'due', priorityId: CRITICAL, unassigned: true, status: OPEN },
+    })
   })
-  it('vista "Mis vencidas": solo sin resolver y pasadas de plazo', () => {
-    expect(codes(filterRows(rows, { ...none, view: 'venc' }))).toEqual(['B'])
+
+  it('intersecta el estado con la vista', () => {
+    expect(plan({ status: 'Asignada', view: 'open' })).toEqual({ kind: 'query', query: { sort: 'due', status: ['ASIGNADA'] } })
+    expect(plan({ status: 'Resuelta', view: 'open' })).toEqual({ kind: 'empty' })
+    expect(plan({ status: 'Cerrada', view: 'critsa' })).toEqual({ kind: 'empty' })
   })
-  it('vista "Abiertas": excluye resueltas y cerradas', () => {
-    expect(codes(filterRows(rows, { ...none, view: 'open' }))).toEqual(['A', 'B', 'E'])
+
+  it('detecta combinaciones imposibles de "Críticas sin asignar"', () => {
+    expect(plan({ view: 'critsa', priority: '3' })).toEqual({ kind: 'empty' })
+    expect(plan({ view: 'critsa', technician: '9' })).toEqual({ kind: 'empty' })
+    expect(plan({ view: 'critsa', priority: String(CRITICAL) }).kind).toBe('query')
   })
-  it('vista "Por confirmar": solo resueltas', () => {
-    expect(codes(filterRows(rows, { ...none, view: 'confirm' }))).toEqual(['C'])
-  })
-  it('vista "Críticas sin asignar"', () => {
-    expect(codes(filterRows(rows, { ...none, view: 'critsa' }))).toEqual(['A'])
+
+  it('espera al catálogo cuando necesita el id de la prioridad crítica', () => {
+    expect(toServerQuery({ ...none, view: 'critsa' }, undefined)).toEqual({ kind: 'pending' })
+    expect(toServerQuery({ ...none, view: 'open' }, undefined).kind).toBe('query')
   })
 })
 
-describe('sortRows', () => {
-  it('por vencimiento: primero las abiertas más urgentes y al final las finalizadas', () => {
-    expect(codes(sortRows(rows, 'due'))).toEqual(['B', 'A', 'E', 'C', 'D'])
-  })
-  it('por más recientes', () => {
-    expect(codes(sortRows(rows, 'new'))[0]).toBe('E')
-  })
-  it('por prioridad', () => {
-    expect(codes(sortRows(rows, 'prio')).slice(0, 2)).toEqual(['A', 'B'])
-  })
-  it('no modifica el arreglo original', () => {
-    const before = codes(rows)
-    sortRows(rows, 'prio')
-    expect(codes(rows)).toEqual(before)
-  })
-})
+describe('contadores', () => {
+  const counts = {
+    total: 9,
+    overdue: 2,
+    byStatus: { REGISTRADA: 1, EN_EVALUACION: 2, ASIGNADA: 1, EN_ATENCION: 1, RESUELTA: 3, CERRADA: 1 },
+  }
 
-describe('countByState', () => {
-  it('cuenta por estado y vencidas', () => {
-    const c = countByState(rows)
-    expect(c.total).toBe(5)
-    expect(c.overdue).toBe(1)
-    expect(c.byState['Resuelta']).toBe(1)
-    expect(c.byState['En atención']).toBe(1)
+  it('usa las etiquetas de la interfaz', () => {
+    expect(toStripCounts(counts)).toEqual({
+      total: 9,
+      overdue: 2,
+      byState: { Registrada: 1, 'En evaluación': 2, Asignada: 1, 'En atención': 1, Resuelta: 3, Cerrada: 1 },
+    })
+    expect(toStripCounts(undefined).total).toBe(0)
+  })
+
+  it('las abiertas son las que no llegaron a Resuelta', () => {
+    expect(openCount(counts)).toBe(5)
+    expect(openCount(undefined)).toBe(0)
   })
 })
 

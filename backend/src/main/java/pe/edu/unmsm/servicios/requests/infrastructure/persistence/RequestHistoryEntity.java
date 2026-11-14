@@ -26,14 +26,19 @@ class RequestHistoryEntity {
 	@Column(name = "to_status", nullable = false, length = 20)
 	String toStatus;
 
-	@Column(name = "actor_id", nullable = false)
-	long actorId;
+	/** Null when the system made the change (automatic closure). */
+	@Column(name = "actor_id")
+	Long actorId;
 
 	@Column(name = "technician_id")
 	Long technicianId;
 
 	@Column(length = 500)
 	String reason;
+
+	/** Describes a change that keeps the status, e.g. a priority change. */
+	@Column(length = 200)
+	String note;
 
 	@Column(name = "created_at", nullable = false)
 	Instant createdAt;

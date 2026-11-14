@@ -47,22 +47,22 @@ Los errores siguen RFC 7807 (`RequestsExceptionHandler`); los de validación inc
 - **Fechas en UTC.** Las columnas guardan la hora UTC (`hibernate.jdbc.time_zone=UTC`). En las consultas JDBC las fechas se enlazan como `LocalDateTime` en UTC, para no depender de la zona de la JVM.
 - **Lectura con SQL, escritura con JPA.** El listado y el detalle ya traen los nombres con joins, sin cargar entidades ni relaciones.
 - **Visibilidad.** `RequestScope` replica en SQL la regla de `AccessPolicy`: solicitante las propias, técnico las asignadas, supervisor las de su área, administrador todas. Un supervisor sin área o un rol desconocido no ven nada. Los filtros se suman con `AND`, así que nunca amplían lo visible.
-- **Paginación acotada, no rechazada:** `size` entre 1 y 500, `page` desde 0. El frontend pide 500 para mostrar contadores por estado sin esperas.
-- **Vencida:** no está en `RESUELTA` ni `CERRADA` y `dueAt` ya pasó. La misma regla existe en `Sla.isOverdue` (Java) y en el filtro `overdue` de `JdbcRequestQueries` (SQL, constante `FINISHED`): si cambia una, hay que cambiar la otra.
+- **Paginación validada en el servidor:** `size` entre 1 y 500 y `page` desde 0; un valor fuera de rango responde `400` (no se ajusta en silencio). La bandeja pide una página a la vez y los contadores salen de `GET /requests/counts`.
+- **Vencida:** no está en `RESUELTA` ni `CERRADA` y `dueAt` ya pasó. La misma regla existe en `Sla.isOverdue` (Java) y en el filtro `overdue` de `JdbcRequestQueries` (SQL, constante `OVERDUE`, que construye la lista `FINISHED` desde `RequestStatus.isFinished`).
 
 ## 5. Filtros del listado
 
-`GET /requests?status=&from=&to=&areaId=&overdue=&page=&size=` (detalle en el contrato).
+`GET /requests?status=&areaId=&categoryId=&priorityId=&technicianId=&unassigned=&overdue=&q=&from=&to=&sort=&page=&size=` (detalle en el contrato). `RequestListCriteria.parse` valida todos los parámetros y reporta cada uno inválido a la vez (`400` con `errors` por campo).
 
-- `from` y `to` son días inclusive en hora de Lima. `RequestFilter` los convierte a un intervalo semiabierto de instantes: `created_at >= inicio(from)` y `created_at < inicio(to + 1 día)`.
-- `to` anterior a `from` lanza `InvalidRequestException` (`400`, campo `to`). Una fecha mal formada o un estado inexistente también dan `400`, por la conversión de parámetros de Spring.
+- `from` y `to` son días inclusive en hora de Lima. `RequestListCriteria` (`createdFrom()` y `createdBefore()`) los convierte a un intervalo semiabierto de instantes: `created_at >= inicio(from)` y `created_at < inicio(to + 1 día)`.
+- `to` anterior a `from` da `400` en el campo `to`; el mismo día vale. Una fecha mal formada o un estado inexistente también dan `400` en su campo.
 - `overdue=true` deja las vencidas; `overdue=false`, las demás.
 
 ## 6. Frontend (`features/requests`)
 
-- **`api.ts`:** `useRequestRows(server)` pide el listado completo (500) con `from`, `to` y `areaId`; la clave de caché incluye esos filtros. `useRequestDetail` deriva las acciones de la interfaz desde `allowedTransitions` si el servidor no envía `allowedActions`.
+- **`api.ts`:** `useRequestPage(query)` pide una página filtrada y ordenada en el servidor; `useRequestCounts` trae los contadores; `useRequestRows()` pide todo lo visible (500) para las vistas que agregan sobre el conjunto (Inicio, calendario, reportes y el panel "Requieren tu atención"). `useRequestDetail` deriva las acciones de la interfaz desde `allowedTransitions` si el servidor no envía `allowedActions`.
 - **`containers/`:** `RequestListPage`, `NewRequestPage`, `RequestDetailPage`, además de `HomePage` y `CalendarPage` (extras del diseño). `useListParams` guarda el estado del listado en la URL.
-- **Filtros:** los de fecha y área (`ServerFilters`) los resuelve el servidor; estado, categoría, prioridad, técnico, texto, vistas guardadas y "vencidas" se aplican en el cliente (`lib/filters.ts`) sobre ese resultado, así los contadores se calculan sin otra petición. El área solo la ofrece la interfaz al administrador.
+- **Filtros:** `lib/filters.ts` (`toServerQuery`) traduce todos los filtros de la URL (texto, categoría, prioridad, técnico, estado, vencidas, área, fechas, vistas guardadas y orden) a parámetros de `GET /requests`. La única excepción es la vista "Requieren mi atención", que depende de las notificaciones sin leer del usuario: se piden hasta 500 con los demás filtros y se refinan en el cliente. El área solo la ofrece la interfaz al administrador.
 - **Formulario:** validación con zod en `schemas/newRequest.ts` (misma regla de 20–2000 caracteres que el backend). Ubicación en tres listas encadenadas; el front resuelve el `locationId` del ambiente.
 - **Mocks (MSW, `src/mocks`):** replican visibilidad y filtros del backend; `VITE_USE_MOCKS=true` los activa. Los datos de los mocks no son los de la semilla real.
 
@@ -71,10 +71,10 @@ Los errores siguen RFC 7807 (`RequestsExceptionHandler`); los de validación inc
 | Nivel | Dónde | Qué cubre |
 |---|---|---|
 | Dominio | `RequestCodeTest`, `ServiceRequestTest`, `SlaTest` | Código, descripción y SLA |
-| Casos de uso | `CreateRequestTest`, `GetAndListRequestsTest` | Validaciones, visibilidad, paginación y filtros (con dobles) |
-| Integración (MySQL 8.4 con Testcontainers) | `CatalogApiTests`, `RequestsApiTests` | Lista de pruebas obligatorias del plan, incluidas diez creaciones concurrentes y los filtros por fecha, área y vencidas |
+| Casos de uso | `CreateRequestTest`, `GetAndListRequestsTest`, `RequestListCriteriaTest` | Validaciones, visibilidad, paginación y filtros (con dobles) |
+| Integración (MySQL 8.4 con Testcontainers) | `CatalogApiTests`, `RequestsApiTests`, `RequestListFiltersApiTests` | Lista de pruebas obligatorias del plan, incluidas diez creaciones concurrentes y los filtros por fecha, área y vencidas |
 | Arquitectura | `ArchitectureTest` | Dependencias entre capas |
-| Frontend (Vitest) | `new-request.test.tsx`, `filters.test.ts`, `mocks/handlers.test.ts` | Crear una solicitud, filtros del cliente y reglas de los mocks |
+| Frontend (Vitest) | `new-request.test.tsx`, `filters.test.ts`, `mocks/handlers.test.ts` | Crear una solicitud, traducción de filtros a la consulta y reglas de los mocks |
 
 Las pruebas de integración necesitan Docker en marcha.
 

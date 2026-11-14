@@ -102,7 +102,17 @@ export function detailOf(r: MockRequest, user: MockUser, now = Date.now()): Requ
     evidences: r.evidences,
     solution: r.solution,
     rating: r.rating,
+    autoCloseAt: autoCloseAtOf(r),
   }
+}
+
+/** Como el backend: última entrada a RESUELTA + `autoCloseHours` vigente; null si no está Resuelta. */
+function autoCloseAtOf(r: MockRequest): string | null {
+  if (r.status !== 'RESUELTA') return null
+  const resolvedAt = r.history
+    .filter((h) => h.toStatus === 'RESUELTA' && h.fromStatus !== 'RESUELTA')
+    .reduce<number | null>((latest, h) => (latest === null || h.createdAt > latest ? h.createdAt : latest), null)
+  return resolvedAt === null ? null : iso(resolvedAt + getDb().config.autoCloseHours * 3_600_000)
 }
 
 export function findByCode(code: string): MockRequest | undefined {

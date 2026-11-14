@@ -30,7 +30,9 @@ const mockRequest: RequestDetailView = {
   evidences: [],
   solution: null,
   rating: null,
+  autoCloseAt: null,
   allowedActions: [],
+  closureReason: null,
 }
 
 function renderComponent(req = mockRequest, userName = 'Ana Solicitante') {

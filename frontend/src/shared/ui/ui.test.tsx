@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { Button, Field, Input, Modal, Pagination, PriorityBadge, StarRating, StatusBadge, Tabs } from '.'
+import { Button, Field, GridRow, GridTable, Input, Modal, Pagination, PriorityBadge, StarRating, StatusBadge, Tabs } from '.'
 
 describe('Button', () => {
   it('queda deshabilitado y marcado como ocupado mientras carga', () => {
@@ -113,5 +113,25 @@ describe('Pagination', () => {
     expect(screen.getByText('1–10 de 23')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled()
+  })
+})
+
+describe('GridTable', () => {
+  it('expone cada hijo de la fila como celda (estructura ARIA tabla → fila → celda)', () => {
+    render(
+      <GridTable columns="1fr 1fr" heads={['Nombre', 'Acción']} label="Usuarios">
+        <GridRow columns="1fr 1fr">
+          <div>Ana</div>
+          {false}
+          <Button size="sm">Editar</Button>
+        </GridRow>
+      </GridTable>,
+    )
+    const rows = screen.getAllByRole('row')
+    expect(rows).toHaveLength(2)
+    const cells = screen.getAllByRole('cell')
+    expect(cells).toHaveLength(2)
+    expect(cells[0]).toHaveTextContent('Ana')
+    expect(cells[1]).toContainElement(screen.getByRole('button', { name: 'Editar' }))
   })
 })

@@ -62,14 +62,24 @@ Edita `infra/.env` (no se versiona). Variables principales:
 | `APP_JWT_SECRET` | Secreto con el que se firman los tokens. Mínimo 32 caracteres y distinto en cada entorno. Nunca lo subas al repositorio |
 | `APP_FLYWAY_LOCATIONS` | Ubicaciones de migraciones de Flyway |
 | `APP_EVIDENCES_STORAGE_PATH` | Ruta para almacenar las evidencias adjuntas (por defecto `/app/evidences` en Docker o `./evidences` en local) |
+| `APP_WORKFLOW_AUTO_CLOSE_ENABLED` | Activa el cierre automático de solicitudes resueltas sin confirmación (por defecto `true`). El plazo en horas se configura desde la pantalla de administración |
+| `APP_WORKFLOW_AUTO_CLOSE_INTERVAL` | Cada cuánto se revisan las solicitudes por cerrar, en formato ISO-8601 (por defecto `PT15M`, 15 minutos) |
+| `APP_AUTH_REFRESH_COOKIE_SECURE` | Atributo `Secure` de la cookie de refresco (por defecto `true`). Mantenlo en `true` en todo entorno con HTTPS; usa `false` solo si sirves el stack por HTTP desde un host distinto de `localhost` |
+| `APP_CORS_ALLOWED_ORIGINS` | Orígenes explícitos, separados por comas, que pueden llamar a la API desde otro origen (no se admiten comodines). Déjalo vacío cuando la interfaz y la API comparten origen a través de nginx, que es la configuración por defecto |
 
-Para cargar los usuarios de demostración, agrega:
+Para cargar los usuarios y los datos de demostración (es el valor de `infra/.env.example`):
 
 ```env
-APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev
+APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev,classpath:db/seed-demo
 ```
 
-`db/seed-dev` agrega usuarios de demostración. Úsalo **solo en local y staging, nunca en producción**. Si esas variables no aparecen en tu `infra/.env.example`, es porque el módulo de autenticación aún no está integrado en tu rama; agrégalas a mano cuando lo esté.
+| Ubicación | Contenido |
+|---|---|
+| `db/migration` | Esquema y catálogos. Es la única que se usa en producción |
+| `db/seed-dev` | Los cuatro usuarios de demostración base (uno por rol) |
+| `db/seed-demo` | Datos de demostración realistas (sección 6). Requiere `db/seed-dev` |
+
+`db/seed-dev` y `db/seed-demo` se usan **solo en local y staging, nunca en producción**. Si prefieres una base vacía con solo los usuarios, quita `classpath:db/seed-demo`. Las pruebas del backend usan `db/seed-dev` sin `db/seed-demo`, salvo `DemoSeedTests`, que valida los datos de demostración.
 
 ## 5. Stack completo con Docker
 
@@ -78,7 +88,30 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
 ```
 
 - Aplicación: <http://localhost:8088>
-- Comprobación de salud: <http://localhost:8088/api/v1/system/info>
+- Información del sistema: <http://localhost:8088/api/v1/system/info>
+
+Cada servicio declara una comprobación de salud y el arranque sigue ese orden: `mysql` debe estar sano para iniciar `backend`, y `backend` debe estar sano para iniciar `frontend`. La del backend consulta `/actuator/health/readiness` dentro del contenedor (está definida en `backend/Dockerfile`; como la imagen no incluye `curl` ni `wget`, usa `/dev/tcp` de bash). Actuator no se expone a través de nginx. Para ver el estado:
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file infra/.env ps
+```
+
+Si agregas `--wait` a `up -d --build`, el comando termina cuando todos los servicios están sanos (o falla si alguno no lo logra).
+
+### Prueba de humo
+
+`infra/smoke.sh` construye y levanta un stack aislado con los usuarios y los datos de demostración, espera a que esté sano, comprueba `GET /api/v1/system/info` y la interfaz en `/` a través de nginx, inicia sesión con `estudiante@unmsm.edu.pe`, verifica que `GET /api/v1/requests` devuelva sus solicitudes de demostración y que `GET /api/v1/notifications` exija sesión (401 sin token) y liste sus notificaciones, y finalmente elimina el stack con sus volúmenes. No usa tu `infra/.env`: genera un archivo de entorno temporal con secretos aleatorios. El CI la ejecuta (dentro de `infra/e2e.sh`, ver la sección 8) después de las pruebas del backend y del frontend.
+
+```bash
+bash infra/smoke.sh
+```
+
+| Variable | Uso |
+|---|---|
+| `SMOKE_PROJECT` | Nombre del proyecto de Compose (por defecto `taller-web-smoke`) |
+| `FRONTEND_PORT` | Puerto publicado por nginx (por defecto `8089`) |
+| `SMOKE_KEEP_STACK=1` | Deja el stack en ejecución al terminar con éxito, por ejemplo para las pruebas E2E. Elimínalo después con `docker compose -p <proyecto> -f infra/docker-compose.yml down -v` |
+| `SMOKE_SKIP_BUILD=1` | Reutiliza las imágenes ya construidas |
 
 Detener el stack:
 
@@ -94,7 +127,7 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env down -v
 
 ## 6. Usuarios de demostración
 
-Disponibles cuando el módulo de autenticación está integrado y `APP_FLYWAY_LOCATIONS` incluye `db/seed-dev`. Contraseña de todos: `Demo12345!`.
+Disponibles cuando `APP_FLYWAY_LOCATIONS` incluye `db/seed-dev`. Contraseña de todos: `Demo12345!`.
 
 | Rol | Correo | Área o tipo | Para probar |
 |---|---|---|---|
@@ -117,6 +150,36 @@ Disponibles cuando el módulo de autenticación está integrado y `APP_FLYWAY_LO
 
 Supervisores y técnicos pertenecen a un **área**, no a una facultad: la categoría de la solicitud decide el área que la atiende, y la facultad solo describe dónde está el problema. Los usuarios desde `supervisor.infraestructura` vienen de `seed-dev/V20261113_1100__more_dev_users.sql`; en una base existente se agregan solos al reiniciar el backend.
 
+### Datos de demostración (`db/seed-demo`)
+
+Con `db/seed-demo` (requiere `db/seed-dev`) se agregan, con la misma contraseña:
+
+| Rol | Correo |
+|---|---|
+| Técnicos (Mantenimiento) | `jorge.ramirez@unmsm.edu.pe`, `carmen.vilchez@unmsm.edu.pe` |
+| Técnico (Infraestructura) | `raul.mendoza@unmsm.edu.pe` |
+| Técnicos (Soporte Informático) | `diana.torres@unmsm.edu.pe`, `kevin.huaman@unmsm.edu.pe` |
+| Técnica (Servicios Administrativos) | `patricia.lozano@unmsm.edu.pe` |
+| Solicitante (estudiante) | `sofia.castillo@unmsm.edu.pe` |
+| Técnico (inactivo, Infraestructura) | `oscar.medina@unmsm.edu.pe` |
+
+Los supervisores de Infraestructura, Soporte Informático y Servicios Administrativos y los solicitantes `docente@` y `administrativo@` de las solicitudes de demostración son los de `db/seed-dev` (tabla anterior): el script los busca por correo y no los vuelve a crear.
+
+Además carga:
+
+- 66 solicitudes en las cuatro áreas y las siete categorías, repartidas en los últimos 60 días para que los indicadores de 7 días, 30 días y del mes muestren variaciones respecto del periodo anterior. Hay solicitudes en todos los estados, algunas vencidas y otras por vencer en las próximas 24 horas, cierres por confirmación, no procede, duplicada y cierre automático, una solución rechazada y reasignaciones.
+- El historial completo de cada solicitud con los mismos textos que genera el flujo de estados (incluidos dos cambios de prioridad), comentarios, calificaciones de satisfacción en solicitudes cerradas por confirmación y notificaciones leídas y sin leer de las dos últimas semanas.
+- Ambientes adicionales y ocho reglas de triage sobre las categorías reales (una inactiva).
+- Los códigos siguen el formato `SOL-AAAA-NNNNNN` y la secuencia queda actualizada, de modo que las solicitudes nuevas continúan la numeración.
+
+Detalles a tener en cuenta:
+
+- Es una migración repetible de Flyway (`R__demo_data.sql`): se ejecuta después de todas las migraciones versionadas, así que las migraciones de esquema futuras no la afectan.
+- Las fechas son relativas al momento de la carga (horario de oficina de Lima). Para refrescarlas, recrea la base con `down -v` y vuelve a levantar el stack.
+- Si se modifica el archivo, Flyway lo vuelve a ejecutar sin duplicar ni modificar filas existentes (cada fila tiene un identificador fijo en un rango reservado). Los cambios en filas ya cargadas solo se ven tras `down -v`.
+- Las solicitudes en estado Resuelta se resolvieron menos de 72 horas antes de la carga, por lo que el cierre automático las cerrará cuando venza su plazo, como a cualquier otra.
+- No se cargan evidencias, porque sus archivos no existirían en el volumen de almacenamiento.
+
 > Con la API simulada (`VITE_USE_MOCKS=true`, sección 7) el login muestra otras cuentas de ejemplo, definidas en `frontend/src/mocks/db.ts` (ver `frontend/README.md`); las de esta tabla son las de la base de datos real.
 
 ## 7. Modo desarrollo
@@ -126,6 +189,12 @@ Backend (MySQL en Testcontainers; requiere Docker en ejecución):
 ```bash
 cd backend
 mise exec -- ./mvnw spring-boot:test-run
+```
+
+Así arranca solo con el esquema. Para tener los usuarios y los datos de demostración, indica las ubicaciones de Flyway al lanzarlo:
+
+```bash
+APP_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed-dev,classpath:db/seed-demo mise exec -- ./mvnw spring-boot:test-run
 ```
 
 Frontend, en otra terminal (<http://localhost:5173>, con proxy de `/api` al puerto 8080):
@@ -155,8 +224,49 @@ Si `pnpm` falla con "no se reconoce como un comando interno o externo", tu `pnpm
 | Frontend: pruebas | `cd frontend && pnpm test` |
 | Frontend: lint | `cd frontend && pnpm lint` |
 | Frontend: tipos | `cd frontend && pnpm typecheck` |
+| E2E contra el stack real (Playwright) | `bash infra/e2e.sh` |
+| Frontend: tipos de E2E | `cd frontend && pnpm typecheck:e2e` |
 
 Las pruebas de integración del backend usan Testcontainers, por lo que Docker debe estar en ejecución.
+
+### Pruebas E2E
+
+Las pruebas E2E (`frontend/e2e/*.e2e.ts`) usan Playwright contra el stack real de Docker Compose (sin API simulada), con los usuarios y los datos de demostración. Un solo comando las ejecuta de principio a fin, desde la raíz del repositorio:
+
+```bash
+bash infra/e2e.sh
+```
+
+El script instala las dependencias del frontend y Chromium (la primera vez), construye y levanta un stack aislado con `db/seed-dev` y `db/seed-demo` mediante `infra/smoke.sh` (que espera a que todo esté sano y hace la prueba de humo), ejecuta `pnpm e2e` contra él y **siempre** elimina el stack con sus volúmenes, también si algo falla o se interrumpe con Ctrl+C. Los argumentos extra pasan a Playwright, por ejemplo `bash infra/e2e.sh requester` o `bash infra/e2e.sh --headed`.
+
+| Variable | Uso |
+|---|---|
+| `E2E_PORT` | Puerto publicado por nginx (por defecto `8090`) |
+| `E2E_PROJECT` | Nombre del proyecto de Compose (por defecto `taller-web-e2e`) |
+| `E2E_KEEP_STACK=1` | Deja el stack en ejecución al terminar; el script imprime el comando para eliminarlo |
+| `E2E_SKIP_BUILD=1` | Reutiliza las imágenes ya construidas |
+| `E2E_INSTALL_DEPS=1` | Instala también las librerías del sistema que necesita Chromium (lo usa el CI) |
+
+Qué cubren (26 pruebas, unos 15 s una vez levantado el stack):
+
+| Archivo | Recorridos |
+|---|---|
+| `requester.e2e.ts` | Registrar una solicitud aceptando la sugerencia de triage y con una evidencia; filtros, búsqueda y paginación de "Mis solicitudes" en el servidor; detalle con historial y comentarios; confirmar y calificar una solicitud resuelta; rechazar la solución |
+| `supervisor.e2e.ts` | Filtros de la bandeja del área; pasar a evaluación, asignar técnico (con su carga) y cambiar la prioridad (nota en el historial); indicadores del dashboard en 7 días, 30 días y el mes comparados con la API; página de equipo |
+| `technician.e2e.ts` | Iniciar la atención y resolver con una solución; contador y lista de notificaciones, marcar una y todas como leídas |
+| `admin.e2e.ts` | Usuarios (alta con contraseña temporal y desactivación); catálogos (área y categoría); reglas de triage (alta, probador, edición, activación y baja); búsqueda en auditoría; cambio de `autoCloseHours` reflejado en el plazo de cierre automático que ve el solicitante |
+| `auth.e2e.ts` | Cerrar sesión; cambiar la contraseña de una cuenta nueva creada por el administrador |
+| `a11y.e2e.ts`, `smoke.e2e.ts` | Análisis con axe (WCAG 2.1 A/AA) de las páginas principales de cada rol y del detalle; login de cada rol |
+
+Cada prueba crea los datos que modifica (con un marcador único) y restaura la configuración que cambia, así que la suite se puede repetir sobre el mismo stack. Las trazas, capturas y el informe de los fallos quedan en `frontend/test-results/` y `frontend/playwright-report/`. En el CI se ejecuta en el job `smoke` después de las pruebas del backend y del frontend.
+
+Contra un stack que ya está en ejecución (por ejemplo el de la sección 5, siempre que tenga `db/seed-dev` y `db/seed-demo`):
+
+```bash
+cd frontend
+pnpm exec playwright install chromium   # solo la primera vez
+E2E_BASE_URL=http://localhost:8088 pnpm e2e
+```
 
 ## 9. Flujo de Git
 
@@ -178,4 +288,6 @@ Más detalle en [`plan/README.md`](../plan/README.md).
 | `mvnw` falla con errores de saltos de línea (`bad interpreter`, `\r`) | El repositorio fuerza LF mediante `.gitattributes`, por lo que no hace falta cambiar `core.autocrlf`. Si el archivo quedó dañado, vuelve a clonar el repositorio |
 | `pnpm install --frozen-lockfile` falla por desajuste | `pnpm-lock.yaml` no coincide con `package.json`. Ejecuta `pnpm install`, revisa el cambio del lockfile y súbelo junto con tu cambio |
 | `pnpm` no se reconoce | Ejecuta `corepack enable` y abre una terminal nueva |
+| `backend` queda en `unhealthy` y `frontend` no arranca | El backend no llegó a estar listo. Revisa `docker compose -f infra/docker-compose.yml --env-file infra/.env logs backend` (suele deberse a un `APP_JWT_SECRET` ausente o corto, o a un error de migración) |
 | Los usuarios de demostración no existen | Falta `APP_FLYWAY_LOCATIONS` con `db/seed-dev` en `infra/.env`. Corrígelo y reinicia con `down -v` seguido de `up -d --build` |
+| No hay solicitudes de demostración o sus fechas son antiguas | Falta `classpath:db/seed-demo` en `APP_FLYWAY_LOCATIONS`, o la base se creó hace días. Agrégalo si falta y reinicia con `down -v` seguido de `up -d --build` |

@@ -44,6 +44,13 @@ describe('toRequestDetail', () => {
     expect(view.allowedActions).toEqual([])
     expect(view.solution).toBeNull()
     expect(view.rating).toBeNull()
+    expect(view.autoCloseAt).toBeNull()
+  })
+
+  it('convierte el plazo del cierre automático a milisegundos', () => {
+    const view = toRequestDetail({ ...backendDetail, status: 'RESUELTA', autoCloseAt: '2026-10-20T15:00:00Z' })
+
+    expect(view.autoCloseAt).toBe(Date.parse('2026-10-20T15:00:00Z'))
   })
 
   it('traduce estado, fechas y el primer historial', () => {

@@ -8,12 +8,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pe.edu.unmsm.servicios.admin.domain.CatalogConflictException;
 import pe.edu.unmsm.servicios.admin.domain.CatalogEntryNotFoundException;
 import pe.edu.unmsm.servicios.admin.domain.InvalidCatalogDataException;
+import pe.edu.unmsm.servicios.admin.domain.InvalidSettingsException;
 import pe.edu.unmsm.servicios.admin.domain.InvalidUserDataException;
 import pe.edu.unmsm.servicios.admin.domain.ManagedUserNotFoundException;
 import pe.edu.unmsm.servicios.admin.domain.SelfManagementException;
 
 /** Validation of @Valid bodies and duplicate emails are handled by the auth module's global handler. */
-@RestControllerAdvice(assignableTypes = { AdminUsersController.class, AdminCatalogsController.class })
+@RestControllerAdvice(assignableTypes = { AdminUsersController.class, AdminCatalogsController.class,
+		AdminSettingsController.class })
 class AdminExceptionHandler {
 
 	@ExceptionHandler(InvalidCatalogDataException.class)
@@ -39,6 +41,15 @@ class AdminExceptionHandler {
 		if (!ex.errors().isEmpty()) {
 			problem.setProperty("errors", ex.errors());
 		}
+		return problem;
+	}
+
+	@ExceptionHandler(InvalidSettingsException.class)
+	ProblemDetail invalidSettings(InvalidSettingsException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+				"La solicitud contiene datos inválidos");
+		problem.setTitle("Bad Request");
+		problem.setProperty("errors", ex.errors());
 		return problem;
 	}
 

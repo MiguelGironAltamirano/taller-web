@@ -6,45 +6,55 @@ import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
+import pe.edu.unmsm.servicios.requests.domain.RequestChangeForbiddenException;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
 import pe.edu.unmsm.servicios.satisfaction.domain.Rating;
-import pe.edu.unmsm.servicios.satisfaction.domain.RatingAlreadyExistsException;
 import pe.edu.unmsm.servicios.satisfaction.domain.RatingNotAllowedException;
 import pe.edu.unmsm.servicios.shared.domain.AccessPolicy;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 
 /**
- * Saves the optional rating of a request whose solution the requester already confirmed. Confirming is the
- * Resuelta → Cerrada transition of the workflow module; rating does not change the status (spec §6).
+ * The requester rates a request whose solution they confirmed. The rating is optional, given at most once, and
+ * does not change the request: it was already closed by the {@code RESUELTA → CERRADA} transition.
  */
 public class RateRequest {
 
+	private static final String REQUESTER = "SOLICITANTE";
+
 	private final RequestStateStore requests;
-	private final RatingStore ratings;
+	private final RatingRepository ratings;
 	private final Clock clock;
 
-	public RateRequest(RequestStateStore requests, RatingStore ratings, Clock clock) {
+	public RateRequest(RequestStateStore requests, RatingRepository ratings, Clock clock) {
 		this.requests = requests;
 		this.ratings = ratings;
 		this.clock = clock;
 	}
 
-	/** The request row stays locked until the end, so two ratings of one request are decided one after the other. */
+	/**
+	 * Checks run in a fixed order: not visible (404), not the owning requester (403), not closed by confirmation
+	 * or already rated (409), invalid score or comment (400). The request row stays locked until the rating
+	 * commits, so two simultaneous ratings are decided one after the other.
+	 */
 	@Transactional
-	public Rating execute(AuthenticatedUser actor, String code, int score, String comment) {
+	public Rating execute(AuthenticatedUser user, String code, Integer score, String comment) {
 		ServiceRequest request = requests.findByCodeForUpdate(code)
-				.filter(r -> AccessPolicy.isOwner(actor, r.requesterId()))
+				.filter(r -> AccessPolicy.canViewRequest(user, r.requesterId(), r.areaId(), r.technicianId()))
 				.orElseThrow(() -> new RequestNotFoundException(code));
-
+		if (!REQUESTER.equals(user.role()) || !AccessPolicy.isOwner(user, request.requesterId())) {
+			throw new RequestChangeForbiddenException("Solo el solicitante puede calificar su solicitud");
+		}
 		if (request.status() != RequestStatus.CERRADA || request.closureReason() != ClosureReason.CONFIRMADA) {
-			throw new RatingNotAllowedException(code);
+			throw new RatingNotAllowedException("Solo se puede calificar una solicitud cuya solución confirmaste");
 		}
-		if (ratings.existsForRequest(request.id())) {
-			throw new RatingAlreadyExistsException(code);
+		if (ratings.findByRequestId(request.id()).isPresent()) {
+			throw new RatingNotAllowedException("Ya calificaste esta solicitud");
 		}
-		return ratings.save(Rating.of(request.id(), score, comment, clock.instant()));
+		Rating rating = Rating.give(request.id(), score, comment, clock.instant());
+		ratings.save(rating);
+		return rating;
 	}
 
 }

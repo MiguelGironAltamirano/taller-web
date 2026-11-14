@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest'
 import type { RequestDetailView } from '../../shared/domain'
 import { ToastProvider } from '../../shared/ui'
 import { server } from '../../test/msw-server'
-import { proposedSolution } from './lib/solution'
 import { SatisfactionPanel } from './SatisfactionPanel'
 
 const OWNER = { id: 10, role: 'solicitante' as const }
@@ -37,8 +36,9 @@ function detail(overrides: Partial<RequestDetailView> = {}): RequestDetailView {
     ],
     comments: [],
     evidences: [],
-    solution: null,
+    solution: 'Se cambió el tomacorriente',
     rating: null,
+    autoCloseAt: null,
     allowedActions: [],
     closureReason: null,
     ...overrides,
@@ -78,30 +78,17 @@ function recordCalls(responses: { transitions?: () => Response; rating?: () => R
   return calls
 }
 
-describe('proposedSolution', () => {
-  it('usa el campo solution cuando viene', () => {
-    expect(proposedSolution(detail({ solution: 'Se reparó' }))).toBe('Se reparó')
-  })
-
-  it('si no, toma la última resolución del historial sin el prefijo', () => {
-    const history = [
-      ...detail().history,
-      { from: 'Resuelta', to: 'En atención', reason: 'Solución rechazada: sigue fallando', who: 'Ana', at: 3 },
-      { from: 'En atención', to: 'Resuelta', reason: 'Solución: Se cambió el cableado', who: 'Técnico', at: 4 },
-    ]
-    expect(proposedSolution(detail({ history }))).toBe('Se cambió el cableado')
-  })
-
-  it('devuelve null si no hay resolución', () => {
-    expect(proposedSolution(detail({ history: [] }))).toBeNull()
-  })
-})
-
 describe('SatisfactionPanel: solicitud resuelta', () => {
   it('muestra la solución propuesta al solicitante dueño', () => {
     renderPanel(detail())
     expect(screen.getByRole('heading', { name: '¿Quedó resuelto?' })).toBeInTheDocument()
     expect(screen.getByText('Se cambió el tomacorriente')).toBeInTheDocument()
+  })
+
+  it('sin solución registrada no muestra un recuadro vacío', () => {
+    renderPanel(detail({ solution: null }))
+    expect(screen.getByRole('heading', { name: '¿Quedó resuelto?' })).toBeInTheDocument()
+    expect(screen.queryByText(/Solución propuesta/)).not.toBeInTheDocument()
   })
 
   it('no se muestra a otro solicitante ni al personal', () => {
@@ -241,11 +228,12 @@ describe('SatisfactionPanel: solicitud cerrada', () => {
     expect(screen.queryByRole('button', { name: 'Enviar calificación' })).not.toBeInTheDocument()
   })
 
-  it('explica el cierre automático a las 72 horas', () => {
+  it('explica el cierre automático sin fijar un número de horas (el plazo es configurable)', () => {
     renderPanel(detail({ state: 'Cerrada', closureReason: 'AUTOMATICA' }))
 
     expect(screen.getByRole('heading', { name: 'Cerrada automáticamente' })).toBeInTheDocument()
-    expect(screen.getByText(/no confirmaste ni rechazaste la solución en 72 horas/)).toBeInTheDocument()
+    expect(screen.getByText(/no confirmaste ni rechazaste la solución dentro del plazo/)).toBeInTheDocument()
+    expect(screen.queryByText(/72 horas/)).not.toBeInTheDocument()
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 

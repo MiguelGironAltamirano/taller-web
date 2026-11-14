@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
 import pe.edu.unmsm.servicios.requests.domain.RequestHistoryEntry;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
-import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 import pe.edu.unmsm.servicios.workflow.domain.StateMachine;
@@ -18,7 +17,6 @@ import pe.edu.unmsm.servicios.workflow.domain.TransitionOutcome;
 import pe.edu.unmsm.servicios.workflow.domain.WorkflowSubject;
 
 import org.springframework.context.ApplicationEventPublisher;
-import pe.edu.unmsm.servicios.shared.domain.event.RequestTransitionedEvent;
 
 public class TransitionRequest {
 
@@ -56,22 +54,12 @@ public class TransitionRequest {
 
 		Instant now = clock.instant();
 		ServiceRequest updated = request.transitionedTo(outcome.to(), outcome.technicianId(), outcome.closureReason(),
-				now);
+				outcome.solution(), now);
 		RequestHistoryEntry entry = new RequestHistoryEntry(request.status(), outcome.to(), actor.id(),
 				outcome.historyTechnicianId(), outcome.reason(), now);
 		ServiceRequest result = requests.update(updated, entry);
 		if (eventPublisher != null) {
-			boolean isAssignment = outcome.to() == RequestStatus.ASIGNADA;
-			eventPublisher.publishEvent(new RequestTransitionedEvent(
-					result.code(),
-					result.id(),
-					result.requesterId(),
-					result.areaId(),
-					result.technicianId(),
-					actor.id(),
-					result.status().name(),
-					isAssignment
-			));
+			eventPublisher.publishEvent(TransitionEvents.of(request.status(), result, actor.id()));
 		}
 		return result;
 	}
