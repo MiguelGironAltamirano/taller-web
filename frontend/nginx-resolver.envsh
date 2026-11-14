@@ -1,0 +1,15 @@
+#!/bin/sh
+# Sourced by the official nginx entrypoint before it renders the config template.
+# Docker Compose and Railway supply their own DNS server in resolv.conf.
+if [ -z "${NGINX_RESOLVER:-}" ]; then
+  NGINX_RESOLVER="$(awk '$1 == "nameserver" { print $2; exit }' /etc/resolv.conf)"
+  case "$NGINX_RESOLVER" in
+    *:*) NGINX_RESOLVER="[$NGINX_RESOLVER]" ;;
+  esac
+  export NGINX_RESOLVER
+fi
+
+if [ -z "$NGINX_RESOLVER" ]; then
+  echo 'No DNS resolver found for nginx' >&2
+  exit 1
+fi
