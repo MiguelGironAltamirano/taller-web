@@ -19,53 +19,25 @@ type PageHeaderProps = {
   icon?: IconName
   /** Etiqueta corta sobre el título: la sección o el contexto de la página. */
   eyebrow?: string
-  /** `inline`: ícono a la izquierda (páginas); `stacked`: centrado, para tarjetas de acceso. */
-  layout?: 'inline' | 'stacked'
 }
-
-function HeaderIcon({ name, large }: { name: IconName; large?: boolean }) {
-  return (
-    <span
-      className={cn(
-        'relative grid shrink-0 place-items-center overflow-hidden bg-surface text-primary-fg ring-1 ring-inset ring-line',
-        'shadow-[0_1px_2px_rgb(0_0_0/0.05),0_10px_24px_-14px_var(--primary)]',
-        large ? 'size-14 rounded-[18px]' : 'size-12 rounded-2xl',
-      )}
-    >
-      <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(160deg,var(--primary-soft)_10%,transparent_75%)]" />
-      <Icon name={name} size={large ? 26 : 22} strokeWidth={1.9} className="relative" />
-    </span>
-  )
-}
-
-const EYEBROW = 'm-0 text-[11px] font-semibold uppercase leading-none tracking-[0.14em] text-primary-fg'
 
 /** Encabezado de página: ícono de sección, etiqueta, título (h1), subtítulo y acciones. */
-export function PageHeader({ title, subtitle, actions, icon, eyebrow, layout = 'inline' }: PageHeaderProps) {
-  if (layout === 'stacked') {
-    return (
-      <header className="flex flex-col items-center gap-4 text-center">
-        {icon && <HeaderIcon name={icon} large />}
-        <div className="flex flex-col items-center">
-          {eyebrow && <p className={cn(EYEBROW, 'mb-3')}>{eyebrow}</p>}
-          <h1 className="m-0 font-display text-[34px] font-semibold leading-[1.15] tracking-[-0.01em] text-fg">{title}</h1>
-          <span aria-hidden="true" className="mt-3.5 flex items-center gap-2.5">
-            <span className="h-px w-10 bg-gradient-to-r from-transparent to-line-strong" />
-            <span className="size-[7px] rotate-45 rounded-[1px] bg-primary" />
-            <span className="h-px w-10 bg-gradient-to-l from-transparent to-line-strong" />
-          </span>
-          {subtitle && <div className="mt-3.5 text-[14px] leading-relaxed text-muted">{subtitle}</div>}
-        </div>
-        {actions}
-      </header>
-    )
-  }
+export function PageHeader({ title, subtitle, actions, icon, eyebrow }: PageHeaderProps) {
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-3 pb-1">
       <div className="flex min-w-60 flex-1 items-center gap-4">
-        {icon && <HeaderIcon name={icon} />}
+        {icon && (
+          <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-surface text-primary-fg shadow-[0_1px_2px_rgb(0_0_0/0.05),0_10px_24px_-14px_var(--primary)] ring-1 ring-inset ring-line">
+            <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(160deg,var(--primary-soft)_10%,transparent_75%)]" />
+            <Icon name={icon} size={22} strokeWidth={1.9} className="relative" />
+          </span>
+        )}
         <div className="min-w-0">
-          {eyebrow && <p className={cn(EYEBROW, 'mb-1')}>{eyebrow}</p>}
+          {eyebrow && (
+            <p className="m-0 mb-1 text-[11px] font-semibold uppercase leading-none tracking-[0.14em] text-primary-fg">
+              {eyebrow}
+            </p>
+          )}
           <h1 className="m-0 text-[22px] font-bold leading-tight tracking-[-0.015em] text-fg md:text-[27px]">{title}</h1>
           {subtitle && <div className="mt-1 text-[13.5px] text-muted">{subtitle}</div>}
         </div>

@@ -1,8 +1,13 @@
 import type { ReactNode } from 'react'
 import { BrandLogo } from '../../shared/ui'
 
-/** Marco de las pantallas públicas: panel con el escudo de la universidad (escritorio) y formulario. */
-export function AuthShell({ children }: { children: ReactNode }) {
+type AuthShellProps = { title: string; subtitle?: string; children: ReactNode }
+
+/**
+ * Marco de las pantallas públicas: panel con el escudo de la universidad (escritorio) y una tarjeta cuyo
+ * encabezado guinda ocupa todo el ancho superior, con el título de la pantalla.
+ */
+export function AuthShell({ title, subtitle, children }: AuthShellProps) {
   return (
     <div className="flex min-h-screen bg-bg">
       <aside className="relative hidden w-[min(46%,640px)] shrink-0 overflow-hidden bg-brand lg:block">
@@ -33,8 +38,19 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <div className="flex flex-1 items-center justify-center p-6 md:p-10">
           <div className="flex w-full max-w-[440px] animate-rise flex-col items-center gap-7">
             <BrandLogo />
-            <div className="w-full rounded-2xl border border-primary/60 bg-surface p-7 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_16px_40px_-20px_rgb(0_0_0/0.22)] sm:p-9">
-              {children}
+            <div className="w-full overflow-hidden rounded-2xl border border-primary/60 bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_16px_40px_-20px_rgb(0_0_0/0.22)]">
+              <header
+                className="px-7 py-7 text-center text-white sm:px-9"
+                style={{
+                  background:
+                    'radial-gradient(90% 120% at 50% 0%, rgb(255 255 255 / 0.12), transparent 70%),' +
+                    'linear-gradient(180deg, var(--brand), var(--brand-deep))',
+                }}
+              >
+                <h1 className="m-0 font-display text-[30px] font-semibold leading-tight">{title}</h1>
+                {subtitle && <p className="m-0 mt-2 text-[13.5px] leading-relaxed text-white/80">{subtitle}</p>}
+              </header>
+              <div className="p-7 sm:p-9">{children}</div>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../shared/api/client'
-import { Alert, Avatar, Button, Field, Icon, Input, PageHeader, PasswordInput, useToast } from '../../shared/ui'
+import { Alert, Avatar, Button, Field, Icon, Input, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
 import { consumeWelcome, markWelcome } from './welcome'
 import { useAuth } from './context'
@@ -44,9 +44,8 @@ export function LoginPage() {
   })
 
   return (
-    <AuthShell>
+    <AuthShell title="Iniciar sesión" subtitle="Ingresa con tu cuenta institucional @unmsm.edu.pe.">
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-        <PageHeader layout="stacked" title="Iniciar sesión" subtitle="Ingresa con tu cuenta institucional @unmsm.edu.pe." />
         {formError && <Alert>{formError}</Alert>}
         <div className="flex flex-col gap-4">
           <Field label="Correo" error={errors.email?.message}>
