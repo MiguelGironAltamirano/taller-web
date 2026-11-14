@@ -48,9 +48,9 @@ export function LoginPage() {
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <PageHeader
           layout="stacked"
-          icon="login"
           eyebrow="Servicios Universitarios"
-          title="Iniciar sesión"
+          title="Iniciar"
+          titleAccent="sesión"
           subtitle="Ingresa con tu cuenta @unmsm.edu.pe para continuar."
         />
         {formError && <Alert>{formError}</Alert>}

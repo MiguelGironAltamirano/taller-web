@@ -70,9 +70,9 @@ export function RegisterPage() {
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <PageHeader
           layout="stacked"
-          icon="userCheck"
           eyebrow="Servicios Universitarios"
-          title="Crear cuenta"
+          title="Crear"
+          titleAccent="cuenta"
           subtitle="Para solicitantes con correo @unmsm.edu.pe."
         />
         <Field label="Nombre completo" error={errors.name?.message}>

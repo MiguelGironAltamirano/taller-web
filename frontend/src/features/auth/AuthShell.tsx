@@ -1,46 +1,32 @@
 import type { ReactNode } from 'react'
 import { BrandLogo } from '../../shared/ui'
 
-/** Marco de las pantallas públicas: panel institucional sobrio (escritorio) y formulario. */
+/** Marco de las pantallas públicas: panel con el escudo de la universidad (escritorio) y formulario. */
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-bg">
-      <aside className="relative hidden w-[min(44%,600px)] shrink-0 flex-col justify-between overflow-hidden bg-brand-deep p-12 text-white lg:flex">
+      <aside className="relative hidden w-[min(46%,640px)] shrink-0 overflow-hidden bg-brand lg:block">
+        {/* El escudo se funde con el fondo: el rojo de la imagen coincide con el guinda y los bordes se desvanecen. */}
+        <img
+          src="/brand/escudo-unmsm.webp"
+          alt="Escudo de la Universidad Nacional Mayor de San Marcos"
+          width={1024}
+          height={575}
+          className="absolute left-1/2 top-[47%] w-[122%] max-w-none -translate-x-1/2 -translate-y-1/2 animate-rise select-none [mask-image:radial-gradient(closest-side,black_62%,transparent)]"
+          draggable={false}
+        />
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'radial-gradient(70% 55% at 0% 0%, rgb(255 255 255 / 0.12), transparent 70%),' +
-              'linear-gradient(165deg, var(--brand) 0%, var(--brand-deep) 80%)',
+              'radial-gradient(120% 70% at 50% 50%, transparent 55%, rgb(0 0 0 / 0.22)),' +
+              'linear-gradient(to bottom, transparent 70%, var(--brand-deep))',
           }}
         />
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 size-full opacity-[0.07] [mask-image:linear-gradient(to_bottom,black,transparent_65%)]"
-        >
-          <defs>
-            <pattern id="auth-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M40 0H0v40" fill="none" stroke="white" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#auth-grid)" />
-        </svg>
-
-        <div className="relative animate-rise">
-          <BrandLogo inverse />
-        </div>
-
-        <div className="relative animate-rise [animation-delay:120ms]">
-          <p className="m-0 max-w-[440px] text-[36px] font-bold leading-[1.1] tracking-tight xl:text-[42px]">
-            Un solo lugar para tus solicitudes.
-          </p>
-          <p className="m-0 mt-4 max-w-[400px] text-[15px] leading-relaxed text-white/70">
-            Registra, sigue y confirma la atención de mantenimiento, soporte informático y trámites.
-          </p>
-          <div className="mt-12 h-px w-full bg-white/15" />
-          <p className="m-0 mt-5 text-[13px] text-white/55">Universidad Nacional Mayor de San Marcos</p>
-        </div>
+        <p className="absolute inset-x-0 bottom-10 m-0 text-center text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70">
+          Universidad Nacional Mayor de San Marcos
+        </p>
       </aside>
 
       <main className="relative flex flex-1 flex-col overflow-auto">
