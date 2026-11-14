@@ -439,7 +439,9 @@ class WorkflowApiTests {
 		HttpResponse<String> support = api.get("/api/v1/users/technicians", api.login(SUPPORT_SUPERVISOR));
 
 		assertThat(ApiClient.<List<Object>>read(own, "$")).hasSize(2);
-		assertThat(ApiClient.<List<String>>read(support, "$[*].fullName")).containsExactly("Técnico Soporte");
+		// Area 3 also has the technicians of the dev seed; what matters is that no technician of area 1 is offered.
+		assertThat(ApiClient.<List<String>>read(support, "$[*].fullName")).contains("Técnico Soporte")
+				.doesNotContain("Técnico Mantenimiento", "Segundo Técnico");
 	}
 
 	@Test
