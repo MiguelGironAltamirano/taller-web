@@ -10,13 +10,17 @@
   --border: #e2e4e8;
   --text: #1f2328;
   --muted: #5b6270;
+  --border-strong: #c9ccd3;
   --primary: #8b1a1a;
+  --primary-hover: #761515;
+  --primary-active: #621111;
   --on-primary: #ffffff;
   --primary-soft: #f8ebeb;
   --primary-text: #8b1a1a;
   --err-bg: #fee2e2;
   --err-fg: #b42318;
   --err-solid: #b42318;
+  --err-solid-hover: #9a1d14;
   --ok-bg: #d1fae5;
   --ok-fg: #065f46;
   --info-bg: #dbeafe;
@@ -65,14 +69,18 @@
   --surface: #1b1c1f;
   --surface2: #25272b;
   --border: #34363b;
+  --border-strong: #4b4e55;
   --text: #ecedef;
   --muted: #a0a5af;
   --primary: #b8383c;
+  --primary-hover: #a62f33;
+  --primary-active: #93292d;
   --primary-soft: #3a1c1e;
   --primary-text: #f2a5a5;
   --err-bg: #4a1d1d;
   --err-fg: #fca5a5;
   --err-solid: #c0352b;
+  --err-solid-hover: #a82d24;
   --ok-bg: #064e3b;
   --ok-fg: #a7f3d0;
   --info-bg: #1e3a8a;
@@ -113,15 +121,19 @@
   --color-surface: var(--surface);
   --color-surface2: var(--surface2);
   --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
   --color-fg: var(--text);
   --color-muted: var(--muted);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
   --color-on-primary: var(--on-primary);
   --color-primary-soft: var(--primary-soft);
   --color-primary-fg: var(--primary-text);
   --color-err-bg: var(--err-bg);
   --color-err-fg: var(--err-fg);
   --color-err-solid: var(--err-solid);
+  --color-err-solid-hover: var(--err-solid-hover);
   --color-ok-bg: var(--ok-bg);
   --color-ok-fg: var(--ok-fg);
   --color-info-bg: var(--info-bg);
@@ -138,6 +150,38 @@
 
   --animate-pop: pop 0.15s ease-out;
   --animate-pulse-soft: pulse-soft 1.2s infinite;
+  --animate-halo: halo 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  --animate-grow-x: grow-x 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-step-in: step-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes halo {
+    0% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(1.55);
+    }
+  }
+  @keyframes grow-x {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  @keyframes step-in {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
   @keyframes pop {
     from {
       opacity: 0;

@@ -5,6 +5,7 @@ import { REQUEST_STATES, stateIndex, type RequestDetailView } from '../../../sha
 import { useNow } from '../../../shared/hooks/useNow'
 import { dateLong } from '../../../shared/lib/format'
 import {
+  Button,
   Card,
   EmptyState,
   Icon,
@@ -15,6 +16,7 @@ import {
   Skeleton,
   Stepper,
   StatusBadge,
+  stateIcon,
   Tabs,
   Timeline,
   useToast,
@@ -28,6 +30,19 @@ import { slaBarColor, slaTextClass, withSla } from '../lib/view'
 import { cn } from '../../../shared/lib/cn'
 
 type Tab = 'sum' | 'com' | 'ev' | 'hist'
+
+const STEP_ICONS = REQUEST_STATES.map(stateIcon)
+
+/** Fecha en que la solicitud alcanzó cada etapa ya recorrida (la más reciente si se repitió). */
+function stepCaptions(r: RequestDetailView): (string | undefined)[] {
+  const current = stateIndex(r.state)
+  return REQUEST_STATES.map((state, i) => {
+    if (i > current) return undefined
+    const entry = [...r.history].reverse().find((h) => h.to === state)
+    const at = entry?.at ?? (i === 0 ? r.createdAt : undefined)
+    return at ? dateLong(at) : undefined
+  })
+}
 
 function SummaryTab({ r }: { r: RequestDetailView }) {
   return (
@@ -107,9 +122,11 @@ export function RequestDetailPage() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2.5">
-        <IconButton label="Volver" variant="secondary" onClick={() => navigate('/solicitudes')}>
-          <Icon name="chevR" size={16} style={{ transform: 'rotate(180deg)' }} />
-        </IconButton>
+        <Button variant="secondary" className="pl-2.5" onClick={() => navigate('/solicitudes')}>
+          <Icon name="arrowL" size={16} strokeWidth={2} />
+          Volver
+        </Button>
+        <span aria-hidden="true" className="h-6 w-px bg-line" />
         <h1 className="m-0 text-xl font-semibold md:text-2xl">{request.code}</h1>
         <IconButton label="Copiar código" onClick={copyCode}>
           <Icon name="copy" size={16} />
@@ -122,8 +139,14 @@ export function RequestDetailPage() {
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[2_1_560px] flex-col gap-3.5">
           <SatisfactionPanel request={request} user={user} />
-          <Card className="overflow-x-auto px-4 pb-3 pt-4">
-            <Stepper steps={REQUEST_STATES} current={stateIndex(request.state)} />
+          <Card className="overflow-x-auto px-4 pb-4 pt-5">
+            <Stepper
+              steps={REQUEST_STATES}
+              current={stateIndex(request.state)}
+              icons={STEP_ICONS}
+              captions={stepCaptions(request)}
+              label="Progreso de la solicitud"
+            />
           </Card>
           <Card>
             <Tabs

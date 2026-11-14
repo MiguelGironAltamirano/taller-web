@@ -4,24 +4,49 @@ import { cn } from '../../lib/cn'
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-outline'
 type Size = 'sm' | 'md' | 'lg'
 
+const RAISED = 'shadow-[0_1px_2px_rgb(0_0_0/0.14),inset_0_1px_0_rgb(255_255_255/0.14)]'
+
 const VARIANTS: Record<Variant, string> = {
-  primary: 'border-0 bg-primary text-on-primary hover:brightness-110 active:brightness-90',
-  secondary: 'border border-line bg-surface text-fg hover:bg-surface2 active:bg-surface2/80',
-  ghost: 'border-0 bg-transparent text-muted hover:bg-surface2 active:bg-surface2/80',
-  danger: 'border-0 bg-err-solid text-white hover:brightness-110 active:brightness-90',
-  'danger-outline': 'border border-err-fg bg-transparent text-err-fg hover:bg-err-bg active:bg-err-bg',
+  primary: cn(
+    'border border-primary-active/40 bg-primary text-on-primary',
+    RAISED,
+    'enabled:hover:bg-primary-hover enabled:active:bg-primary-active enabled:active:shadow-none',
+  ),
+  secondary: cn(
+    'border border-line bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.05)]',
+    'enabled:hover:border-line-strong enabled:hover:bg-surface2 enabled:active:shadow-none',
+  ),
+  ghost: 'border border-transparent bg-transparent text-muted enabled:hover:bg-surface2 enabled:hover:text-fg',
+  danger: cn(
+    'border border-err-solid-hover/40 bg-err-solid text-white',
+    RAISED,
+    'enabled:hover:bg-err-solid-hover enabled:active:shadow-none',
+  ),
+  'danger-outline': cn(
+    'border border-err-fg/45 bg-surface text-err-fg',
+    'enabled:hover:border-err-fg enabled:hover:bg-err-bg',
+  ),
 }
 
 const SIZES: Record<Size, string> = {
-  sm: 'h-7 px-2.5 text-xs rounded-md',
-  md: 'h-9 px-3.5 rounded-lg max-md:h-11',
-  lg: 'h-10 px-4 rounded-lg max-md:h-11',
+  sm: 'h-7 gap-1 px-2.5 text-xs rounded-md',
+  md: 'h-9 gap-1.5 px-3.5 rounded-lg max-md:h-11',
+  lg: 'h-10 gap-2 px-4 rounded-lg max-md:h-11',
 }
 
 export type ButtonProps = ComponentProps<'button'> & {
   variant?: Variant
   size?: Size
   loading?: boolean
+}
+
+function Spinner() {
+  return (
+    <svg className="size-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
 }
 
 export function Button({
@@ -43,13 +68,18 @@ export function Button({
       aria-busy={loading || undefined}
       className={cn(
         !ownDisplay && 'inline-flex',
-        'items-center justify-center gap-1.5 font-semibold transition-[filter,background-color,transform] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
+        'select-none items-center justify-center whitespace-nowrap font-semibold [&_svg]:shrink-0',
+        'transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out',
+        'enabled:active:translate-y-px',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+        'disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none',
         VARIANTS[variant],
         SIZES[size],
         className,
       )}
       {...rest}
     >
+      {loading && <Spinner />}
       {children}
     </button>
   )
