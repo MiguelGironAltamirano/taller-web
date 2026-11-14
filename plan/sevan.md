@@ -31,7 +31,7 @@ Este módulo se construye sobre la autenticación de Miguel (token, roles y `GET
 | `POST /api/v1/requests` | Solicitante | `201` con el detalle; `400` por validación |
 | `GET /api/v1/requests` | Token | Filtrado según el rol; filtro por estado y paginación |
 | `GET /api/v1/requests/{codigo}` | Token con visibilidad | `404` si no existe o no es visible para el usuario |
-| Filtros avanzados del listado (fechas, área, vencidas) | Token | Por definir en `docs/api/` antes de implementar |
+| Filtros avanzados del listado (`from`, `to`, `areaId`, `overdue`) | Token | Definidos en `docs/api/contrato-v1.md`; se combinan con `status` |
 
 Pantallas: "Mis solicitudes" (lista filtrada por estado), "Nueva solicitud" (formulario con catálogos y validación de 20 a 2000 caracteres) y detalle de la solicitud. La sugerencia de triage en el formulario usa `POST /api/v1/triage/suggestions` de AngelCruz.
 
@@ -119,7 +119,7 @@ Resumen: **el frontend y el backend de registro y consulta de solicitudes están
 - [x] `GET /api/v1/requests/{codigo}` con `404` si no es visible
 - [x] Marca de vencidas calculada en el servidor
 - [x] Pruebas de integración con MySQL real de la lista de la sección 5, incluida la de diez creaciones concurrentes (`RequestsApiTests`, `CatalogApiTests`)
-- [ ] Filtros avanzados del listado (fechas, área, vencidas): definirlos antes en `docs/api/`
+- [x] Filtros avanzados del listado (`from`, `to`, `areaId`, `overdue`): contrato en `docs/api/contrato-v1.md`, pruebas unitarias y de integración (`listCanBeFilteredBy...` en `RequestsApiTests`; las de integración están escritas pero pendientes de ejecutar con Docker)
 - [x] `allowedTransitions` del detalle: ya las calcula el módulo `workflow` (PR #9, implementación de `AllowedTransitions`)
 
 El detalle del backend todavía no incluye comentarios, evidencias, solución ni calificación: son de los módulos de AngelCarrasco y Lita, y el frontend ya tolera su ausencia.
@@ -132,7 +132,7 @@ El detalle del backend todavía no incluye comentarios, evidencias, solución ni
 - [x] Integración con la sugerencia de triage (aceptar o ignorar)
 - [x] Marca de "Vencida" en lista, kanban, detalle y calendario
 - [x] Prueba obligatoria: crear una solicitud muestra el código y aparece en la lista; el formulario no se envía con la descripción fuera de rango (`frontend/src/features/requests/new-request.test.tsx`)
-- [ ] Filtros avanzados por **rango de fechas y área**: hoy se filtra en el cliente por estado, categoría, prioridad, técnico, texto y "vencidas"
+- [x] Filtros avanzados por **rango de fechas y área**: se piden al servidor (barra de herramientas y chips); estado, categoría, prioridad, técnico, texto y "vencidas" siguen filtrándose en el cliente
 - [x] Conectado con el backend real y verificado a mano en el navegador: inicio de sesión, catálogos, crear una solicitud (código consecutivo, vencimiento a 24 h para prioridad Alta), listado y detalle
 - [ ] Las demás pantallas (notificaciones, dashboard, administración, triage) siguen necesitando los mocks hasta que existan sus endpoints
 

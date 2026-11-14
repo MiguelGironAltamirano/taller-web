@@ -393,6 +393,47 @@ class RequestsApiTests {
 	}
 
 	@Test
+	void listCanBeFilteredByRegistrationDateRangeInLimaDays() throws Exception {
+		String old = createCode(STUDENT, ELECTRICITY);
+		String recent = createCode(STUDENT, ELECTRICITY);
+		// 2026-10-10 23:30 in Lima is 2026-10-11 04:30 UTC: it belongs to the 10th, not to the 11th.
+		jdbc.update("update service_requests set created_at = ? where code = ?",
+				utc(Instant.parse("2026-10-11T04:30:00Z")), old);
+
+		assertThat(listedCodes(ADMIN, "?from=2026-10-10&to=2026-10-10")).containsExactly(old);
+		assertThat(listedCodes(ADMIN, "?from=2026-10-11&to=2026-10-11")).isEmpty();
+		assertThat(listedCodes(ADMIN, "?from=2026-10-11")).containsExactly(recent);
+		assertThat(listedCodes(ADMIN, "?to=2026-10-10")).containsExactly(old);
+		ApiClient.assertProblem(api.get("/api/v1/requests?from=2026-10-15&to=2026-10-01", api.login(ADMIN)), 400);
+		ApiClient.assertProblem(api.get("/api/v1/requests?from=ayer", api.login(ADMIN)), 400);
+	}
+
+	@Test
+	void listCanBeFilteredByAreaWithoutWideningTheRoleScope() throws Exception {
+		String maintenance = createCode(STUDENT, ELECTRICITY);
+		String support = createCode(STUDENT, NETWORK);
+
+		assertThat(listedCodes(ADMIN, "?areaId=1")).containsExactly(maintenance);
+		assertThat(listedCodes(ADMIN, "?areaId=3")).containsExactly(support);
+		assertThat(listedCodes(SUPERVISOR, "?areaId=3")).isEmpty();
+		assertThat(listedCodes(SUPERVISOR, "?areaId=1")).containsExactly(maintenance);
+	}
+
+	@Test
+	void listCanBeFilteredByOverdue() throws Exception {
+		String pending = createCode(STUDENT, ELECTRICITY);
+		String resolved = createCode(STUDENT, ELECTRICITY);
+		String onTime = createCode(STUDENT, ELECTRICITY);
+		LocalDateTime past = utc(Instant.now().minus(Duration.ofHours(5)));
+		jdbc.update("update service_requests set due_at = ? where code in (?, ?)", past, pending, resolved);
+		jdbc.update("update service_requests set status = 'RESUELTA' where code = ?", resolved);
+
+		assertThat(listedCodes(STUDENT, "?overdue=true")).containsExactly(pending);
+		assertThat(listedCodes(STUDENT, "?overdue=false")).containsExactlyInAnyOrder(resolved, onTime);
+		assertThat(listedCodes(STUDENT, "?overdue=true&status=RESUELTA")).isEmpty();
+	}
+
+	@Test
 	void listIsPagedAndNewestFirst() throws Exception {
 		String first = createCode(STUDENT, ELECTRICITY);
 		String second = createCode(STUDENT, ELECTRICITY);

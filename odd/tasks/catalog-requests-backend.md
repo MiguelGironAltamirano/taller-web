@@ -23,7 +23,7 @@ Out: transiciones de estado (Angela), comentarios y evidencias (AngelCarrasco), 
 - [x] Pruebas unitarias (dominio y casos de uso con dobles) y de integración con MySQL real (Testcontainers)
 - [x] Verificación manual de punta a punta: backend real + frontend sin mocks en Chrome
 - [ ] Revisión de otro integrante y PR a `dev`
-- [ ] Filtros avanzados (fechas, área) del listado
+- [x] Filtros avanzados (fechas, área, vencidas) del listado
 - [ ] Sustituir `NoAllowedTransitions` cuando exista el módulo de workflow
 
 ## Decisions

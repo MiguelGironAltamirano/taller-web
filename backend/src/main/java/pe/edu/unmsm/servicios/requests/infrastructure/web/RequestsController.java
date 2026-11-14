@@ -1,9 +1,11 @@
 package pe.edu.unmsm.servicios.requests.infrastructure.web;
 
 import java.net.URI;
+import java.time.LocalDate;
 
 import jakarta.validation.Valid;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pe.edu.unmsm.servicios.requests.application.CreateRequest;
 import pe.edu.unmsm.servicios.requests.application.GetRequest;
 import pe.edu.unmsm.servicios.requests.application.ListRequests;
+import pe.edu.unmsm.servicios.requests.application.RequestFilter;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
 import pe.edu.unmsm.servicios.requests.infrastructure.web.RequestDtos.CreateRequestBody;
@@ -53,9 +56,13 @@ class RequestsController {
 
 	@GetMapping
 	PageResponse list(@RequestParam(required = false) RequestStatus status,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+			@RequestParam(required = false) Long areaId, @RequestParam(required = false) Boolean overdue,
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
 			@AuthenticationPrincipal Jwt jwt) {
-		return PageResponse.from(listRequests.execute(CurrentUser.from(jwt), status, page, size));
+		return PageResponse.from(listRequests.execute(CurrentUser.from(jwt), new RequestFilter(status, from, to, areaId, overdue), page,
+				size));
 	}
 
 	@GetMapping("/{code}")

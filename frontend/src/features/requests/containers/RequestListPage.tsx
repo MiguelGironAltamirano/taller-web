@@ -25,8 +25,8 @@ export function RequestListPage() {
   const now = useNow()
   const isMobile = useIsMobile()
   const { data: catalogs } = useCatalogs()
-  const { data: rows, isLoading, isError } = useRequestRows()
   const p = useListParams()
+  const { data: rows, isLoading, isError } = useRequestRows(p.server)
   const technicians = useTechnicians(user.role === 'supervisor' ? (user.areaId ?? undefined) : undefined)
 
   const all = useMemo(() => (rows ?? []).map((r) => withSla(r, now)), [rows, now])
@@ -67,16 +67,26 @@ export function RequestListPage() {
       <StatusStrip counts={counts} value={p.filters.status} onChange={(status) => p.setFilters({ status })} />
       <ListToolbar
         filters={p.filters}
+        server={p.server}
+        areas={user.role === 'administrador' ? (catalogs?.areas ?? []) : null}
         categories={catalogs?.categories.map((c) => c.name) ?? []}
         technicians={user.role === 'supervisor' ? (technicians.data?.map((t) => t.fullName) ?? []) : null}
         canKanban={canKanban}
         mode={p.mode}
         density={p.density}
         onChange={p.setFilters}
+        onServerChange={p.setServer}
         onMode={p.setMode}
         onDensity={p.setDensity}
       />
-      <FilterChips filters={p.filters} onChange={p.setFilters} onClear={p.clearFilters} />
+      <FilterChips
+        filters={p.filters}
+        server={p.server}
+        areas={catalogs?.areas ?? []}
+        onChange={p.setFilters}
+        onServerChange={p.setServer}
+        onClear={p.clearFilters}
+      />
 
       <Card className="overflow-hidden">
         {isLoading && <SkeletonRows count={5} rowClass={p.density === 'comfy' ? 'h-12' : 'h-10'} />}

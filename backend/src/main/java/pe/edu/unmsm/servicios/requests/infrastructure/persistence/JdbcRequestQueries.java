@@ -19,6 +19,7 @@ import pe.edu.unmsm.servicios.requests.application.HistoryView;
 import pe.edu.unmsm.servicios.requests.application.PageView;
 import pe.edu.unmsm.servicios.requests.application.RatingView;
 import pe.edu.unmsm.servicios.requests.application.RequestDetailView;
+import pe.edu.unmsm.servicios.requests.application.RequestFilter;
 import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestScope;
 import pe.edu.unmsm.servicios.requests.application.RequestSummaryView;
@@ -48,6 +49,9 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 			  left join users t on t.id = r.technician_id
 			""";
 
+	/** Statuses that stop the SLA clock; keep in step with RequestStatus.isFinished. */
+	private static final String FINISHED = "'RESUELTA', 'CERRADA'";
+
 	private final JdbcTemplate jdbc;
 
 	JdbcRequestQueries(JdbcTemplate jdbc) {
@@ -55,13 +59,31 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 	}
 
 	@Override
-	public PageView<RequestSummaryView> search(RequestScope scope, RequestStatus status, int page, int size,
+	public PageView<RequestSummaryView> search(RequestScope scope, RequestFilter filter, int page, int size,
 			Instant now) {
 		List<Object> args = new ArrayList<>();
 		StringBuilder where = new StringBuilder(scopeClause(scope, args));
-		if (status != null) {
+		if (filter.status() != null) {
 			where.append(" and r.status = ?");
-			args.add(status.name());
+			args.add(filter.status().name());
+		}
+		if (filter.createdFrom() != null) {
+			where.append(" and r.created_at >= ?");
+			args.add(utc(filter.createdFrom()));
+		}
+		if (filter.createdBefore() != null) {
+			where.append(" and r.created_at < ?");
+			args.add(utc(filter.createdBefore()));
+		}
+		if (filter.areaId() != null) {
+			where.append(" and r.area_id = ?");
+			args.add(filter.areaId());
+		}
+		if (filter.overdue() != null) {
+			// Same rule as Sla.isOverdue: not finished and past the due date.
+			where.append(filter.overdue() ? " and r.status not in (" + FINISHED + ") and r.due_at < ?"
+					: " and not (r.status not in (" + FINISHED + ") and r.due_at < ?)");
+			args.add(utc(now));
 		}
 		Long total = jdbc.queryForObject("select count(*) from service_requests r where " + where, Long.class,
 				args.toArray());
@@ -162,6 +184,11 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 				instant(rs, "created_at"), dueAt, Sla.isOverdue(status, dueAt, now), rs.getString("description"),
 				rs.getString("requester_name"), rs.getString("area_name"), rs.getString("technician_name"), faculty,
 				pavilion, room);
+	}
+
+	/** Binds an instant as the UTC wall-clock value the columns hold, whatever the JVM zone is. */
+	private static LocalDateTime utc(Instant instant) {
+		return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
 	}
 
 	/** Timestamps are stored as UTC wall-clock values (see hibernate.jdbc.time_zone). */

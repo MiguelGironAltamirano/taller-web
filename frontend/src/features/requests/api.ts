@@ -4,16 +4,17 @@ import { requestDetailKey, requestListKey, requestsKey, notificationsKey } from 
 import { statusToState, toRequestDetail, toRequestRow } from '../../shared/api/mappers'
 import type { CreateRequestBody, Page, RequestDetail, RequestSummary } from '../../shared/api/types'
 import { actionsFromTransitions } from '../workflow'
+import { NO_SERVER_FILTERS, serverQuery, type ServerFilters } from './lib/filters'
 
 /**
  * Bandeja del usuario. El backend ya filtra por rol (spec §5); el listado completo se pide una vez
- * para poder mostrar contadores por estado y filtrar sin esperas. Los filtros avanzados del servidor
- * quedan por definir en `docs/api/` (plan de Sevan, semanas 10–12).
+ * para poder mostrar contadores por estado y filtrar sin esperas. El rango de fechas y el área se piden
+ * al servidor (`ServerFilters`); el resto de filtros se aplica en el cliente sobre ese resultado.
  */
-export function useRequestRows() {
+export function useRequestRows(server: ServerFilters = NO_SERVER_FILTERS) {
   return useQuery({
-    queryKey: requestListKey,
-    queryFn: () => apiGet<Page<RequestSummary>>('/requests', { size: 500 }),
+    queryKey: [...requestListKey, server],
+    queryFn: () => apiGet<Page<RequestSummary>>('/requests', { size: 500, ...serverQuery(server) }),
     select: (page) => page.items.map(toRequestRow),
   })
 }
