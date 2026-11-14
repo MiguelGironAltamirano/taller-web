@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import type { ListFilters, ListSort, ListView } from '../lib/filters'
 
-const VIEWS: ListView[] = ['all', 'venc', 'open', 'confirm', 'critsa']
+const VIEWS: ListView[] = ['all', 'attention', 'venc', 'open', 'confirm', 'critsa']
 const SORTS: ListSort[] = ['due', 'new', 'prio']
 
 export type ListParams = {

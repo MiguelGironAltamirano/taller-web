@@ -15,6 +15,7 @@ export function useRequestRows() {
     queryKey: requestListKey,
     queryFn: () => apiGet<Page<RequestSummary>>('/requests', { size: 500 }),
     select: (page) => page.items.map(toRequestRow),
+    refetchInterval: 30_000,
   })
 }
 

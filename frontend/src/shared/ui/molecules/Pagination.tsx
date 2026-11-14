@@ -23,7 +23,7 @@ export function Pagination({ page, pageSize, total, onPage, onPageSize }: Pagina
         <select
           value={pageSize}
           onChange={(e) => onPageSize(Number(e.target.value))}
-          className="h-[30px] rounded-md border border-line bg-surface"
+          className="ui-select h-[30px] rounded-md border border-line bg-surface pl-2.5 text-fg"
         >
           {PAGE_SIZES.map((s) => (
             <option key={s} value={s}>

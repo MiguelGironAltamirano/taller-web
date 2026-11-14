@@ -37,6 +37,112 @@
     font: inherit;
     color: var(--text);
   }
+  /* Desplegables: botón con chevron propio; en navegadores con `base-select` también la lista. */
+  select.ui-select {
+    appearance: none;
+    padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6270' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    cursor: pointer;
+  }
+  select.ui-select:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+  @supports (appearance: base-select) {
+    select.ui-select,
+    select.ui-select::picker(select) {
+      appearance: base-select;
+    }
+    select.ui-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 10px;
+      background-image: none;
+    }
+    select.ui-select::picker-icon {
+      content: '';
+      width: 16px;
+      height: 16px;
+      margin-left: auto;
+      background-color: var(--muted);
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+      transition: rotate 0.2s ease-out;
+    }
+    select.ui-select:open::picker-icon {
+      rotate: 180deg;
+    }
+    select.ui-select:open {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+    }
+    select.ui-select::picker(select) {
+      margin-block: 6px;
+      min-width: anchor-size(width);
+      max-height: min(320px, 50vh);
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow:
+        0 12px 32px -8px rgb(0 0 0 / 0.22),
+        0 2px 6px rgb(0 0 0 / 0.06);
+      opacity: 0;
+      translate: 0 -4px;
+      transition:
+        opacity 0.16s ease-out,
+        translate 0.16s ease-out,
+        overlay 0.16s allow-discrete,
+        display 0.16s allow-discrete;
+    }
+    select.ui-select:open::picker(select) {
+      opacity: 1;
+      translate: 0 0;
+    }
+    @starting-style {
+      select.ui-select:open::picker(select) {
+        opacity: 0;
+        translate: 0 -4px;
+      }
+    }
+    select.ui-select option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    select.ui-select option:hover,
+    select.ui-select option:focus-visible {
+      background: var(--surface2);
+      outline: none;
+    }
+    select.ui-select option:checked {
+      background: var(--primary-soft);
+      color: var(--primary-text);
+      font-weight: 600;
+    }
+    select.ui-select option::checkmark {
+      order: 1;
+      margin-left: auto;
+      color: var(--primary-text);
+      font-weight: 700;
+    }
+    select.ui-select option:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    select.ui-select option[value=''] {
+      color: var(--muted);
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
