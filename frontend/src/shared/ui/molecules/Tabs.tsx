@@ -54,7 +54,13 @@ export function Tabs<T extends string>({ items, value, onChange, label, variant 
             )}
           >
             {t.label}
-            {t.count !== undefined && t.count !== '' && <span className="ml-1.5 text-xs text-muted">{t.count}</span>}
+            {/* El espacio real separa el número en el nombre accesible ("Comentarios 3", no "Comentarios3"). */}
+            {t.count !== undefined && t.count !== '' && (
+              <>
+                {' '}
+                <span className="ml-1 text-xs text-muted">{t.count}</span>
+              </>
+            )}
           </button>
         )
       })}
