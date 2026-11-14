@@ -120,6 +120,8 @@
 
 @theme inline {
   --font-sans: 'Inter', system-ui, sans-serif;
+  /* Serif institucional para títulos destacados (sin descarga: fuentes del sistema). */
+  --font-display: Georgia, Cambria, 'Times New Roman', serif;
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);

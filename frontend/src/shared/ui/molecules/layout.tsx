@@ -46,10 +46,15 @@ export function PageHeader({ title, subtitle, actions, icon, eyebrow, layout = '
     return (
       <header className="flex flex-col items-center gap-4 text-center">
         {icon && <HeaderIcon name={icon} large />}
-        <div>
-          {eyebrow && <p className={cn(EYEBROW, 'mb-2.5')}>{eyebrow}</p>}
-          <h1 className="m-0 text-[24px] font-semibold leading-tight tracking-[-0.01em] text-fg">{title}</h1>
-          {subtitle && <div className="mt-1.5 text-[14px] leading-relaxed text-muted">{subtitle}</div>}
+        <div className="flex flex-col items-center">
+          {eyebrow && <p className={cn(EYEBROW, 'mb-3')}>{eyebrow}</p>}
+          <h1 className="m-0 font-display text-[34px] font-semibold leading-[1.15] tracking-[-0.01em] text-fg">{title}</h1>
+          <span aria-hidden="true" className="mt-3.5 flex items-center gap-2.5">
+            <span className="h-px w-10 bg-gradient-to-r from-transparent to-line-strong" />
+            <span className="size-[7px] rotate-45 rounded-[1px] bg-primary" />
+            <span className="h-px w-10 bg-gradient-to-l from-transparent to-line-strong" />
+          </span>
+          {subtitle && <div className="mt-3.5 text-[14px] leading-relaxed text-muted">{subtitle}</div>}
         </div>
         {actions}
       </header>
