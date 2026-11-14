@@ -43,8 +43,8 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
                 className="px-7 py-7 text-center text-white sm:px-9"
                 style={{
                   background:
-                    'radial-gradient(90% 120% at 50% 0%, rgb(255 255 255 / 0.12), transparent 70%),' +
-                    'linear-gradient(180deg, var(--brand), var(--brand-deep))',
+                    'radial-gradient(90% 120% at 50% 0%, rgb(255 255 255 / 0.14), transparent 70%),' +
+                    'linear-gradient(180deg, color-mix(in srgb, var(--brand) 82%, white), var(--brand))',
                 }}
               >
                 <h1 className="m-0 font-display text-[30px] font-semibold leading-tight">{title}</h1>
