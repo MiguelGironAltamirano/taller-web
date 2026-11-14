@@ -19,10 +19,8 @@ type PageHeaderProps = {
   icon?: IconName
   /** Etiqueta corta sobre el título: la sección o el contexto de la página. */
   eyebrow?: string
-  /** `inline`: ícono a la izquierda (páginas); `stacked`: título grande en bloque (formularios de acceso). */
+  /** `inline`: ícono a la izquierda (páginas); `stacked`: centrado, para tarjetas de acceso. */
   layout?: 'inline' | 'stacked'
-  /** Parte final del título resaltada en guinda (p. ej. title="Iniciar" titleAccent="sesión"). */
-  titleAccent?: string
 }
 
 function HeaderIcon({ name, large }: { name: IconName; large?: boolean }) {
@@ -43,31 +41,15 @@ function HeaderIcon({ name, large }: { name: IconName; large?: boolean }) {
 const EYEBROW = 'm-0 text-[11px] font-semibold uppercase leading-none tracking-[0.14em] text-primary-fg'
 
 /** Encabezado de página: ícono de sección, etiqueta, título (h1), subtítulo y acciones. */
-export function PageHeader({ title, titleAccent, subtitle, actions, icon, eyebrow, layout = 'inline' }: PageHeaderProps) {
-  const heading = (
-    <>
-      {title}
-      {titleAccent && (
-        <>
-          {' '}
-          <span className="text-primary-fg">{titleAccent}</span>
-        </>
-      )}
-    </>
-  )
+export function PageHeader({ title, subtitle, actions, icon, eyebrow, layout = 'inline' }: PageHeaderProps) {
   if (layout === 'stacked') {
     return (
-      <header className="flex flex-col items-start gap-5">
+      <header className="flex flex-col items-center gap-4 text-center">
         {icon && <HeaderIcon name={icon} large />}
         <div>
-          {eyebrow && (
-            <p className={cn(EYEBROW, 'mb-4 flex items-center gap-2.5 tracking-[0.2em]')}>
-              <span aria-hidden="true" className="h-[2px] w-6 rounded-full bg-primary" />
-              {eyebrow}
-            </p>
-          )}
-          <h1 className="m-0 text-[42px] font-extrabold leading-[1.02] tracking-[-0.035em] text-fg">{heading}</h1>
-          {subtitle && <div className="mt-3.5 text-[15px] leading-relaxed text-muted">{subtitle}</div>}
+          {eyebrow && <p className={cn(EYEBROW, 'mb-2.5')}>{eyebrow}</p>}
+          <h1 className="m-0 text-[24px] font-semibold leading-tight tracking-[-0.01em] text-fg">{title}</h1>
+          {subtitle && <div className="mt-1.5 text-[14px] leading-relaxed text-muted">{subtitle}</div>}
         </div>
         {actions}
       </header>
@@ -79,7 +61,7 @@ export function PageHeader({ title, titleAccent, subtitle, actions, icon, eyebro
         {icon && <HeaderIcon name={icon} />}
         <div className="min-w-0">
           {eyebrow && <p className={cn(EYEBROW, 'mb-1')}>{eyebrow}</p>}
-          <h1 className="m-0 text-[22px] font-bold leading-tight tracking-[-0.015em] text-fg md:text-[27px]">{heading}</h1>
+          <h1 className="m-0 text-[22px] font-bold leading-tight tracking-[-0.015em] text-fg md:text-[27px]">{title}</h1>
           {subtitle && <div className="mt-1 text-[13.5px] text-muted">{subtitle}</div>}
         </div>
       </div>

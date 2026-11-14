@@ -31,11 +31,11 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
       <main className="relative flex flex-1 flex-col overflow-auto">
         <div className="flex flex-1 items-center justify-center p-6 md:p-10">
-          <div className="flex w-full max-w-[400px] animate-rise flex-col gap-10">
-            <div className="lg:hidden">
-              <BrandLogo />
+          <div className="flex w-full max-w-[440px] animate-rise flex-col items-center gap-7">
+            <BrandLogo />
+            <div className="w-full rounded-2xl border border-primary/60 bg-surface p-7 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_16px_40px_-20px_rgb(0_0_0/0.22)] sm:p-9">
+              {children}
             </div>
-            {children}
           </div>
         </div>
       </main>

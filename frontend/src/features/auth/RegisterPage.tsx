@@ -68,13 +68,7 @@ export function RegisterPage() {
   return (
     <AuthShell>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        <PageHeader
-          layout="stacked"
-          eyebrow="Servicios Universitarios"
-          title="Crear"
-          titleAccent="cuenta"
-          subtitle="Para solicitantes con correo @unmsm.edu.pe."
-        />
+        <PageHeader layout="stacked" title="Crear cuenta" subtitle="Para solicitantes con correo @unmsm.edu.pe." />
         <Field label="Nombre completo" error={errors.name?.message}>
           {(a) => <Input {...a} invalid={!!errors.name} autoComplete="name" {...register('name')} />}
         </Field>

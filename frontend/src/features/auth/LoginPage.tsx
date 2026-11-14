@@ -46,13 +46,7 @@ export function LoginPage() {
   return (
     <AuthShell>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-        <PageHeader
-          layout="stacked"
-          eyebrow="Servicios Universitarios"
-          title="Iniciar"
-          titleAccent="sesión"
-          subtitle="Ingresa con tu cuenta @unmsm.edu.pe para continuar."
-        />
+        <PageHeader layout="stacked" title="Iniciar sesión" subtitle="Ingresa con tu cuenta institucional @unmsm.edu.pe." />
         {formError && <Alert>{formError}</Alert>}
         <div className="flex flex-col gap-4">
           <Field label="Correo" error={errors.email?.message}>
@@ -63,7 +57,7 @@ export function LoginPage() {
                 type="email"
                 autoComplete="username"
                 placeholder="usuario@unmsm.edu.pe"
-                className="h-12 text-[14.5px]"
+                className="h-11"
                 {...register('email', { onChange: () => setFormError('') })}
               />
             )}
@@ -76,7 +70,7 @@ export function LoginPage() {
                   icon="lock"
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="h-12 text-[14.5px]"
+                  className="h-11"
                   {...register('password', { onChange: () => setFormError('') })}
                 />
               )}
@@ -95,7 +89,7 @@ export function LoginPage() {
           variant="primary"
           size="lg"
           loading={isSubmitting}
-          className="group h-12 w-full text-[15px] shadow-[0_8px_20px_-8px_var(--primary)]"
+          className="group h-11 w-full text-[14.5px]"
         >
           {isSubmitting ? 'Ingresando…' : 'Ingresar'}
           {!isSubmitting && (
