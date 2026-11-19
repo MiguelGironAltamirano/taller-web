@@ -2,7 +2,7 @@
 
 > Complementa la sección «Autenticación» de [`contrato-v1.md`](contrato-v1.md).
 > Fecha: 2026-11-19.
-> Estado: **propuesta, pendiente de acuerdo con Miguel** (dueño del módulo `auth`). Las decisiones abiertas están en la sección 9.
+> Estado: **implementado como propuesta** en `feature/auth-passkeys-impl`, pendiente de acuerdo con Miguel (dueño del módulo `auth`). La sección 9 dice qué se decidió provisionalmente y qué quedó fuera.
 
 ## 1. Objetivo y alcance
 
@@ -80,7 +80,7 @@ PasskeyDto = { id: number, name: string, createdAt: string, lastUsedAt: string |
 - Verificación del registro: desafío de registro vigente, sin usar y emitido para **ese** usuario; `type = "webauthn.create"`; origen permitido; hash del `rpId`; banderas *User Present* y *User Verified*; algoritmo admitido. No se verifica la atestación (`attestation: "none"`).
 - `name`: de 1 a 60 caracteres sin espacios sobrantes. Si no se envía, «Passkey del <fecha>». `synced` indica si el proveedor la respalda en la nube (bandera *Backup State*), útil para avisar que borrarla en un equipo no la quita de los demás.
 - Borrar una passkey solo afecta futuros inicios de sesión; las sesiones abiertas siguen hasta que venzan.
-- Cada alta y baja genera una **notificación en la app** para el usuario («Se agregó la passkey "<nombre>" a tu cuenta» / «Se eliminó la passkey "<nombre>"»), para que detecte un registro que no hizo.
+- **Pendiente:** avisar al usuario con una notificación en la app cada vez que se agrega o se elimina una passkey, para que detecte un registro que no hizo. Hoy las notificaciones exigen una solicitud asociada (`notifications.request_id NOT NULL`, módulo de AngelCarrasco), así que esta versión no lo hace; ver §9.
 
 ## 6. Relación con el resto de la cuenta
 
@@ -126,14 +126,14 @@ Los desafíos vencidos se borran periódicamente. Guardarlos en la base, y no en
 ## 8. Implementación prevista
 
 - **Backend:** casos de uso en `auth` (`StartPasskeyLogin`, `FinishPasskeyLogin`, `StartPasskeyRegistration`, `RegisterPasskey`, `ListPasskeys`, `RenamePasskey`, `DeletePasskey`), con la verificación criptográfica de la librería **webauthn4j** (`com.webauthn4j:webauthn4j-core`) detrás de un puerto propio. No se usa el soporte WebAuthn de Spring Security porque está pensado para sesiones con formulario y el proyecto usa JWT sin estado. `FinishPasskeyLogin` termina en la misma emisión de sesión que `Login`.
-- **Frontend:** botón «Ingresar con huella o passkey» en el login, visible solo si el navegador lo admite (`window.PublicKeyCredential`); sección «Huella y passkeys» en el perfil para registrar (pidiendo la contraseña), renombrar y borrar. Si el usuario cancela el diálogo del dispositivo (`NotAllowedError`), se muestra un aviso discreto, no un error.
+- **Frontend:** botón «Ingresar con huella o passkey» en el login, visible solo si el navegador lo admite (`window.PublicKeyCredential`); ventana «Huella y passkeys» desde el menú de perfil para registrar (pidiendo la contraseña) y borrar; renombrar existe en la API pero aún no en la interfaz. Si el usuario cancela el diálogo del dispositivo (`NotAllowedError`), se muestra un aviso discreto, no un error.
 - **CSP:** la política actual de nginx no bloquea WebAuthn. Si en el futuro se agrega `Permissions-Policy`, debe permitir `publickey-credentials-get` y `publickey-credentials-create` para `self`.
 - **Pruebas:** unitarias de cada regla de verificación (desafío vencido o reutilizado, origen, `rpId`, banderas, contador, usuario inactivo); de API con un autenticador simulado de webauthn4j contra MySQL (Testcontainers); E2E con el **autenticador virtual de Chromium** de Playwright (CDP `WebAuthn.addVirtualAuthenticator`): registrar la passkey desde el perfil, cerrar sesión y entrar con ella.
 
 ## 9. Decisiones abiertas (para acordar con Miguel)
 
-1. **Confirmación con contraseña al registrar** (§5). Propuesta: sí, es la defensa contra un token robado.
-2. **Inicio de sesión sin correo** (§4). Propuesta: sí; la alternativa (pedir el correo primero) revela qué cuentas tienen passkeys.
-3. **Notificación en la app** al agregar o quitar una passkey (§5). Usa el `NotificationService` de AngelCarrasco.
-4. **Límite de 10 passkeys** por usuario y **vigencia de 5 minutos** del desafío.
-5. **Dominio por ambiente** (§3): fijar el dominio de staging y producción antes de habilitarlo allí (depende de la tarea T1 de la Fase III), para que los usuarios no tengan que registrar de nuevo sus passkeys.
+1. **Confirmación con contraseña al registrar** (§5). Implementado: es la defensa contra un token robado.
+2. **Inicio de sesión sin correo** (§4). Implementado; la alternativa (pedir el correo primero) revela qué cuentas tienen passkeys.
+3. **Notificación en la app** al agregar o quitar una passkey (§5). **Fuera de esta versión:** requiere que el módulo de notificaciones (AngelCarrasco) admita avisos de cuenta, sin solicitud asociada.
+4. **Límite de 10 passkeys** por usuario y **vigencia de 5 minutos** del desafío. Implementado y configurable. El inicio de sesión con passkey comparte el límite de fallos del login (5 por cliente en 15 minutos) y los desafíos de inicio de sesión se limitan a 30 por cliente en la misma ventana (`app.auth.webauthn.max-challenges-per-client`).
+5. **Dominio por ambiente** (§3): fijar el dominio de staging y producción antes de habilitarlo allí (depende de la tarea T1 de la Fase III), para que los usuarios no tengan que registrar de nuevo sus passkeys. `docker-compose` toma `APP_AUTH_WEBAUTHN_RP_ID` y `APP_AUTH_WEBAUTHN_ALLOWED_ORIGINS` (por defecto `localhost` y `http://localhost:${FRONTEND_PORT}`).

@@ -20,20 +20,26 @@ const FOCUSABLE = 'input, select, textarea, button:not([data-modal-close]), [hre
 /** Diálogo accesible con fondo oscuro, cierre con Escape y foco inicial en el primer control. */
 export function Modal({ open, onClose, title, subtitle, children, variant = 'center', onSubmit, width = 'min(440px,92%)' }: ModalProps) {
   const panelRef = useRef<HTMLElement | null>(null)
+  // Si `onClose` fuera dependencia del efecto, un padre que la recrea en cada render (campos controlados) movería el
+  // foco al primer control con cada tecla.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
   useEffect(() => {
     if (!open) return
     const previous = document.activeElement as HTMLElement | null
     panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('keydown', onKey)
       previous?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

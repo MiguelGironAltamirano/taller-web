@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../shared/api/client'
+import { isPasskeyCancelled, isPasskeySupported } from '../../shared/lib/webauthn'
 import { Alert, Avatar, Button, Field, Icon, Input, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
 import { consumeWelcome, markWelcome } from './welcome'
@@ -11,11 +12,37 @@ import { DEMO_ACCOUNTS, SHOW_DEMO_ACCOUNTS } from './demoAccounts'
 import { loginSchema, type LoginValues } from './schemas/auth'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, loginWithPasskey } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
   const [formError, setFormError] = useState('')
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
+  const passkeys = isPasskeySupported()
+
+  const goHome = () => {
+    const from = (location.state as { from?: string } | null)?.from
+    navigate(from && from !== '/login' ? from : '/', { replace: true })
+  }
+
+  const onPasskey = async () => {
+    setFormError('')
+    setPasskeyBusy(true)
+    markWelcome()
+    try {
+      await loginWithPasskey()
+      goHome()
+    } catch (e) {
+      consumeWelcome()
+      if (isPasskeyCancelled(e)) {
+        toast('Se canceló el ingreso con huella o passkey.', { tone: 'info' })
+      } else {
+        setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos usar tu huella o passkey. Inténtalo de nuevo.')
+      }
+    } finally {
+      setPasskeyBusy(false)
+    }
+  }
   const prefill = (location.state as { email?: string } | null)?.email ?? ''
 
   const {
@@ -35,8 +62,7 @@ export function LoginPage() {
     markWelcome()
     try {
       await login(values.email, values.password)
-      const from = (location.state as { from?: string } | null)?.from
-      navigate(from && from !== '/login' ? from : '/', { replace: true })
+      goHome()
     } catch (e) {
       consumeWelcome()
       setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
@@ -95,6 +121,23 @@ export function LoginPage() {
             <Icon name="arrowR" size={17} strokeWidth={2.25} className="transition-transform group-hover:translate-x-0.5" />
           )}
         </Button>
+        {passkeys && (
+          <>
+            <div className="flex items-center gap-3 text-xs text-muted" aria-hidden="true">
+              <span className="h-px flex-1 bg-line" />o<span className="h-px flex-1 bg-line" />
+            </div>
+            <Button
+              size="lg"
+              loading={passkeyBusy}
+              disabled={isSubmitting}
+              onClick={() => void onPasskey()}
+              className="h-11 w-full text-[14.5px]"
+            >
+              {!passkeyBusy && <Icon name="fingerprint" size={18} />}
+              {passkeyBusy ? 'Esperando tu huella o passkey…' : 'Ingresar con huella o passkey'}
+            </Button>
+          </>
+        )}
         <p className="m-0 text-center text-[13px] text-muted">
           ¿Eres solicitante y no tienes cuenta?{' '}
           <Link to="/registro" className="font-semibold">

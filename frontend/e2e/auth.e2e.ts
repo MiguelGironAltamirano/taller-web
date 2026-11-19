@@ -49,7 +49,7 @@ test.describe('Authentication', () => {
     // The temporary password no longer works; the new one does.
     await page.getByLabel('Correo').fill(email)
     await page.getByLabel('Contraseña').fill(created.temporaryPassword)
-    await page.getByRole('button', { name: 'Ingresar' }).click()
+    await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
     await expect(page.getByRole('alert')).toBeVisible()
     await expect(page).toHaveURL(/\/login$/)
 

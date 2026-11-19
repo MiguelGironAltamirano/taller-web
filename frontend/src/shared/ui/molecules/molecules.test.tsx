@@ -100,6 +100,25 @@ describe('Modal', () => {
     expect(opener).toHaveFocus()
   })
 
+  it('mantiene el foco en el campo que se escribe aunque el padre recree onClose en cada render', async () => {
+    function Controlled() {
+      const [first, setFirst] = useState('')
+      const [second, setSecond] = useState('')
+      return (
+        <Modal open onClose={() => setFirst('')} title="Datos">
+          <input aria-label="Primero" value={first} onChange={(e) => setFirst(e.target.value)} />
+          <input aria-label="Segundo" value={second} onChange={(e) => setSecond(e.target.value)} />
+        </Modal>
+      )
+    }
+    render(<Controlled />)
+
+    await userEvent.type(screen.getByLabelText('Segundo'), 'Mi laptop')
+
+    expect(screen.getByLabelText('Segundo')).toHaveValue('Mi laptop')
+    expect(screen.getByLabelText('Primero')).toHaveValue('')
+  })
+
   it('se cierra al hacer clic en el fondo', async () => {
     const onClose = vi.fn()
     render(

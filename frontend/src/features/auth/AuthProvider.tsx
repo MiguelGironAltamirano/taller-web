@@ -2,7 +2,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { apiPost, refreshSession } from '../../shared/api/client'
 import { toSessionUser } from '../../shared/api/mappers'
-import type { TokenResponse } from '../../shared/api/types'
+import type { PasskeyOptions, TokenResponse } from '../../shared/api/types'
+import { getPasskey, type RequestOptionsJSON } from '../../shared/lib/webauthn'
 import { sessionStore } from '../../shared/session/session-store'
 import { AuthContext, type AuthStatus } from './context'
 
@@ -43,6 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient],
   )
 
+  const loginWithPasskey = useCallback(async () => {
+    const options = await apiPost<PasskeyOptions<RequestOptionsJSON>>('/auth/passkeys/login/options')
+    const credential = await getPasskey(options.publicKey)
+    const token = await apiPost<TokenResponse>('/auth/passkeys/login', { challengeId: options.challengeId, credential })
+    queryClient.clear()
+    sessionStore.set({ accessToken: token.accessToken, user: token.user })
+  }, [queryClient])
+
   const logout = useCallback(async () => {
     try {
       await apiPost('/auth/logout')
@@ -51,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ status, user, login, logout }), [status, user, login, logout])
+  const value = useMemo(
+    () => ({ status, user, login, loginWithPasskey, logout }),
+    [status, user, login, loginWithPasskey, logout],
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

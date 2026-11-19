@@ -16,7 +16,7 @@ Reglas de registro: `email` termina en `@unmsm.edu.pe`; `password` de 8 a 72 car
 
 Cookie `refresh_token`: `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=604800`.
 
-Inicio de sesión con huella o passkey (WebAuthn): **propuesta** en [`passkeys-v1.md`](passkeys-v1.md), pendiente de acuerdo con el dueño del módulo `auth`.
+Inicio de sesión con huella o passkey (WebAuthn): ver [`passkeys-v1.md`](passkeys-v1.md); implementado como propuesta, pendiente de acuerdo con el dueño del módulo `auth`.
 
 ## Catálogos
 

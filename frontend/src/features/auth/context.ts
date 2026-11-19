@@ -7,6 +7,8 @@ export type AuthContextValue = {
   status: AuthStatus
   user: SessionUser | null
   login: (email: string, password: string) => Promise<void>
+  /** Inicio de sesión con huella o passkey; el dispositivo ofrece las passkeys guardadas, sin pedir el correo. */
+  loginWithPasskey: () => Promise<void>
   logout: () => Promise<void>
 }
 

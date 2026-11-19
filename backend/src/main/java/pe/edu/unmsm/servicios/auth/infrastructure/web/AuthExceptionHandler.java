@@ -17,7 +17,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import pe.edu.unmsm.servicios.auth.domain.EmailAlreadyRegisteredException;
 import pe.edu.unmsm.servicios.auth.domain.InvalidCredentialsException;
+import pe.edu.unmsm.servicios.auth.domain.InvalidPasskeyException;
 import pe.edu.unmsm.servicios.auth.domain.InvalidRefreshTokenException;
+import pe.edu.unmsm.servicios.auth.domain.PasskeyAlreadyRegisteredException;
+import pe.edu.unmsm.servicios.auth.domain.PasskeyLimitReachedException;
+import pe.edu.unmsm.servicios.auth.domain.PasskeyLoginFailedException;
+import pe.edu.unmsm.servicios.auth.domain.PasskeyNotFoundException;
 import pe.edu.unmsm.servicios.auth.domain.TooManyLoginAttemptsException;
 
 @RestControllerAdvice
@@ -71,6 +76,45 @@ class AuthExceptionHandler {
 				.header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
 				.contentType(MediaType.APPLICATION_PROBLEM_JSON)
 				.body(problem);
+	}
+
+	@ExceptionHandler(PasskeyLoginFailedException.class)
+	ProblemDetail passkeyLoginFailed() {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
+				"No pudimos verificar tu passkey");
+		problem.setTitle("Unauthorized");
+		return problem;
+	}
+
+	@ExceptionHandler(InvalidPasskeyException.class)
+	ProblemDetail invalidPasskey() {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+				"No pudimos registrar la passkey. Vuelve a intentarlo");
+		problem.setTitle("Bad Request");
+		return problem;
+	}
+
+	@ExceptionHandler(PasskeyAlreadyRegisteredException.class)
+	ProblemDetail passkeyAlreadyRegistered() {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+				"Esta passkey ya está registrada");
+		problem.setTitle("Conflict");
+		return problem;
+	}
+
+	@ExceptionHandler(PasskeyLimitReachedException.class)
+	ProblemDetail passkeyLimitReached(PasskeyLimitReachedException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+				"Ya tienes " + ex.max() + " passkeys registradas. Elimina una para agregar otra");
+		problem.setTitle("Conflict");
+		return problem;
+	}
+
+	@ExceptionHandler(PasskeyNotFoundException.class)
+	ProblemDetail passkeyNotFound() {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "La passkey no existe");
+		problem.setTitle("Not Found");
+		return problem;
 	}
 
 	@ExceptionHandler(InvalidRefreshTokenException.class)

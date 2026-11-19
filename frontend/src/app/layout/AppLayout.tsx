@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 import { normalizeText } from '../../shared/lib/format'
 import { usePersistedFlag } from '../../shared/hooks/usePersistedFlag'
 import { useTheme } from '../../shared/hooks/useTheme'
-import { ChangePasswordModal, consumeWelcome, useAuth, useSessionUser } from '../../features/auth'
+import { ChangePasswordModal, PasskeysModal, consumeWelcome, useAuth, useSessionUser } from '../../features/auth'
 import { useToast } from '../../shared/ui'
 import { NotificationsPanel, useUnreadCount } from '../../features/notifications'
 import { openCount, useRequestCounts, useRequestRows } from '../../features/requests'
@@ -29,6 +29,7 @@ export function AppLayout() {
   const overlay = opened.path === pathname ? opened.name : null
   const setOverlay = useCallback((name: Overlay) => setOpened({ name, path: pathname }), [pathname])
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [passkeysOpen, setPasskeysOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
 
   // La paleta de comandos busca entre las solicitudes ya cargadas (la misma consulta que usa Inicio).
@@ -70,6 +71,10 @@ export function AppLayout() {
     setOverlay(null)
     setPasswordOpen(true)
   }
+  const openPasskeys = () => {
+    setOverlay(null)
+    setPasskeysOpen(true)
+  }
   const switchTheme = () => {
     setOverlay(null)
     toggleTheme()
@@ -82,6 +87,7 @@ export function AppLayout() {
         : []),
       ...NAV[user.role].map((n) => ({ label: `Ir a ${n.label}`, hint: 'Ir a', icon: n.icon, run: () => navigate(n.to) })),
       { label: 'Cambiar contraseña', hint: 'Cuenta', icon: 'lock' as const, run: () => setPasswordOpen(true) },
+      { label: 'Huella y passkeys', hint: 'Cuenta', icon: 'fingerprint' as const, run: () => setPasskeysOpen(true) },
       {
         label: dark ? 'Activar modo claro' : 'Activar modo oscuro',
         hint: 'Cuenta',
@@ -150,6 +156,7 @@ export function AppLayout() {
           placement={overlay === 'profile-sidebar' ? 'sidebar' : 'topbar'}
           collapsed={collapsed}
           onChangePassword={openPassword}
+          onPasskeys={openPasskeys}
           onToggleTheme={switchTheme}
           onLogout={doLogout}
           onClose={close}
@@ -164,12 +171,14 @@ export function AppLayout() {
           dark={dark}
           onClose={close}
           onChangePassword={openPassword}
+          onPasskeys={openPasskeys}
           onToggleTheme={switchTheme}
           onLogout={doLogout}
         />
       )}
       {overlay === 'palette' && <CommandPalette items={paletteItems} searchRequests={searchRequests} onClose={close} />}
       <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <PasskeysModal open={passkeysOpen} onClose={() => setPasskeysOpen(false)} />
     </div>
   )
 }

@@ -18,6 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 import pe.edu.unmsm.servicios.auth.application.AuthSession;
 import pe.edu.unmsm.servicios.auth.application.Login;
 import pe.edu.unmsm.servicios.auth.application.Logout;
+import pe.edu.unmsm.servicios.auth.application.PasskeyLogin;
+import pe.edu.unmsm.servicios.auth.application.PasskeyOptions;
+import pe.edu.unmsm.servicios.auth.application.PasskeyOptions.RequestOptions;
 import pe.edu.unmsm.servicios.auth.application.RefreshSession;
 import pe.edu.unmsm.servicios.auth.application.RegisterUser;
 import pe.edu.unmsm.servicios.auth.domain.User;
@@ -26,6 +29,7 @@ import pe.edu.unmsm.servicios.auth.infrastructure.web.AuthDtos.LoginRequest;
 import pe.edu.unmsm.servicios.auth.infrastructure.web.AuthDtos.RegisterRequest;
 import pe.edu.unmsm.servicios.auth.infrastructure.web.AuthDtos.TokenResponse;
 import pe.edu.unmsm.servicios.auth.infrastructure.web.AuthDtos.UserResponse;
+import pe.edu.unmsm.servicios.auth.infrastructure.web.PasskeyDtos.PasskeyLoginRequest;
 import pe.edu.unmsm.servicios.shared.infrastructure.security.JwtProperties;
 
 @RestController
@@ -39,17 +43,19 @@ class AuthController {
 	private final Login login;
 	private final RefreshSession refreshSession;
 	private final Logout logout;
+	private final PasskeyLogin passkeyLogin;
 	private final pe.edu.unmsm.servicios.auth.application.ChangePassword changePassword;
 	private final AuthProperties authProperties;
 	private final JwtProperties jwtProperties;
 
 	AuthController(RegisterUser registerUser, Login login, RefreshSession refreshSession, Logout logout,
-			pe.edu.unmsm.servicios.auth.application.ChangePassword changePassword,
+			PasskeyLogin passkeyLogin, pe.edu.unmsm.servicios.auth.application.ChangePassword changePassword,
 			AuthProperties authProperties, JwtProperties jwtProperties) {
 		this.registerUser = registerUser;
 		this.login = login;
 		this.refreshSession = refreshSession;
 		this.logout = logout;
+		this.passkeyLogin = passkeyLogin;
 		this.changePassword = changePassword;
 		this.authProperties = authProperties;
 		this.jwtProperties = jwtProperties;
@@ -73,6 +79,20 @@ class AuthController {
 	@PostMapping("/login")
 	ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
 		return withSession(login.execute(request.email(), request.password(), http.getRemoteAddr()));
+	}
+
+	/** Login with fingerprint or passkey, step 1: the challenge (docs/api/passkeys-v1.md §4). */
+	@PostMapping("/passkeys/login/options")
+	PasskeyOptions<RequestOptions> passkeyLoginOptions(HttpServletRequest http) {
+		return passkeyLogin.start(http.getRemoteAddr());
+	}
+
+	/** Step 2: the signed challenge; on success the same session as a password login. */
+	@PostMapping("/passkeys/login")
+	ResponseEntity<TokenResponse> passkeyLogin(@Valid @RequestBody PasskeyLoginRequest request,
+			HttpServletRequest http) {
+		return withSession(passkeyLogin.finish(request.challengeId(), request.credential().toString(),
+				http.getRemoteAddr()));
 	}
 
 	@PostMapping("/refresh")
