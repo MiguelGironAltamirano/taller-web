@@ -194,6 +194,80 @@ class RequestDetailExtensionsApiTests {
 		assertThat(ApiClient.<String>read(response, "$.history[1].reason")).startsWith("Nuevo vencimiento: ");
 	}
 
+	// ───── what the requester sees (docs/api/contrato-v1.md, "Prioridad que ve el solicitante") ─────
+
+	@Test
+	void theRequesterKeepsSeeingThePriorityTheyChoseAndItsEstimatedDate() throws Exception {
+		String code = createRequest();
+		force(code, "ASIGNADA", 3L);
+		assertThat(changePriority(SUPERVISOR, code, "{\"priorityId\":" + MEDIUM + "}").statusCode()).isEqualTo(200);
+
+		HttpResponse<String> requester = detail(STUDENT, code);
+		Instant created = Instant.parse(ApiClient.read(requester, "$.createdAt", String.class));
+		assertThat(ApiClient.<String>read(requester, "$.priorityName")).isEqualTo("Alta");
+		assertThat(Instant.parse(ApiClient.read(requester, "$.dueAt", String.class)))
+				.as("estimated date: registration + 24 h of Alta").isEqualTo(created.plus(Duration.ofHours(24)));
+		assertThat(ApiClient.<Boolean>read(requester, "$.estimatedDue")).isTrue();
+		assertThat(ApiClient.<Boolean>read(requester, "$.overdue")).isFalse();
+		assertThat(ApiClient.<List<String>>read(requester, "$.history[*].note")).allMatch(note -> note == null);
+
+		for (String staff : List.of(SUPERVISOR, TECHNICIAN, ADMIN)) {
+			HttpResponse<String> response = detail(staff, code);
+			assertThat(ApiClient.<String>read(response, "$.priorityName")).as(staff).isEqualTo("Media");
+			assertThat(Instant.parse(ApiClient.read(response, "$.dueAt", String.class))).as(staff)
+					.isEqualTo(created.plus(Duration.ofHours(72)));
+			assertThat(ApiClient.<Boolean>read(response, "$.estimatedDue")).as(staff).isFalse();
+			assertThat(ApiClient.<List<String>>read(response, "$.history[*].note")).as(staff)
+					.contains("Prioridad Alta → Prioridad Media");
+		}
+	}
+
+	@Test
+	void theRequesterInboxListsFiltersAndCountsWithTheChosenPriority() throws Exception {
+		String code = createRequest();
+		assertThat(changePriority(SUPERVISOR, code, "{\"priorityId\":" + CRITICAL + "}").statusCode()).isEqualTo(200);
+		// Even past the estimated date the requester does not see it as overdue.
+		jdbc.update("update service_requests set due_at = utc_timestamp(6) - interval 1 hour, "
+				+ "requested_due_at = utc_timestamp(6) - interval 1 hour where code = ?", code);
+		String token = api.login(STUDENT);
+
+		HttpResponse<String> list = api.get("/api/v1/requests", token);
+		assertThat(ApiClient.<String>read(list, "$.items[0].priorityName")).isEqualTo("Alta");
+		assertThat(ApiClient.<String>read(list, "$.items[0].dueAt")).isNotBlank();
+		assertThat(ApiClient.<Boolean>read(list, "$.items[0].estimatedDue")).isTrue();
+		assertThat(ApiClient.<Boolean>read(list, "$.items[0].overdue")).isFalse();
+		assertThat(ApiClient.<Integer>read(api.get("/api/v1/requests?priorityId=2", token), "$.total")).isEqualTo(1);
+		assertThat(ApiClient.<Integer>read(api.get("/api/v1/requests?priorityId=1", token), "$.total")).isZero();
+		assertThat(ApiClient.<Integer>read(api.get("/api/v1/requests?overdue=false", token), "$.total")).isEqualTo(1);
+		assertThat(ApiClient.<Integer>read(api.get("/api/v1/requests/counts", token), "$.overdue")).isZero();
+
+		String supervisor = api.login(SUPERVISOR);
+		assertThat(ApiClient.<String>read(api.get("/api/v1/requests", supervisor), "$.items[0].priorityName"))
+				.isEqualTo("Crítica");
+		assertThat(ApiClient.<Integer>read(api.get("/api/v1/requests?priorityId=1", supervisor), "$.total"))
+				.isEqualTo(1);
+		assertThat(ApiClient.<Integer>read(api.get("/api/v1/requests/counts", supervisor), "$.overdue")).isEqualTo(1);
+	}
+
+	@Test
+	void theChosenPriorityIsStoredApartAndNeverChanges() throws Exception {
+		String code = createRequest();
+		changePriority(SUPERVISOR, code, "{\"priorityId\":" + CRITICAL + "}");
+		changePriority(SUPERVISOR, code, "{\"priorityId\":" + MEDIUM + "}");
+
+		assertThat(jdbc.queryForObject("select requested_priority_id from service_requests where code = ?", Long.class,
+				code)).isEqualTo(2L);
+		assertThat(jdbc.queryForObject("select priority_id from service_requests where code = ?", Long.class, code))
+				.isEqualTo(MEDIUM);
+		LocalDateTime created = jdbc.queryForObject("select created_at from service_requests where code = ?",
+				LocalDateTime.class, code);
+		assertThat(jdbc.queryForObject("select requested_due_at from service_requests where code = ?",
+				LocalDateTime.class, code)).as("estimated date of Alta, fixed").isEqualTo(created.plusHours(24));
+		assertThat(jdbc.queryForList("select h.internal from request_history h join service_requests r "
+				+ "on r.id = h.request_id where r.code = ? and h.note is not null", Boolean.class, code))
+				.containsExactly(true, true);
+	}
+
 	@Test
 	void aResolvedOrClosedRequestKeepsItsPriority() throws Exception {
 		String code = createRequest();

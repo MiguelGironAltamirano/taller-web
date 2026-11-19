@@ -36,6 +36,10 @@ class ServiceRequestEntity {
 	@Column(name = "priority_id", nullable = false)
 	long priorityId;
 
+	/** The priority the requester chose; the supervisor's change only touches {@link #priorityId}. */
+	@Column(name = "requested_priority_id", updatable = false)
+	Long requestedPriorityId;
+
 	@Column(nullable = false, length = 20)
 	String status;
 
@@ -57,6 +61,10 @@ class ServiceRequestEntity {
 
 	@Column(name = "due_at", nullable = false)
 	Instant dueAt;
+
+	/** The estimated date the requester sees: the due date of the priority they chose, fixed at registration. */
+	@Column(name = "requested_due_at", updatable = false)
+	Instant requestedDueAt;
 
 	@Column(name = "updated_at", nullable = false)
 	Instant updatedAt;
