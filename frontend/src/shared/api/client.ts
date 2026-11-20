@@ -8,7 +8,12 @@ type ProblemDetails = {
   status?: number
   detail?: string
   errors?: Record<string, string>
+  /** Motivo concreto de algunos errores, p. ej. `SESSION_REPLACED`. */
+  code?: string
 }
+
+/** El `401` que indica que el mismo usuario ingresó en otro dispositivo (contrato «Una sola sesión por usuario»). */
+export const SESSION_REPLACED = 'SESSION_REPLACED'
 
 export class ApiError extends Error {
   readonly status: number
@@ -16,14 +21,16 @@ export class ApiError extends Error {
   readonly detail?: string
   /** Mensajes de validación por campo (`400`), si el servidor los envía. */
   readonly fieldErrors?: Record<string, string>
+  readonly code?: string
 
-  constructor(status: number, title: string, detail?: string, fieldErrors?: Record<string, string>) {
+  constructor(status: number, title: string, detail?: string, fieldErrors?: Record<string, string>, code?: string) {
     super(detail ?? title)
     this.name = 'ApiError'
     this.status = status
     this.title = title
     this.detail = detail
     this.fieldErrors = fieldErrors
+    this.code = code
   }
 }
 
@@ -62,7 +69,8 @@ export function refreshSession(): Promise<boolean> {
     try {
       const response = await send('POST', '/auth/refresh')
       if (!response.ok) {
-        sessionStore.clear()
+        const error = await toError(response)
+        sessionStore.clear(error.code === SESSION_REPLACED ? 'replaced' : null)
         return false
       }
       const token = (await response.json()) as TokenResponse
@@ -82,7 +90,7 @@ async function toError(response: Response): Promise<ApiError> {
   const contentType = response.headers.get('Content-Type') ?? ''
   if (contentType.includes('application/problem+json')) {
     const problem = (await response.json()) as ProblemDetails
-    return new ApiError(response.status, problem.title ?? response.statusText, problem.detail, problem.errors)
+    return new ApiError(response.status, problem.title ?? response.statusText, problem.detail, problem.errors, problem.code)
   }
   return new ApiError(response.status, response.statusText)
 }

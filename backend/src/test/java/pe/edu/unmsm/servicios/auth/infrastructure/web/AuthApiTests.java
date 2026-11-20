@@ -251,7 +251,7 @@ class AuthApiTests {
 	}
 
 	@Test
-	void changePasswordWithCorrectCurrentPasswordReturns204AndRevokesRefreshTokens() throws Exception {
+	void changePasswordWithCorrectCurrentPasswordReturns204AndKeepsTheCurrentSession() throws Exception {
 		HttpResponse<String> loginRes = loginDemo();
 		String accessToken = accessTokenOf(loginRes);
 		String refreshToken = refreshCookieOf(loginRes);
@@ -266,7 +266,8 @@ class AuthApiTests {
 		HttpResponse<String> response = put("/api/v1/auth/password", body, accessToken);
 		assertThat(response.statusCode()).isEqualTo(204);
 
-		assertThat(post("/api/v1/auth/refresh", null, refreshToken).statusCode()).isEqualTo(401);
+		// The session that changed the password stays open; any other one closes (SingleSessionApiTests).
+		assertThat(post("/api/v1/auth/refresh", null, refreshToken).statusCode()).isEqualTo(200);
 
 		String oldLoginBody = """
 				{

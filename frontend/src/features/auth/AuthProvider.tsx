@@ -1,11 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { apiPost, refreshSession } from '../../shared/api/client'
+import { apiGet, apiPost, refreshSession } from '../../shared/api/client'
 import { toSessionUser } from '../../shared/api/mappers'
 import type { PasskeyOptions, TokenResponse } from '../../shared/api/types'
 import { getPasskey, type RequestOptionsJSON } from '../../shared/lib/webauthn'
 import { sessionStore } from '../../shared/session/session-store'
 import { AuthContext, type AuthStatus } from './context'
+
+/** Cada cuánto se comprueba, con la ventana visible, que la sesión siga abierta. */
+const SESSION_CHECK_MS = 15_000
 
 /**
  * Sesión: el token de acceso vive solo en memoria (`sessionStore`) y se recupera al cargar con la
@@ -29,6 +32,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const user = useMemo(() => (session ? toSessionUser(session.user) : null), [session])
   const status: AuthStatus = user ? 'authenticated' : ready ? 'anonymous' : 'loading'
+
+  // Una sola sesión por usuario: si ingresó en otro dispositivo, esta se cierra en el servidor al instante. Una
+  // consulta liviana al volver a la ventana (y cada cierto tiempo mientras se ve) lo detecta aunque la pantalla
+  // muestre datos en caché; el cliente HTTP renueva, recibe `SESSION_REPLACED` y la interfaz vuelve al login.
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const check = () => {
+      if (document.visibilityState === 'visible') void apiGet('/me').catch(() => {})
+    }
+    const timer = window.setInterval(check, SESSION_CHECK_MS)
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', check)
+    }
+  }, [status])
 
   // Al terminar la sesión se descartan los datos del usuario anterior.
   useEffect(() => {

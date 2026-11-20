@@ -98,9 +98,9 @@ test.describe('Supervisor', () => {
     expect(seen.history.some((h) => h.note)).toBe(false)
   })
 
-  test('dashboard shows the real indicators for 7 days, 30 days and this month', async ({ page, request }) => {
-    const api = await Api.as(request, accounts.supervisorAdministrativo.email)
+  test('dashboard shows the real indicators for 7 days, 30 days and this month', async ({ page }) => {
     await login(page, accounts.supervisorAdministrativo)
+    const api = await Api.of(page)
     await expect(page.getByRole('heading', { name: 'Dashboard · Servicios Administrativos' })).toBeVisible()
 
     for (const range of [

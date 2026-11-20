@@ -22,6 +22,16 @@ class ApiConventionsTests {
 	@Value("${local.server.port}")
 	int port;
 
+	/** Tokens here belong to made-up users with no real session: every session counts as open. */
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	pe.edu.unmsm.servicios.shared.application.SessionRegistry sessions;
+
+	@org.junit.jupiter.api.BeforeEach
+	void everySessionIsOpen() {
+		org.mockito.Mockito.when(sessions.stateOf(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString()))
+				.thenReturn(pe.edu.unmsm.servicios.shared.application.SessionRegistry.SessionState.OPEN);
+	}
+
 	private final HttpClient http = HttpClient.newHttpClient();
 
 	private HttpResponse<String> get(String path) throws Exception {
@@ -50,7 +60,7 @@ class ApiConventionsTests {
 	@Test
 	void unknownApiRouteWithTokenReturnsNotFoundProblem() throws Exception {
 		String token = issuer.issue(new pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser(
-				1, "admin@unmsm.edu.pe", "Admin", "ADMINISTRADOR")).value();
+				1, "admin@unmsm.edu.pe", "Admin", "ADMINISTRADOR"), "test-session").value();
 		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/does-not-exist"))
 				.header("Authorization", "Bearer " + token).GET().build();
 		HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());

@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../shared/api/client'
 import { isPasskeyCancelled, isPasskeySupported } from '../../shared/lib/webauthn'
+import { sessionStore } from '../../shared/session/session-store'
 import { Alert, Avatar, Button, Field, Icon, Input, PasswordInput, useToast } from '../../shared/ui'
 import { AuthShell } from './AuthShell'
 import { consumeWelcome, markWelcome } from './welcome'
@@ -19,6 +20,11 @@ export function LoginPage() {
   const [formError, setFormError] = useState('')
   const [passkeyBusy, setPasskeyBusy] = useState(false)
   const passkeys = isPasskeySupported()
+  // Se lee al montar y se consume enseguida: el aviso no reaparece al volver más tarde al login.
+  const [replaced] = useState(() => sessionStore.peekEndReason() === 'replaced')
+  useEffect(() => {
+    sessionStore.takeEndReason()
+  }, [])
 
   const goHome = () => {
     const from = (location.state as { from?: string } | null)?.from
@@ -72,7 +78,15 @@ export function LoginPage() {
   return (
     <AuthShell title="Iniciar sesión" subtitle="Ingresa con tu cuenta institucional @unmsm.edu.pe.">
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-        {formError && <Alert>{formError}</Alert>}
+        {formError ? (
+          <Alert>{formError}</Alert>
+        ) : (
+          replaced && (
+            <Alert tone="info">
+              Tu sesión se cerró porque ingresaste desde otro dispositivo. Solo puedes tener una sesión abierta a la vez.
+            </Alert>
+          )
+        )}
         <div className="flex flex-col gap-4">
           <Field label="Correo" error={errors.email?.message}>
             {(a) => (

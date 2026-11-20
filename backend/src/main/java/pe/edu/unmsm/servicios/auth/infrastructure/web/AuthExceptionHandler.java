@@ -23,6 +23,7 @@ import pe.edu.unmsm.servicios.auth.domain.PasskeyAlreadyRegisteredException;
 import pe.edu.unmsm.servicios.auth.domain.PasskeyLimitReachedException;
 import pe.edu.unmsm.servicios.auth.domain.PasskeyLoginFailedException;
 import pe.edu.unmsm.servicios.auth.domain.PasskeyNotFoundException;
+import pe.edu.unmsm.servicios.auth.domain.SessionReplacedException;
 import pe.edu.unmsm.servicios.auth.domain.TooManyLoginAttemptsException;
 
 @RestControllerAdvice
@@ -114,6 +115,16 @@ class AuthExceptionHandler {
 	ProblemDetail passkeyNotFound() {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "La passkey no existe");
 		problem.setTitle("Not Found");
+		return problem;
+	}
+
+	/** Same body as a request whose session was replaced (ProblemDetailsSecurityHandler). */
+	@ExceptionHandler(SessionReplacedException.class)
+	ProblemDetail sessionReplaced() {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
+				"Tu sesión se cerró porque ingresaste desde otro dispositivo");
+		problem.setTitle("Unauthorized");
+		problem.setProperty("code", "SESSION_REPLACED");
 		return problem;
 	}
 

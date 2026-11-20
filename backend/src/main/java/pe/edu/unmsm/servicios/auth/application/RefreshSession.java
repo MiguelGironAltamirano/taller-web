@@ -8,8 +8,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.unmsm.servicios.auth.domain.InvalidRefreshTokenException;
 import pe.edu.unmsm.servicios.auth.domain.RefreshToken;
+import pe.edu.unmsm.servicios.auth.domain.SessionReplacedException;
 import pe.edu.unmsm.servicios.auth.domain.User;
+import pe.edu.unmsm.servicios.shared.application.SessionRegistry.SessionState;
 
+/** Rotates the refresh token; the new one belongs to the same session, so the session id does not change. */
 public class RefreshSession {
 
 	private final UserRepository users;
@@ -29,6 +32,10 @@ public class RefreshSession {
 		this.refreshTtl = refreshTtl;
 	}
 
+	/**
+	 * @throws SessionReplacedException when the token's session was closed by a newer login of the same user
+	 * @throws InvalidRefreshTokenException for any other unusable token
+	 */
 	@Transactional
 	public AuthSession execute(String presentedToken) {
 		if (presentedToken == null || presentedToken.isBlank()) {
@@ -38,12 +45,16 @@ public class RefreshSession {
 		String hash = codec.hash(presentedToken);
 		RefreshToken current = refreshTokens.findByTokenHash(hash).orElseThrow(InvalidRefreshTokenException::new);
 		if (!current.isUsableAt(now) || !refreshTokens.revoke(hash, now)) {
+			if (refreshTokens.stateOf(current.userId(), current.sessionId(), now) == SessionState.REPLACED) {
+				throw new SessionReplacedException();
+			}
 			throw new InvalidRefreshTokenException();
 		}
 		User user = users.findById(current.userId()).filter(User::active).orElseThrow(InvalidRefreshTokenException::new);
 		String next = codec.generate();
-		refreshTokens.save(new RefreshToken(null, user.id(), codec.hash(next), now.plus(refreshTtl), null));
-		return new AuthSession(user, accessTokens.generate(user), next);
+		refreshTokens.save(new RefreshToken(null, user.id(), current.sessionId(), codec.hash(next), now.plus(refreshTtl),
+				null));
+		return new AuthSession(user, accessTokens.generate(user, current.sessionId()), next);
 	}
 
 }

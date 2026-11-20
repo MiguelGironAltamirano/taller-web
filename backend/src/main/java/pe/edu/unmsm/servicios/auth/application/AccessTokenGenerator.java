@@ -7,6 +7,7 @@ public interface AccessTokenGenerator {
 	record AccessToken(String value, long expiresInSeconds) {
 	}
 
-	AccessToken generate(User user);
+	/** An access token bound to {@code sessionId}: it stops working as soon as that session closes. */
+	AccessToken generate(User user, String sessionId);
 
 }

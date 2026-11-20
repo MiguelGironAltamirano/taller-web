@@ -74,6 +74,35 @@ describe('session handling', () => {
     expect(sessionStore.get()).toBeNull()
   })
 
+  it('remembers that the session was closed by a login on another device', async () => {
+    sessionStore.set({ accessToken: 'old', user })
+    const replaced = {
+      title: 'Unauthorized',
+      status: 401,
+      detail: 'Tu sesión se cerró porque ingresaste desde otro dispositivo',
+      code: 'SESSION_REPLACED',
+    }
+    const problem = { status: 401, headers: { 'Content-Type': 'application/problem+json' } }
+    server.use(
+      http.post('*/api/v1/auth/refresh', () => HttpResponse.json(replaced, problem)),
+      http.get('*/api/v1/things', () => HttpResponse.json(replaced, problem)),
+    )
+    await expect(apiGet('/things')).rejects.toMatchObject({ status: 401, code: 'SESSION_REPLACED' })
+    expect(sessionStore.get()).toBeNull()
+    expect(sessionStore.takeEndReason()).toBe('replaced')
+    expect(sessionStore.takeEndReason()).toBeNull()
+  })
+
+  it('gives no reason when the session simply expired', async () => {
+    sessionStore.set({ accessToken: 'old', user })
+    server.use(
+      http.post('*/api/v1/auth/refresh', () => new HttpResponse(null, { status: 401 })),
+      http.get('*/api/v1/things', () => new HttpResponse(null, { status: 401 })),
+    )
+    await expect(apiGet('/things')).rejects.toMatchObject({ status: 401 })
+    expect(sessionStore.takeEndReason()).toBeNull()
+  })
+
   it('does not try to refresh when an /auth call returns 401', async () => {
     let refreshCalls = 0
     server.use(
