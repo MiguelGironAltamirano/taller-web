@@ -84,7 +84,12 @@ Cada rol ve en **Solicitudes** solo lo que le corresponde (el solicitante, las s
 
 En el **detalle** de una solicitud ves su estado, ubicación, tiempo de atención, historial, comentarios y evidencias.
 
-**Notificaciones:** la campana (**Notificaciones** en el menú, **Avisos** en el celular) muestra los cambios de estado y asignaciones, con un contador de no leídas.
+**Notificaciones:** la **campana** de la barra superior muestra un número con las notificaciones sin leer (es el único número que verás en la aplicación). Al tocarla se abre un panel con las **5 últimas** (las no leídas primero) sobre los cambios de estado, las asignaciones y los comentarios.
+
+- Toca una notificación para marcarla como leída y abrir su solicitud.
+- **Marcar todo como leído** las marca todas de una vez.
+- **Ver todas (N)** abre la página completa de notificaciones, donde puedes filtrar por **Todas** o **No leídas**. En el celular, el botón **Volver** te regresa a donde estabas.
+- Para cerrar el panel, toca fuera de él o pulsa **Escape**.
 
 ## 6. Mensajes de error
 
@@ -107,7 +112,7 @@ Los errores nunca muestran códigos técnicos ni nombres internos. Si un problem
 
 El sistema se adapta al tamaño de la pantalla:
 
-- **Celular:** una barra superior con el menú (cajón) y una **barra de navegación inferior** con las opciones principales (Inicio, Solicitudes, Nueva, Avisos). En **Mis solicitudes** hay un botón **Nueva solicitud**. Las bandejas se muestran como tarjetas en lugar de tablas y los botones son más grandes para tocarlos con el dedo.
+- **Celular:** una barra superior con el título, la búsqueda, la campana y tu perfil, y una **barra de navegación inferior** con las opciones principales (Inicio, Solicitudes, Nueva y **Menú**). La pestaña **Menú** abre un cajón con tu cuenta: Cambiar contraseña, Huella y passkeys, Modo oscuro y Cerrar sesión. En **Mis solicitudes** hay un botón **Nueva solicitud**. Las bandejas se muestran como tarjetas en lugar de tablas y los botones son más grandes para tocarlos con el dedo.
 - **Tablet y computadora:** menú lateral que se puede contraer, ruta de navegación (migas de pan), buscador y tablas.
 - **Pantalla grande:** el inicio de sesión muestra un panel institucional y el detalle se organiza en dos columnas.
 
