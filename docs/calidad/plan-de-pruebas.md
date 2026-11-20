@@ -79,6 +79,8 @@ Consideraciones:
 - Los umbrales son la propuesta inicial; se confirman en la primera ejecución (línea base) y cualquier ajuste se justifica en el informe.
 - Se ejecuta en una máquina sin otras cargas pesadas y se registran sus características en el informe.
 
+**Implementación y resultados (2026-11-20).** Scripts en `infra/k6/` (`smoke`, `load`, `stress` y `spike`, más `run.sh` y los datos de carga `seed-load.sql`); resultados en el [informe de pruebas de carga](informe-pruebas-carga.md). Se agregó una prueba de pico (de 10 a 150 usuarios en 10 s). El escenario de login usa cuentas creadas en cada corrida, una por usuario virtual: así no cierra la sesión que usa la bandeja (sesión única) y no hizo falta subir el límite de intentos. Los umbrales iniciales se confirmaron sin cambios.
+
 ## 7. Accesibilidad
 
 Reglas y lista de verificación en [`guia-accesibilidad.md`](guia-accesibilidad.md). Se prueba con axe en CI (automático) y con teclado y NVDA en los seis flujos clave (manual, semanas 13–14). Criterio: sin violaciones de axe de nivel A/AA y todos los flujos clave completables solo con teclado.

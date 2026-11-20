@@ -20,3 +20,6 @@ Thumbs.db
 
 # Local tooling
 .atl/
+
+# Raw results of the load tests (infra/k6/run.sh); the figures go to docs/calidad/informe-pruebas-carga.md
+infra/k6/results/
