@@ -16,7 +16,6 @@ type TopbarProps = {
   bellRef: Ref<HTMLButtonElement>
   onToggleSidebar: () => void
   onOpenPalette: () => void
-  onOpenDrawer: () => void
   onToggleNotifications: () => void
   onProfile: () => void
 }
@@ -30,7 +29,6 @@ export function Topbar({
   bellRef,
   onToggleSidebar,
   onOpenPalette,
-  onOpenDrawer,
   onToggleNotifications,
   onProfile,
 }: TopbarProps) {
@@ -41,10 +39,7 @@ export function Topbar({
   return (
     <header className="flex h-14 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-1 shadow-[0_1px_2px_rgb(0_0_0/0.04)] md:h-[60px] md:px-4">
       {/* Móvil */}
-      <IconButton label="Abrir menú" className="md:hidden" onClick={onOpenDrawer}>
-        <Icon name="menu" size={20} />
-      </IconButton>
-      <div className="flex-1 font-semibold md:hidden">Servicios UNMSM</div>
+      <div className="flex-1 pl-3 font-semibold md:hidden">Servicios UNMSM</div>
       <IconButton label="Buscar" className="md:hidden" onClick={onOpenPalette}>
         <Icon name="search" size={20} />
       </IconButton>

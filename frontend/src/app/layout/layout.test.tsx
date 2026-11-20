@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Role, SessionUser } from '../../shared/domain'
 import { ToastProvider } from '../../shared/ui'
 import { BOTTOM_NAV, NAV } from '../navigation'
-import { BottomNav } from './MobileNav'
+import { BottomNav, MobileDrawer } from './MobileNav'
 import { Topbar } from './Topbar'
 
 const USER: SessionUser = { id: 1, name: 'Lucía Torres', email: 'lucia@unmsm.edu.pe', role: 'solicitante' } as SessionUser
@@ -24,7 +24,6 @@ function renderTopbar({ unread = 0, open = false, pathname = '/inicio' } = {}) {
           bellRef={{ current: null }}
           onToggleSidebar={vi.fn()}
           onOpenPalette={vi.fn()}
-          onOpenDrawer={vi.fn()}
           onToggleNotifications={onToggleNotifications}
           onProfile={vi.fn()}
         />
@@ -63,6 +62,12 @@ describe('Topbar bell', () => {
     expect(screen.getByText('7')).toBeInTheDocument()
   })
 
+  it('has no hamburger: the menu opens only from the bottom bar', () => {
+    renderTopbar()
+    expect(screen.queryByRole('button', { name: 'Abrir menú' })).not.toBeInTheDocument()
+    expect(screen.getByText('Servicios UNMSM')).toBeInTheDocument()
+  })
+
   it('looks active on the notifications page', () => {
     renderTopbar({ pathname: '/notificaciones' })
     expect(screen.getByRole('button', { name: 'Notificaciones' })).toHaveClass('bg-primary-soft')
@@ -98,5 +103,27 @@ describe('Navigation destinations', () => {
   it.each(ROLES)('does not repeat the notifications page as a tab or a menu item for %s', (role) => {
     expect(NAV[role].some((n) => n.to === '/notificaciones')).toBe(false)
     expect(BOTTOM_NAV[role].some((n) => n.to === '/notificaciones')).toBe(false)
+  })
+})
+
+describe('Menu drawer', () => {
+  it('keeps only the account actions, not the destinations of the bottom bar', () => {
+    render(
+      <MemoryRouter>
+        <MobileDrawer
+          user={USER}
+          dark={false}
+          onClose={vi.fn()}
+          onChangePassword={vi.fn()}
+          onPasskeys={vi.fn()}
+          onToggleTheme={vi.fn()}
+          onLogout={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+    const drawer = screen.getByRole('complementary', { name: 'Menú' })
+    const actions = Array.from(drawer.querySelectorAll('button')).map((b) => b.textContent || b.getAttribute('aria-label'))
+    expect(actions).toEqual(['Cerrar', 'Cambiar contraseña', 'Huella y passkeys', 'Modo oscuro', 'Cerrar sesión'])
+    expect(drawer.querySelectorAll('a')).toHaveLength(0)
   })
 })

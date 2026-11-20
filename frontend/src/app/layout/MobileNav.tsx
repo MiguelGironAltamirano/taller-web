@@ -3,7 +3,6 @@ import type { Role, SessionUser } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
 import { BrandLogo, Icon, IconButton } from '../../shared/ui'
 import { BOTTOM_NAV, isActivePath } from '../navigation'
-import { NavList } from './NavList'
 
 /** Navegación inferior fija (móvil). */
 export function BottomNav({ role, onMenu }: { role: Role; onMenu: () => void }) {
@@ -40,7 +39,6 @@ export function BottomNav({ role, onMenu }: { role: Role; onMenu: () => void }) 
 }
 
 type DrawerProps = {
-  role: Role
   user: SessionUser
   dark: boolean
   onClose: () => void
@@ -50,8 +48,8 @@ type DrawerProps = {
   onLogout: () => void
 }
 
-/** Cajón lateral con el menú completo (móvil). */
-export function MobileDrawer({ role, dark, onClose, onChangePassword, onPasskeys, onToggleTheme, onLogout }: DrawerProps) {
+/** Cajón del botón «Menú» (móvil): solo lo que no está en la barra inferior, es decir, la cuenta. */
+export function MobileDrawer({ dark, onClose, onChangePassword, onPasskeys, onToggleTheme, onLogout }: DrawerProps) {
   const rowClass = 'h-12 rounded-lg border-0 bg-transparent px-3 text-left text-fg'
   return (
     <>
@@ -69,8 +67,7 @@ export function MobileDrawer({ role, dark, onClose, onChangePassword, onPasskeys
           </IconButton>
         </div>
         <div className="flex flex-1 flex-col gap-0.5 overflow-auto px-3 py-2">
-          <NavList role={role} large onNavigate={onClose} />
-          <div className="mt-2 flex flex-col gap-0.5 border-t border-line pt-2">
+          <div className="flex flex-col gap-0.5">
             <button type="button" className={rowClass} onClick={onChangePassword}>
               Cambiar contraseña
             </button>

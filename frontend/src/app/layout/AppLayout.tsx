@@ -147,7 +147,6 @@ export function AppLayout() {
           bellRef={bellRef}
           onToggleSidebar={() => setCollapsed(!collapsed)}
           onOpenPalette={() => setOverlay('palette')}
-          onOpenDrawer={() => setOverlay('drawer')}
           onToggleNotifications={() => setOverlay(overlay === 'notifications' ? null : 'notifications')}
           onProfile={() => setOverlay(overlay === 'profile-topbar' ? null : 'profile-topbar')}
         />
@@ -175,7 +174,6 @@ export function AppLayout() {
       {overlay === 'notifications' && <NotificationsPanel onClose={close} onDismiss={dismissNotifications} />}
       {overlay === 'drawer' && (
         <MobileDrawer
-          role={user.role}
           user={user}
           dark={dark}
           onClose={close}
