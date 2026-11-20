@@ -43,10 +43,12 @@ public class GetRequest {
 				.filter(view -> AccessPolicy.canViewRequest(user, view.requesterId(), view.areaId(),
 						view.technicianId()))
 				.orElseThrow(() -> new RequestNotFoundException(code));
-		return detail.withPermissions(allowedTransitions.forUser(user, detail), actionsFor(user, detail))
+		RequestDetailView full = detail
+				.withPermissions(allowedTransitions.forUser(user, detail), actionsFor(user, detail))
 				.withCollaboration(collaboration.comments(detail.id()), collaboration.evidences(detail.id()))
 				.withRating(ratings.forRequest(detail.id()).orElse(null))
 				.withAutoCloseAt(autoCloseAt(detail));
+		return AccessPolicy.isRequester(user) ? full.asSeenByRequester() : full;
 	}
 
 	/**

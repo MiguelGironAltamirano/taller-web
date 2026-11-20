@@ -16,7 +16,7 @@ import { ListToolbar, type FilterOption } from '../components/ListToolbar'
 import { RequestCards, RequestTable } from '../components/RequestTable'
 import { StatusStrip } from '../components/StatusStrip'
 import { attentionFor, sortByUrgency, useUnseenCodes } from '../lib/attention'
-import { toCsv, toServerQuery, toStripCounts } from '../lib/filters'
+import { OVERDUE_STATUS, toCsv, toServerQuery, toStripCounts, type ListFilters } from '../lib/filters'
 import { withSla, type RowView } from '../lib/view'
 import { useListParams } from './useListParams'
 import { useIsMobile } from '../../../shared/hooks/useMediaQuery'
@@ -41,8 +41,22 @@ export function RequestListPage() {
   const isMobile = useIsMobile()
   const { data: catalogs } = useCatalogs()
   const p = useListParams()
+  // El solicitante ve una fecha estimada que nunca vence (contrato, «Prioridad que ve el solicitante»): sin vista ni
+  // pestaña de vencidas.
+  const seesDue = user.role !== 'solicitante'
+  const filters = useMemo<ListFilters>(
+    () =>
+      seesDue
+        ? p.filters
+        : {
+            ...p.filters,
+            view: p.filters.view === 'venc' ? 'all' : p.filters.view,
+            status: p.filters.status === OVERDUE_STATUS ? '' : p.filters.status,
+          },
+    [seesDue, p.filters],
+  )
   const technicians = useTechnicians(user.role === 'supervisor' ? (user.areaId ?? undefined) : undefined)
-  const q = useDebouncedValue(p.filters.q, 300)
+  const q = useDebouncedValue(filters.q, 300)
   const [exporting, setExporting] = useState(false)
 
   const categoryOptions = useMemo<FilterOption[]>(
@@ -76,8 +90,8 @@ export function RequestListPage() {
 
   const canKanban = user.role !== 'solicitante'
   const kanban = canKanban && p.mode === 'kanban'
-  const attentionView = p.filters.view === 'attention'
-  const plan = useMemo(() => toServerQuery({ ...p.filters, q }, criticalId), [p.filters, q, criticalId])
+  const attentionView = filters.view === 'attention'
+  const plan = useMemo(() => toServerQuery({ ...filters, q }, criticalId), [filters, q, criticalId])
   const query = useMemo(() => {
     if (plan.kind !== 'query') return undefined
     if (attentionView) return { ...plan.query, page: 0, size: MAX_REQUEST_PAGE_SIZE }
@@ -162,15 +176,21 @@ export function RequestListPage() {
       )}
 
       <Card className="overflow-hidden" aria-busy={list.isFetching}>
-        <StatusStrip counts={strip} value={p.filters.status} onChange={(status) => p.setFilters({ status })} />
+        <StatusStrip
+          counts={strip}
+          value={filters.status}
+          showOverdue={seesDue}
+          onChange={(status) => p.setFilters({ status })}
+        />
         <div className="flex flex-col gap-2.5 border-y border-line bg-surface2/40 p-3">
           <ListToolbar
-            filters={p.filters}
+            filters={filters}
             categories={categoryOptions}
             priorities={priorityOptions}
             technicians={technicianOptions}
             areas={areaOptions}
             canKanban={canKanban}
+            showDue={seesDue}
             mode={p.mode}
             density={p.density}
             onChange={p.setFilters}
@@ -178,12 +198,12 @@ export function RequestListPage() {
             onDensity={p.setDensity}
           />
           <FilterChips
-            filters={p.filters}
+            filters={filters}
             labels={{
-              category: labelOf(categoryOptions, p.filters.category),
-              priority: labelOf(priorityOptions, p.filters.priority),
-              technician: labelOf(technicianOptions, p.filters.technician),
-              area: labelOf(allAreas, p.filters.area),
+              category: labelOf(categoryOptions, filters.category),
+              priority: labelOf(priorityOptions, filters.priority),
+              technician: labelOf(technicianOptions, filters.technician),
+              area: labelOf(allAreas, filters.area),
             }}
             onChange={p.setFilters}
             onClear={p.clearFilters}

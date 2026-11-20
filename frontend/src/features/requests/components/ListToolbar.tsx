@@ -14,6 +14,8 @@ type Props = {
   areas: FilterOption[] | null
   /** Rol con tablero kanban (técnico, supervisor, administrador). */
   canKanban: boolean
+  /** El solicitante ve una fecha estimada que nunca vence: sin la vista de vencidas y con su propio nombre de orden. */
+  showDue: boolean
   mode: 'table' | 'kanban'
   density: 'comfy' | 'compact'
   onChange: (patch: Partial<ListFilters>) => void
@@ -31,12 +33,15 @@ export function ListToolbar({
   technicians,
   areas,
   canKanban,
+  showDue,
   mode,
   density,
   onChange,
   onMode,
   onDensity,
 }: Props) {
+  const views = (Object.keys(VIEW_LABELS) as ListView[]).filter((v) => showDue || v !== 'venc')
+  const sortLabel = (s: ListSort) => (s === 'due' && !showDue ? 'Fecha estimada' : SORT_LABELS[s])
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="relative min-w-0 flex-[1_1_220px]">
@@ -71,7 +76,7 @@ export function ListToolbar({
         onChange={(e) => onChange({ view: e.target.value as ListView })}
         className="h-9 w-auto max-md:h-11"
       >
-        {(Object.keys(VIEW_LABELS) as ListView[]).map((v) => (
+        {views.map((v) => (
           <option key={v} value={v}>
             Vista: {VIEW_LABELS[v]}
           </option>
@@ -85,7 +90,7 @@ export function ListToolbar({
       >
         {(Object.keys(SORT_LABELS) as ListSort[]).map((s) => (
           <option key={s} value={s}>
-            Orden: {SORT_LABELS[s]}
+            Orden: {sortLabel(s)}
           </option>
         ))}
       </Select>

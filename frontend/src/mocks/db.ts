@@ -27,7 +27,8 @@ export type MockUser = {
 
 export type MockComment = { id: number; authorId: number; authorName: string; text: string; createdAt: number }
 export type MockEvidence = { id: number; fileName: string; kind: 'IMG' | 'PDF'; sizeBytes: number }
-export type MockHistory = Omit<HistoryEntry, 'createdAt'> & { createdAt: number }
+/** `internal`: no se muestra al solicitante (cambios de prioridad). */
+export type MockHistory = Omit<HistoryEntry, 'createdAt'> & { createdAt: number; internal?: boolean }
 
 export type MockRequest = {
   seq: number
@@ -36,10 +37,15 @@ export type MockRequest = {
   categoryId: number
   /** Id de la ubicación de nivel AMBIENTE. */
   locationId: number
+  /** Prioridad vigente, la que usa el personal. */
   priorityId: number
+  /** Prioridad que eligió el solicitante; sin definir mientras el supervisor no la cambie. */
+  requestedPriorityId?: number
   status: RequestStatus
   createdAt: number
   dueAt: number
+  /** Fecha estimada que ve el solicitante; sin definir mientras el supervisor no cambie la prioridad. */
+  requestedDueAt?: number
   technicianId: number | null
   description: string
   closureReason: ClosureReason | null

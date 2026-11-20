@@ -40,7 +40,14 @@ const supervisorsOf = (areaId: number) =>
 
 const pushHistory = (
   r: MockRequest,
-  entry: { from: RequestStatus | null; to: RequestStatus; actor: string; reason: string | null; note?: string },
+  entry: {
+    from: RequestStatus | null
+    to: RequestStatus
+    actor: string
+    reason: string | null
+    note?: string
+    internal?: boolean
+  },
 ) =>
   r.history.push({
     fromStatus: entry.from,
@@ -49,6 +56,7 @@ const pushHistory = (
     reason: entry.reason,
     createdAt: Date.now(),
     note: entry.note,
+    internal: entry.internal,
   })
 
 export const requestHandlers = [
@@ -237,6 +245,8 @@ export const requestHandlers = [
         return problem(400, 'Datos no válidos', 'La prioridad no cambió.', { priorityId: 'Elige una prioridad distinta de la actual' })
       }
       const previous = db.priorities.find((p) => p.id === r.priorityId)!
+      r.requestedPriorityId ??= r.priorityId
+      r.requestedDueAt ??= r.dueAt
       r.priorityId = priority.id
       r.dueAt = computeDueAt(r.createdAt, priority.slaHours)
       pushHistory(r, {
@@ -245,6 +255,7 @@ export const requestHandlers = [
         actor: actorLabel(user),
         reason: `Nuevo vencimiento: ${new Date(r.dueAt).toLocaleString('es-PE', { timeZone: 'America/Lima' })}`,
         note: `Prioridad ${previous.name} → Prioridad ${priority.name}`,
+        internal: true,
       })
       return HttpResponse.json(detailOf(r, user))
     }),

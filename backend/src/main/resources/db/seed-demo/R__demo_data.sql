@@ -479,6 +479,28 @@ INSERT INTO request_history (id, request_id, from_status, to_status, actor_id, t
   (10342, 1055, 'REGISTRADA', 'EN_EVALUACION', @supervisor_infraestructura, NULL, 'Se inició la evaluación del caso', NULL, @today - INTERVAL 2 DAY + INTERVAL 1080 MINUTE)
 ON DUPLICATE KEY UPDATE id = id;
 
+-- The priority each requester chose (before the supervisor's change, if any), its estimated date and the history
+-- entries they do not see, with the same rules as migration V20261119_1000. Only rows still without them are touched.
+UPDATE service_requests r
+   SET r.requested_priority_id = COALESCE((
+       SELECT p.id
+         FROM request_history h
+         JOIN priorities p
+           ON p.name = SUBSTRING(SUBSTRING_INDEX(h.note, ' → ', 1), CHAR_LENGTH('Prioridad ') + 1)
+        WHERE h.request_id = r.id
+          AND h.note LIKE 'Prioridad % → Prioridad %'
+        ORDER BY h.created_at, h.id
+        LIMIT 1), r.priority_id)
+ WHERE r.requested_priority_id IS NULL;
+
+UPDATE service_requests r
+  JOIN priorities rp ON rp.id = r.requested_priority_id
+   SET r.requested_due_at = CASE WHEN r.requested_priority_id = r.priority_id THEN r.due_at
+                                 ELSE r.created_at + INTERVAL rp.sla_hours HOUR END
+ WHERE r.requested_due_at IS NULL;
+
+UPDATE request_history SET internal = TRUE WHERE note LIKE 'Prioridad % → Prioridad %' AND internal = FALSE;
+
 INSERT INTO comments (id, request_id, author_id, text, created_at) VALUES
   (20001, 1001, 104, 'Voy en camino con el equipo de protección.', @now - INTERVAL 150 MINUTE),
   (20002, 1006, 107, 'Revisé los puertos USB, parece un problema del concentrador. Pedí el repuesto.', @now - INTERVAL 1480 MINUTE),

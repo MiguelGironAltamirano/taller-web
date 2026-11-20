@@ -110,6 +110,7 @@ class ChangePriorityTest {
 			assertThat(entry.toStatus()).isEqualTo(RequestStatus.ASIGNADA);
 			assertThat(entry.actorId()).isEqualTo(2);
 			assertThat(entry.note()).isEqualTo("Prioridad Media → Prioridad Alta");
+			assertThat(entry.internal()).isTrue();
 			// 18:00 UTC is 13:00 in Lima.
 			assertThat(entry.reason()).isEqualTo("Nuevo vencimiento: 16/10/2026 13:00");
 			assertThat(entry.createdAt()).isEqualTo(NOW);

@@ -43,6 +43,15 @@ public record RequestListCriteria(Set<RequestStatus> statuses, Long areaId, Long
 				DEFAULT_PAGE_SIZE);
 	}
 
+	/**
+	 * The requester never sees a request as overdue (they see an estimated date), so filtering by overdue would
+	 * reveal a supervisor's priority change: it is ignored.
+	 */
+	public RequestListCriteria forRequester() {
+		return new RequestListCriteria(statuses, areaId, categoryId, priorityId, technicianId, unassigned, null, text,
+				from, to, sort, page, size);
+	}
+
 	public boolean hasText() {
 		return !text.isEmpty();
 	}

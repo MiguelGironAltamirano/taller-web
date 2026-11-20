@@ -104,9 +104,32 @@ describe('solicitudes', () => {
     const created = await apiPost<RequestDetail>('/requests', validBody())
     expect(created.code).toMatch(/^SOL-\d{4}-\d{6}$/)
     expect(created.status).toBe('REGISTRADA')
-    const hours = (Date.parse(created.dueAt) - Date.parse(created.createdAt)) / 3_600_000
-    expect(hours).toBe(24)
+    expect(created.estimatedDue).toBe(true)
+    expect((Date.parse(created.dueAt) - Date.parse(created.createdAt)) / 3_600_000).toBe(24)
     expect(created.history).toHaveLength(1)
+
+    await loginAs(SUPERVISOR)
+    const staff = await apiGet<RequestDetail>(`/requests/${created.code}`)
+    expect(staff.estimatedDue).toBe(false)
+    expect((Date.parse(staff.dueAt) - Date.parse(staff.createdAt)) / 3_600_000).toBe(24)
+  })
+
+  it('el solicitante no se entera del cambio de prioridad del supervisor', async () => {
+    const { code } = await apiPost<RequestDetail>('/requests', validBody())
+    await loginAs(SUPERVISOR)
+    const critical = catalogs.priorities.find((p) => p.name === 'Crítica')!
+    await apiPatch(`/requests/${code}/priority`, { priorityId: critical.id })
+
+    await loginAs(SOLICITANTE)
+    const detail = await apiGet<RequestDetail>(`/requests/${code}`)
+    expect(detail.priorityName).toBe('Alta')
+    expect((Date.parse(detail.dueAt) - Date.parse(detail.createdAt)) / 3_600_000).toBe(24)
+    expect(detail.overdue).toBe(false)
+    expect(detail.history.some((h) => h.note)).toBe(false)
+    const alta = catalogs.priorities.find((p) => p.name === 'Alta')!
+    const list = await apiGet<Page<RequestSummary>>(`/requests?priorityId=${alta.id}`)
+    expect(list.items.map((r) => r.code)).toContain(code)
+    expect(list.items.find((r) => r.code === code)?.priorityName).toBe('Alta')
   })
 
   it('el área de la solicitud es la de la categoría elegida', async () => {

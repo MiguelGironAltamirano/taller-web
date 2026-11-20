@@ -43,6 +43,11 @@ export type RequestSummary = {
   status: RequestStatus
   createdAt: string
   dueAt: string
+  /**
+   * `true` para el solicitante: `dueAt` es la fecha estimada con la prioridad que eligió y nunca está vencida
+   * (contrato, «Prioridad que ve el solicitante»).
+   */
+  estimatedDue?: boolean
   overdue: boolean
   // EXTENSIÓN: datos que muestran las bandejas del diseño.
   description: string
