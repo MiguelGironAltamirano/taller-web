@@ -62,8 +62,11 @@ class ServiceRequestEntity {
 	@Column(name = "due_at", nullable = false)
 	Instant dueAt;
 
-	/** The estimated date the requester sees: the due date of the priority they chose, fixed at registration. */
-	@Column(name = "requested_due_at", updatable = false)
+	/**
+	 * The estimated date the requester sees: the due date of the priority they chose, fixed at registration. Only a
+	 * restore after a cancellation moves it, by the same time as the due date.
+	 */
+	@Column(name = "requested_due_at")
 	Instant requestedDueAt;
 
 	@Column(name = "updated_at", nullable = false)

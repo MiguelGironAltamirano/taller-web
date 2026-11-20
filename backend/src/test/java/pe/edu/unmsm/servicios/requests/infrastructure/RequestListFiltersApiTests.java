@@ -66,8 +66,10 @@ class RequestListFiltersApiTests {
 		jdbc.update("delete from request_history");
 		jdbc.update("delete from service_requests");
 		jdbc.update("delete from request_code_sequences");
-		jdbc.update("insert ignore into users (id, full_name, email, password_hash, role, requester_type, area_id, "
-				+ "created_at) values (95, 'Rosa Filtros', ?, ?, 'SOLICITANTE', 'DOCENTE', null, utc_timestamp(6))",
+		// No fixed id: other test classes register users through the API on the same database, so an id may already
+		// be taken and "insert ignore" would then skip this user silently.
+		jdbc.update("insert ignore into users (full_name, email, password_hash, role, requester_type, area_id, "
+				+ "created_at) values ('Rosa Filtros', ?, ?, 'SOLICITANTE', 'DOCENTE', null, utc_timestamp(6))",
 				OTHER_STUDENT, DEMO_HASH);
 	}
 

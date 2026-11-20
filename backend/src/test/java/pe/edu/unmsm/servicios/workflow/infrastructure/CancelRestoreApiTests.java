@@ -85,8 +85,9 @@ class CancelRestoreApiTests {
 				+ "where r.code = ? and h.to_status = 'CANCELADA'", ago.toSeconds(), code);
 	}
 
-	private Instant dueAt(String code) throws Exception {
-		return Instant.parse(ApiClient.read(detail(requester, code), "$.dueAt", String.class));
+	/** The due date as {@code token} sees it: the SLA for the staff, the estimated date for the requester. */
+	private Instant dueAt(String token, String code) throws Exception {
+		return Instant.parse(ApiClient.read(detail(token, code), "$.dueAt", String.class));
 	}
 
 	@Test
@@ -149,7 +150,8 @@ class CancelRestoreApiTests {
 	void restoringBringsItBackWhereItWasWithTheTimeItWasCancelledAdded() throws Exception {
 		String code = createRequest();
 		evaluate(code);
-		Instant dueBefore = dueAt(code);
+		Instant dueBefore = dueAt(supervisor, code);
+		Instant estimatedBefore = dueAt(requester, code);
 		transition(requester, code, CANCEL);
 		cancelledAgo(code, Duration.ofDays(2));
 
@@ -157,8 +159,11 @@ class CancelRestoreApiTests {
 
 		assertThat(restored.statusCode()).as(restored.body()).isEqualTo(200);
 		assertThat(ApiClient.<String>read(restored, "$.status")).isEqualTo("EN_EVALUACION");
-		assertThat(Duration.between(dueBefore, dueAt(code))).isBetween(Duration.ofDays(2).minusMinutes(1),
+		// Both dates move by the time it was cancelled: the SLA the staff sees and the estimated date of the requester.
+		assertThat(Duration.between(dueBefore, dueAt(supervisor, code))).isBetween(Duration.ofDays(2).minusMinutes(1),
 				Duration.ofDays(2).plusMinutes(1));
+		assertThat(Duration.between(estimatedBefore, dueAt(requester, code)))
+				.isBetween(Duration.ofDays(2).minusMinutes(1), Duration.ofDays(2).plusMinutes(1));
 		assertThat(ApiClient.<List<String>>read(detail(requester, code), "$.allowedActions")).contains("cancel");
 	}
 
@@ -191,8 +196,9 @@ class CancelRestoreApiTests {
 		transition(requester, code, CANCEL);
 		jdbc.update("update service_requests set due_at = utc_timestamp(6) - interval 1 day where code = ?", code);
 
-		assertThat(ApiClient.<Boolean>read(detail(requester, code), "$.overdue")).isFalse();
-		assertThat(api.get("/api/v1/requests?overdue=true", requester).body()).doesNotContain(code);
+		// Overdue is a staff notion (the requester never sees it): checked as the supervisor of the area.
+		assertThat(ApiClient.<Boolean>read(detail(supervisor, code), "$.overdue")).isFalse();
+		assertThat(api.get("/api/v1/requests?overdue=true", supervisor).body()).doesNotContain(code);
 		assertThat(api.get("/api/v1/requests?status=CANCELADA", requester).body()).contains(code);
 		assertThat(ApiClient.<Integer>read(api.get("/api/v1/requests/counts", requester), "$.byStatus.CANCELADA"))
 				.isEqualTo(1);
