@@ -6,7 +6,7 @@ import { useTheme } from '../../shared/hooks/useTheme'
 import { ChangePasswordModal, PasskeysModal, consumeWelcome, useAuth, useSessionUser } from '../../features/auth'
 import { useToast } from '../../shared/ui'
 import { NotificationsPanel, useUnreadCount } from '../../features/notifications'
-import { openCount, useRequestCounts, useRequestRows } from '../../features/requests'
+import { useRequestRows } from '../../features/requests'
 import { NAV } from '../navigation'
 import { CommandPalette, type PaletteItem } from './CommandPalette'
 import { BottomNav, MobileDrawer } from './MobileNav'
@@ -31,10 +31,11 @@ export function AppLayout() {
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [passkeysOpen, setPasskeysOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
+  const bellRef = useRef<HTMLButtonElement>(null)
 
   // La paleta de comandos busca entre las solicitudes ya cargadas (la misma consulta que usa Inicio).
   const rows = useRequestRows().data
-  const counts = { open: openCount(useRequestCounts().data), unread: useUnreadCount() }
+  const unread = useUnreadCount()
 
   // Bienvenida tras un inicio de sesión (no al restaurar la sesión): aviso breve, no bloqueante.
   const toast = useToast()
@@ -55,13 +56,20 @@ export function AppLayout() {
         setOverlay('palette')
       } else if (e.key === 'Escape') {
         setOverlay(null)
+        // Al cerrar el panel de la campana, el foco vuelve a ella.
+        if (overlay === 'notifications') bellRef.current?.focus()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [setOverlay])
+  }, [setOverlay, overlay])
 
   const close = useCallback(() => setOverlay(null), [setOverlay])
+  // Cerrar el panel sin navegar (tocar fuera): el foco vuelve a la campana.
+  const dismissNotifications = useCallback(() => {
+    setOverlay(null)
+    bellRef.current?.focus()
+  }, [setOverlay])
   const doLogout = async () => {
     setOverlay(null)
     await logout()
@@ -86,6 +94,7 @@ export function AppLayout() {
         ? [{ label: 'Nueva solicitud', hint: 'Acción', icon: 'plus' as const, run: () => navigate('/solicitudes/nueva') }]
         : []),
       ...NAV[user.role].map((n) => ({ label: `Ir a ${n.label}`, hint: 'Ir a', icon: n.icon, run: () => navigate(n.to) })),
+      { label: 'Ir a Notificaciones', hint: 'Ir a', icon: 'bell' as const, run: () => navigate('/notificaciones') },
       { label: 'Cambiar contraseña', hint: 'Cuenta', icon: 'lock' as const, run: () => setPasswordOpen(true) },
       { label: 'Huella y passkeys', hint: 'Cuenta', icon: 'fingerprint' as const, run: () => setPasskeysOpen(true) },
       {
@@ -126,7 +135,6 @@ export function AppLayout() {
         user={user}
         role={user.role}
         collapsed={collapsed}
-        counts={counts}
         onProfile={() => setOverlay(overlay === 'profile-sidebar' ? null : 'profile-sidebar')}
       />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -134,10 +142,11 @@ export function AppLayout() {
           user={user}
           role={user.role}
           pathname={pathname}
-          unread={counts.unread}
+          unread={unread}
+          notificationsOpen={overlay === 'notifications'}
+          bellRef={bellRef}
           onToggleSidebar={() => setCollapsed(!collapsed)}
           onOpenPalette={() => setOverlay('palette')}
-          onOpenDrawer={() => setOverlay('drawer')}
           onToggleNotifications={() => setOverlay(overlay === 'notifications' ? null : 'notifications')}
           onProfile={() => setOverlay(overlay === 'profile-topbar' ? null : 'profile-topbar')}
         />
@@ -146,7 +155,7 @@ export function AppLayout() {
             <Outlet />
           </div>
         </main>
-        <BottomNav role={user.role} counts={counts} onMenu={() => setOverlay('drawer')} />
+        <BottomNav role={user.role} onMenu={() => setOverlay('drawer')} />
       </div>
 
       {(overlay === 'profile-sidebar' || overlay === 'profile-topbar') && (
@@ -162,12 +171,10 @@ export function AppLayout() {
           onClose={close}
         />
       )}
-      {overlay === 'notifications' && <NotificationsPanel onClose={close} />}
+      {overlay === 'notifications' && <NotificationsPanel onClose={close} onDismiss={dismissNotifications} />}
       {overlay === 'drawer' && (
         <MobileDrawer
-          role={user.role}
           user={user}
-          counts={counts}
           dark={dark}
           onClose={close}
           onChangePassword={openPassword}

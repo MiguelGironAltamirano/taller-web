@@ -58,9 +58,9 @@ test.describe('Technician', () => {
     const carmenOnPage = await Api.of(page)
     const unreadBefore = (await carmenOnPage.get<{ read: boolean }[]>('/notifications')).filter((n) => !n.read).length
     expect(unreadBefore).toBeGreaterThan(0)
-    // Badge in the sidebar link and in the bell of the top bar.
-    await expect(page.getByRole('link', { name: `Notificaciones ${unreadBefore}` })).toBeVisible()
+    // The bell of the top bar carries the only numeric badge; the menu has no «Notificaciones» link.
     await expect(page.getByRole('button', { name: `Notificaciones, ${unreadBefore} sin leer` })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Notificaciones/ })).toHaveCount(0)
 
     // The bell opens the panel with the newest notifications.
     await page.getByRole('button', { name: /^Notificaciones, \d+ sin leer$/ }).click()
@@ -76,7 +76,7 @@ test.describe('Technician', () => {
     await markOne.click()
     await expect(markOne).toBeHidden()
     await expect(page.getByText(`${unreadBefore - 1} sin leer`, { exact: true })).toBeVisible()
-    await expect(page.getByRole('link', { name: unreadBefore - 1 > 0 ? `Notificaciones ${unreadBefore - 1}` : 'Notificaciones' })).toBeVisible()
+    await expect(page.getByRole('button', { name: unreadBefore - 1 > 0 ? `Notificaciones, ${unreadBefore - 1} sin leer` : 'Notificaciones', exact: true })).toBeVisible()
 
     await page.getByRole('tab', { name: 'No leídas' }).click()
     await expect(page.getByRole('main').getByRole('button', { name: assigned })).toHaveCount(0)
