@@ -8,13 +8,23 @@ Base: `/api/v1`. JSON en UTF-8. Fechas ISO-8601 en UTC. Errores: `application/pr
 |---|---|---|---|
 | `POST /auth/register` | Público | `{ fullName, email, password, requesterType }` | `201` `UserSummary` · `400` validación · `409` correo ya registrado |
 | `POST /auth/login` | Público | `{ email, password }` | `200` `TokenResponse` + cookie `refresh_token` · `401` credenciales inválidas · `429` al superar el límite de intentos, con cabecera `Retry-After` (segundos); por defecto 5 fallos por email+IP y 20 por email en 15 minutos, configurable con `app.auth.login-limit.{max-failures-per-client,max-failures-per-email,window,max-tracked-keys}` |
-| `POST /auth/refresh` | Cookie `refresh_token` | — | `200` `TokenResponse` + cookie rotada · `401` |
-| `POST /auth/logout` | Cookie `refresh_token` | — | `204`, cookie eliminada y token revocado |
+| `POST /auth/refresh` | Cookie `refresh_token` | — | `200` `TokenResponse` + cookie rotada · `401`, con `code: "SESSION_REPLACED"` si la sesión se cerró porque el usuario ingresó en otro dispositivo |
+| `POST /auth/logout` | Cookie `refresh_token` | — | `204`, cookie eliminada y sesión cerrada |
 | `GET /me` | Token | — | `200` `{ id, email, fullName, role, areaId }` |
 
 Reglas de registro: `email` termina en `@unmsm.edu.pe`; `password` de 8 a 72 caracteres con al menos una letra y un dígito; `requesterType` ∈ `ESTUDIANTE`, `DOCENTE`, `ADMINISTRATIVO`; `fullName` de 3 a 150 caracteres.
 
 Cookie `refresh_token`: `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=604800`.
+
+### Una sola sesión por usuario
+
+Cada usuario tiene como máximo **una sesión abierta**. Gana el último ingreso: iniciar sesión con contraseña (`/auth/login`) o con huella o passkey (`/auth/passkeys/login`) cierra cualquier otra sesión del mismo usuario, en otro dispositivo, otro navegador o una ventana de incógnito.
+
+- **Qué es una sesión.** Nace en el inicio de sesión y la identifica el claim `sid` del token de acceso. Renovarla con `/auth/refresh` rota la cookie pero conserva la misma sesión. Las pestañas y ventanas normales de un mismo navegador comparten la cookie y son, por tanto, **la misma sesión**: no se expulsan entre sí.
+- **Cierre inmediato.** Cada petición con token verifica que su sesión siga abierta. Si no lo está, la respuesta es `401` aunque el token no haya vencido. Esto aplica también a `logout`, al cambio de contraseña (que cierra las demás sesiones y conserva la actual) y a la desactivación de una cuenta.
+- **Motivo del cierre.** Si la sesión se cerró porque el usuario ingresó en otro lado, el `401`, tanto de cualquier ruta con token como de `/auth/refresh`, incluye `code: "SESSION_REPLACED"` y `detail: "Tu sesión se cerró porque ingresaste desde otro dispositivo"`. En cualquier otro caso el `401` no trae `code`. El frontend consulta `GET /me` cuando la ventana recupera el foco y cada 15 s mientras está visible, de modo que la pantalla anterior vuelve al login con ese aviso aunque muestre datos en caché.
+- **Ingresos simultáneos.** Si dos ingresos del mismo usuario llegan a la vez, solo uno queda abierto.
+- **Rutas públicas de `/auth`.** `register`, `login`, `refresh`, `logout` y `passkeys/login*` ignoran la cabecera `Authorization`, de modo que un token vencido o cerrado nunca impide renovar la sesión ni volver a ingresar. `PUT /auth/password` sí requiere token.
 
 Inicio de sesión con huella o passkey (WebAuthn): ver [`passkeys-v1.md`](passkeys-v1.md); implementado como propuesta, pendiente de acuerdo con el dueño del módulo `auth`.
 

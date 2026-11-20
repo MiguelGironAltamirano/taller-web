@@ -28,27 +28,50 @@ export async function login(page: Page, account: { email: string; home?: string 
   else await expect(page).not.toHaveURL(/\/login$/)
 }
 
-/** Minimal authenticated REST client for test data set-up. */
+type TokenBody = { accessToken: string; user: { id: number } }
+
+/**
+ * Minimal authenticated REST client for test data set-up.
+ *
+ * A user has one open session at a time (contrato-v1.md «Una sola sesión por usuario»): logging in as an account closes
+ * its other sessions. So, for the account a page is logged in as, use {@link Api.of} (it joins the page's session)
+ * instead of {@link Api.as}; and a client made with `as` logs in again if a later login closed its session.
+ */
 export class Api {
   private constructor(
     private readonly request: APIRequestContext,
-    private readonly token: string,
+    private token: string,
     readonly userId: number,
+    private readonly credentials: { email: string; password: string } | null,
   ) {}
 
   static async as(request: APIRequestContext, email: string, password = DEMO_PASSWORD): Promise<Api> {
+    const body = await Api.login(request, email, password)
+    return new Api(request, body.accessToken, body.user.id, { email, password })
+  }
+
+  /** Joins the session of a logged-in page (its refresh cookie), so the page stays logged in. */
+  static async of(page: Page): Promise<Api> {
+    const response = await page.request.post('/api/v1/auth/refresh')
+    expect(response.status(), 'refresh of the page session').toBe(200)
+    const body = (await response.json()) as TokenBody
+    return new Api(page.request, body.accessToken, body.user.id, null)
+  }
+
+  private static async login(request: APIRequestContext, email: string, password: string): Promise<TokenBody> {
     const response = await request.post('/api/v1/auth/login', { data: { email, password } })
     expect(response.status(), `login of ${email}`).toBe(200)
-    const body = (await response.json()) as { accessToken: string; user: { id: number } }
-    return new Api(request, body.accessToken, body.user.id)
+    return (await response.json()) as TokenBody
   }
 
   private async send<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH', path: string, data?: unknown): Promise<T> {
-    const response = await this.request.fetch(`/api/v1${path}`, {
-      method,
-      data,
-      headers: { Authorization: `Bearer ${this.token}` },
-    })
+    const call = () =>
+      this.request.fetch(`/api/v1${path}`, { method, data, headers: { Authorization: `Bearer ${this.token}` } })
+    let response = await call()
+    if (response.status() === 401 && this.credentials) {
+      this.token = (await Api.login(this.request, this.credentials.email, this.credentials.password)).accessToken
+      response = await call()
+    }
     expect(response.ok(), `${method} ${path} → ${response.status()} ${await response.text()}`).toBeTruthy()
     return (response.status() === 204 ? undefined : await response.json()) as T
   }

@@ -24,6 +24,10 @@ class RefreshTokenEntity {
 	long userId;
 
 	@JdbcTypeCode(SqlTypes.CHAR)
+	@Column(name = "session_id", nullable = false, updatable = false, length = 36, columnDefinition = "char(36)")
+	String sessionId;
+
+	@JdbcTypeCode(SqlTypes.CHAR)
 	@Column(name = "token_hash", nullable = false, length = 64, columnDefinition = "char(64)")
 	String tokenHash;
 

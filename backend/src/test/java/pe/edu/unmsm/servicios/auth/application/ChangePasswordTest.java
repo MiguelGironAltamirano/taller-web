@@ -13,6 +13,7 @@ import pe.edu.unmsm.servicios.auth.domain.RefreshToken;
 import pe.edu.unmsm.servicios.auth.domain.RequesterType;
 import pe.edu.unmsm.servicios.auth.domain.Role;
 import pe.edu.unmsm.servicios.auth.domain.User;
+import pe.edu.unmsm.servicios.shared.application.SessionRegistry.SessionState;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,7 +39,7 @@ class ChangePasswordTest {
 
 	@Test
 	void wrongCurrentPasswordThrowsInvalidCurrentPasswordException() {
-		assertThatThrownBy(() -> changePassword.execute(1L, "wrong_pass", "new_secret_123"))
+		assertThatThrownBy(() -> changePassword.execute(1L, "current-session", "wrong_pass", "new_secret_123"))
 				.isInstanceOf(InvalidCurrentPasswordException.class);
 
 		assertThat(userRepository.users.get(0).passwordHash()).isEqualTo("hashed_old_pass");
@@ -46,11 +47,12 @@ class ChangePasswordTest {
 	}
 
 	@Test
-	void correctPasswordUpdatesPasswordHashAndRevokesAllRefreshTokens() {
-		changePassword.execute(1L, "old_pass", "new_secret_123");
+	void correctPasswordUpdatesPasswordHashAndClosesTheOtherSessions() {
+		changePassword.execute(1L, "current-session", "old_pass", "new_secret_123");
 
 		assertThat(userRepository.users.get(0).passwordHash()).isEqualTo("hashed_new_secret_123");
 		assertThat(refreshTokenRepository.revokedUsers).containsExactly(1L);
+		assertThat(refreshTokenRepository.keptSessions).containsExactly("current-session");
 	}
 
 	private static class InMemoryUserRepository implements UserRepository {
@@ -92,6 +94,7 @@ class ChangePasswordTest {
 
 	private static class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
 		final List<Long> revokedUsers = new ArrayList<>();
+		final List<String> keptSessions = new ArrayList<>();
 
 		@Override
 		public void save(RefreshToken token) {}
@@ -108,8 +111,22 @@ class ChangePasswordTest {
 
 		@Override
 		public int revokeAllForUser(long userId, Instant at) {
+			throw new AssertionError("changing the password keeps the current session");
+		}
+
+		@Override
+		public int revokeAllForUserExcept(long userId, String keptSessionId, Instant at) {
 			revokedUsers.add(userId);
+			keptSessions.add(keptSessionId);
 			return 1;
+		}
+
+		@Override
+		public void lockSessionsOf(long userId) {}
+
+		@Override
+		public SessionState stateOf(long userId, String sessionId, Instant now) {
+			return SessionState.CLOSED;
 		}
 	}
 

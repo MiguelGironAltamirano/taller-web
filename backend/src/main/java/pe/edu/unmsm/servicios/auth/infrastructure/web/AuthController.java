@@ -65,7 +65,9 @@ class AuthController {
 	ResponseEntity<Void> changePassword(@Valid @RequestBody AuthDtos.ChangePasswordRequest request,
 			@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt) {
 		pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser user = pe.edu.unmsm.servicios.shared.infrastructure.security.CurrentUser.from(jwt);
-		changePassword.execute(user.id(), request.currentPassword(), request.newPassword());
+		changePassword.execute(user.id(), jwt.getClaimAsString(
+				pe.edu.unmsm.servicios.shared.infrastructure.security.AccessTokenIssuer.SID_CLAIM),
+				request.currentPassword(), request.newPassword());
 		return ResponseEntity.noContent().build();
 	}
 

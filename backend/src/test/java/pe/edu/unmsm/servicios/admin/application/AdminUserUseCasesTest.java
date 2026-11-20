@@ -281,6 +281,21 @@ class AdminUserUseCasesTest {
 			return 0;
 		}
 
+		@Override
+		public int revokeAllForUserExcept(long userId, String keptSessionId, Instant at) {
+			throw new AssertionError("administration never keeps a session open");
+		}
+
+		@Override
+		public void lockSessionsOf(long userId) {
+		}
+
+		@Override
+		public pe.edu.unmsm.servicios.shared.application.SessionRegistry.SessionState stateOf(long userId,
+				String sessionId, Instant now) {
+			return pe.edu.unmsm.servicios.shared.application.SessionRegistry.SessionState.CLOSED;
+		}
+
 	}
 
 }

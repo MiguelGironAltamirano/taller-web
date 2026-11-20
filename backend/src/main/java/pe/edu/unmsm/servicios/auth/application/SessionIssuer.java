@@ -3,11 +3,17 @@ package pe.edu.unmsm.servicios.auth.application;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
+
+import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.unmsm.servicios.auth.domain.RefreshToken;
 import pe.edu.unmsm.servicios.auth.domain.User;
 
-/** Opens a session for a user already verified (by password or passkey): access token plus refresh token. */
+/**
+ * Opens a session for a user already verified (by password or passkey): access token plus refresh token. A user has
+ * at most one open session, so opening one closes the others (docs/api/contrato-v1.md «Una sola sesión por usuario»).
+ */
 public class SessionIssuer {
 
 	private final RefreshTokenRepository refreshTokens;
@@ -25,11 +31,16 @@ public class SessionIssuer {
 		this.refreshTtl = refreshTtl;
 	}
 
+	@Transactional
 	public AuthSession issue(User user) {
-		String refreshToken = codec.generate();
 		Instant now = clock.instant();
-		refreshTokens.save(new RefreshToken(null, user.id(), codec.hash(refreshToken), now.plus(refreshTtl), null));
-		return new AuthSession(user, accessTokens.generate(user), refreshToken);
+		refreshTokens.lockSessionsOf(user.id());
+		refreshTokens.revokeAllForUser(user.id(), now);
+		String sessionId = UUID.randomUUID().toString();
+		String refreshToken = codec.generate();
+		refreshTokens.save(new RefreshToken(null, user.id(), sessionId, codec.hash(refreshToken), now.plus(refreshTtl),
+				null));
+		return new AuthSession(user, accessTokens.generate(user, sessionId), refreshToken);
 	}
 
 }

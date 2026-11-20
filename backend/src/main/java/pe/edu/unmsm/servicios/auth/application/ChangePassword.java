@@ -20,8 +20,9 @@ public class ChangePassword {
 		this.passwordHasher = passwordHasher;
 	}
 
+	/** Changes the password and closes every session of the user except {@code currentSessionId}, the one asking. */
 	@Transactional
-	public void execute(long userId, String currentPassword, String newPassword) {
+	public void execute(long userId, String currentSessionId, String currentPassword, String newPassword) {
 		User user = userRepository.findById(userId)
 				.orElseThrow(InvalidCurrentPasswordException::new);
 
@@ -31,7 +32,7 @@ public class ChangePassword {
 
 		String newHash = passwordHasher.hash(newPassword);
 		userRepository.updatePassword(userId, newHash);
-		refreshTokenRepository.revokeAllForUser(userId, Instant.now());
+		refreshTokenRepository.revokeAllForUserExcept(userId, currentSessionId, Instant.now());
 	}
 
 }

@@ -48,6 +48,16 @@ class AuthorizationFailureTests {
 	@Value("${local.server.port}")
 	int port;
 
+	/** Tokens here belong to made-up users with no real session: every session counts as open. */
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	pe.edu.unmsm.servicios.shared.application.SessionRegistry sessions;
+
+	@org.junit.jupiter.api.BeforeEach
+	void everySessionIsOpen() {
+		org.mockito.Mockito.when(sessions.stateOf(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString()))
+				.thenReturn(pe.edu.unmsm.servicios.shared.application.SessionRegistry.SessionState.OPEN);
+	}
+
 	@Autowired
 	AccessTokenIssuer issuer;
 
@@ -88,14 +98,14 @@ class AuthorizationFailureTests {
 
 	@Test
 	void roleWithoutPermissionReturnsForbiddenProblem() throws Exception {
-		String requester = issuer.issue(new AuthenticatedUser(42, "ana@unmsm.edu.pe", "Ana Pérez", "SOLICITANTE")).value();
+		String requester = issuer.issue(new AuthenticatedUser(42, "ana@unmsm.edu.pe", "Ana Pérez", "SOLICITANTE"), "test-session").value();
 
 		assertProblem(get("/api/v1/test/admin-only", requester), 403);
 	}
 
 	@Test
 	void roleWithPermissionIsAllowed() throws Exception {
-		String admin = issuer.issue(new AuthenticatedUser(1, "admin@unmsm.edu.pe", "Admin", "ADMINISTRADOR")).value();
+		String admin = issuer.issue(new AuthenticatedUser(1, "admin@unmsm.edu.pe", "Admin", "ADMINISTRADOR"), "test-session").value();
 
 		HttpResponse<String> response = get("/api/v1/test/admin-only", admin);
 

@@ -15,6 +15,8 @@ import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 @Component
 public class AccessTokenIssuer {
 
+	public static final String SID_CLAIM = "sid";
+
 	public record IssuedToken(String value, long expiresInSeconds) {
 	}
 
@@ -26,13 +28,15 @@ public class AccessTokenIssuer {
 		this.properties = properties;
 	}
 
-	public IssuedToken issue(AuthenticatedUser user) {
+	/** Signs a token for {@code user} bound to {@code sessionId}, the `sid` claim checked on every request. */
+	public IssuedToken issue(AuthenticatedUser user, String sessionId) {
 		Instant now = Instant.now();
 		JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
 				.issuer(properties.issuer())
 				.subject(Long.toString(user.id()))
 				.issuedAt(now)
 				.expiresAt(now.plus(properties.accessTokenTtl()))
+				.claim(SID_CLAIM, sessionId)
 				.claim("email", user.email())
 				.claim("name", user.fullName())
 				.claim("roles", List.of(user.role()));

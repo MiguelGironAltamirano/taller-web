@@ -15,6 +15,45 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
   })
 
+  test('a login on another device closes the first session at once and tells why', async ({ page, browser, request }) => {
+    // A dedicated account, so no shared demo user is logged out.
+    const admin = await Api.as(request, accounts.admin.email)
+    const email = `${uniqueTag()}@unmsm.edu.pe`
+    const created = await admin.post<{ temporaryPassword: string }>('/admin/users', {
+      fullName: 'Solicitante Sesión E2E',
+      email,
+      role: 'SOLICITANTE',
+      areaId: null,
+    })
+    const replaced = 'Tu sesión se cerró porque ingresaste desde otro dispositivo'
+
+    await login(page, { email, home: '/inicio' }, created.temporaryPassword)
+    // Another browser (its own cookies): the phone of the same user.
+    const phone = await browser.newContext()
+    try {
+      const phonePage = await phone.newPage()
+      await login(phonePage, { email, home: '/inicio' }, created.temporaryPassword)
+
+      // The first session is closed even though its access token has not expired: as soon as the user comes back to
+      // that window, the app notices and goes to the login.
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await expect(page).toHaveURL(/\/login$/)
+      await expect(page.getByRole('status').filter({ hasText: replaced })).toBeVisible()
+
+      // The phone keeps its session, also after reloading.
+      await phonePage.reload()
+      await expect(phonePage.getByRole('heading', { name: 'Hola, Solicitante' })).toBeVisible()
+
+      // Logging in again on the first browser closes the phone session; reloading there explains why.
+      await login(page, { email, home: '/inicio' }, created.temporaryPassword)
+      await phonePage.reload()
+      await expect(phonePage).toHaveURL(/\/login$/)
+      await expect(phonePage.getByRole('status').filter({ hasText: replaced })).toBeVisible()
+    } finally {
+      await phone.close()
+    }
+  })
+
   test('changes the password of a fresh account and logs in with the new one', async ({ page, request }) => {
     // A dedicated account created by the administrator, so no shared demo password ever changes.
     const admin = await Api.as(request, accounts.admin.email)

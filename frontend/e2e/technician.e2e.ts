@@ -55,7 +55,8 @@ test.describe('Technician', () => {
     const assigned = new RegExp(`^Se te asignó la solicitud ${code}\\.`)
 
     await login(page, carmen)
-    const unreadBefore = (await technician.get<{ read: boolean }[]>('/notifications')).filter((n) => !n.read).length
+    const carmenOnPage = await Api.of(page)
+    const unreadBefore = (await carmenOnPage.get<{ read: boolean }[]>('/notifications')).filter((n) => !n.read).length
     expect(unreadBefore).toBeGreaterThan(0)
     // Badge in the sidebar link and in the bell of the top bar.
     await expect(page.getByRole('link', { name: `Notificaciones ${unreadBefore}` })).toBeVisible()
