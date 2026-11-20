@@ -4,9 +4,11 @@ import { Icon, type IconName } from '../atoms/Icon'
 import { ToastContext, type ToastApi, type ToastOptions } from './toast-context'
 
 type Tone = 'success' | 'error' | 'info'
-type ToastState = { message: string; tone: Tone; title?: string; id: number }
+type ToastState = { message: string; tone: Tone; title?: string; action?: ToastOptions['action']; id: number }
 
 const DURATION: Record<Tone, number> = { success: 4000, info: 5000, error: 7000 }
+/** Un aviso con acción espera más: hay que leerlo y decidir. Se pausa al pasar el puntero o enfocarlo. */
+const ACTION_DURATION = 10_000
 
 const TONE: Record<Tone, { icon: IconName; badge: string; bar: string; title: string }> = {
   success: { icon: 'check', badge: 'bg-ok-bg text-ok-fg', bar: 'bg-good', title: 'Listo' },
@@ -43,8 +45,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message, options) => {
       const tone = toastTone(options)
       setPaused(false)
-      setCurrent({ message, tone, title: options?.title, id: Date.now() })
-      schedule(DURATION[tone])
+      setCurrent({ message, tone, title: options?.title, action: options?.action, id: Date.now() })
+      schedule(options?.action ? ACTION_DURATION : DURATION[tone])
     },
     [schedule],
   )
@@ -92,6 +94,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div className="min-w-0 flex-1 pt-px">
               <div className="text-[13px] font-semibold">{current.title ?? tone.title}</div>
               <div className="mt-0.5 text-[13px] leading-snug text-muted">{current.message}</div>
+              {current.action && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    current.action?.onClick()
+                    dismiss()
+                  }}
+                  className="mt-1.5 rounded-md border-0 bg-transparent p-0 text-[13px] font-semibold text-primary-fg hover:underline"
+                >
+                  {current.action.label}
+                </button>
+              )}
             </div>
             <button
               type="button"
@@ -106,7 +120,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               className={cn('h-full origin-left animate-toast-progress', tone.bar)}
               style={{
-                animationDuration: `${DURATION[current.tone]}ms`,
+                animationDuration: `${current.action ? ACTION_DURATION : DURATION[current.tone]}ms`,
                 animationPlayState: paused ? 'paused' : 'running',
               }}
             />

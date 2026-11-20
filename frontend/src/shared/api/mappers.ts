@@ -28,6 +28,7 @@ export const STATUS_ORDER: RequestStatus[] = [
   'EN_ATENCION',
   'RESUELTA',
   'CERRADA',
+  'CANCELADA',
 ]
 
 export const statusToState = (s: RequestStatus): RequestState => REQUEST_STATES[STATUS_ORDER.indexOf(s)]

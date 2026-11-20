@@ -3,6 +3,7 @@ package pe.edu.unmsm.servicios.workflow.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static pe.edu.unmsm.servicios.requests.domain.RequestStatus.ASIGNADA;
+import static pe.edu.unmsm.servicios.requests.domain.RequestStatus.CANCELADA;
 import static pe.edu.unmsm.servicios.requests.domain.RequestStatus.CERRADA;
 import static pe.edu.unmsm.servicios.requests.domain.RequestStatus.EN_ATENCION;
 import static pe.edu.unmsm.servicios.requests.domain.RequestStatus.EN_EVALUACION;
@@ -336,7 +337,7 @@ class StateMachineTest {
 	void ownerMayConfirmOrRejectAResolvedRequest() {
 		assertThat(StateMachine.allowedTransitions(OWNER, subject(RESUELTA)))
 				.containsExactlyInAnyOrder(CERRADA, EN_ATENCION);
-		assertThat(StateMachine.allowedTransitions(OWNER, subject(REGISTRADA))).isEmpty();
+		assertThat(StateMachine.allowedTransitions(OWNER, subject(REGISTRADA))).containsExactly(CANCELADA);
 	}
 
 	@Test
@@ -403,6 +404,65 @@ class StateMachineTest {
 		errors.put("other", "y");
 
 		assertThat(ex.errors()).containsOnlyKeys("reason");
+	}
+
+	// ───── cancel and restore (contract «Cancelar y restaurar una solicitud») ─────
+
+	private static final java.time.Instant NOW = java.time.Instant.parse("2026-11-20T15:00:00Z");
+
+	private static WorkflowSubject cancelled(RequestStatus previous, java.time.Duration ago) {
+		return new WorkflowSubject(CANCELADA, 4, 1, null,
+				new pe.edu.unmsm.servicios.requests.domain.Cancellation(previous, NOW.minus(ago)), NOW);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "REGISTRADA", "EN_EVALUACION" })
+	void theOwnerMayCancelBeforeATechnicianIsAssigned(RequestStatus from) {
+		TransitionOutcome outcome = move(OWNER, from, new TransitionCommand(CANCELADA, "Ya no hace falta", null, null),
+				null);
+
+		assertThat(outcome.to()).isEqualTo(CANCELADA);
+		assertThat(outcome.reason()).isEqualTo("Cancelada por el solicitante: Ya no hace falta");
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "ASIGNADA", "EN_ATENCION", "RESUELTA", "CERRADA" })
+	void onceATechnicianIsAssignedItCanNoLongerBeCancelled(RequestStatus from) {
+		assertThatThrownBy(() -> move(OWNER, from, new TransitionCommand(CANCELADA, "Ya no", null, null), null))
+				.isInstanceOf(InvalidTransitionException.class);
+	}
+
+	@Test
+	void onlyTheOwnerMayCancelAndAlwaysWithAReason() {
+		assertThatThrownBy(() -> move(SUPERVISOR, REGISTRADA, new TransitionCommand(CANCELADA, "x", null, null), null))
+				.isInstanceOf(TransitionForbiddenException.class);
+		assertThatThrownBy(() -> move(OTHER_REQUESTER, REGISTRADA, new TransitionCommand(CANCELADA, "x", null, null),
+				null)).isInstanceOf(TransitionForbiddenException.class);
+		assertThatThrownBy(() -> move(OWNER, REGISTRADA, to(CANCELADA), null))
+				.isInstanceOf(InvalidTransitionDataException.class);
+	}
+
+	@Test
+	void restoringOnlyGoesBackToTheStatusItHadWithinSevenDays() {
+		WorkflowSubject recent = cancelled(EN_EVALUACION, java.time.Duration.ofDays(6));
+
+		assertThat(StateMachine.allowedTransitions(OWNER, recent)).containsExactly(EN_EVALUACION);
+		assertThat(StateMachine.allowedActions(OWNER, recent)).containsExactly(RequestAction.RESTORE);
+		assertThat(StateMachine.transition(OWNER, recent, to(EN_EVALUACION), null).to()).isEqualTo(EN_EVALUACION);
+		assertThatThrownBy(() -> StateMachine.transition(OWNER, recent, to(REGISTRADA), null))
+				.isInstanceOf(InvalidTransitionException.class);
+		assertThatThrownBy(() -> StateMachine.transition(SUPERVISOR, recent, to(EN_EVALUACION), null))
+				.isInstanceOf(TransitionForbiddenException.class);
+	}
+
+	@Test
+	void afterSevenDaysItCanNoLongerBeRestored() {
+		WorkflowSubject old = cancelled(REGISTRADA, java.time.Duration.ofDays(7).plusSeconds(1));
+
+		assertThat(StateMachine.allowedTransitions(OWNER, old)).isEmpty();
+		assertThat(StateMachine.allowedActions(OWNER, old)).isEmpty();
+		assertThatThrownBy(() -> StateMachine.transition(OWNER, old, to(REGISTRADA), null))
+				.isInstanceOf(RestoreExpiredException.class);
 	}
 
 }

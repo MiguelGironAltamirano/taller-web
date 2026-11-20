@@ -2,10 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { ApiError } from '../../shared/api/client'
+import { ApiError, apiPost } from '../../shared/api/client'
 import { errorMessage } from '../../shared/api/errors'
 import { useCatalogs } from '../../shared/api/catalogs'
-import { requestsKey } from '../../shared/api/keys'
+import { notificationsKey, requestsKey } from '../../shared/api/keys'
+import type { RequestStatus } from '../../shared/api/types'
 import type { Priority, WorkflowActionId } from '../../shared/domain'
 import { dateLong } from '../../shared/lib/format'
 import { Alert, Button, Field, Modal, ModalActions, Select, Textarea, useToast } from '../../shared/ui'
@@ -22,10 +23,10 @@ export type ActionTarget = {
   createdAt: number
 }
 
-type Props = { action: WorkflowActionId; target: ActionTarget; onClose: () => void }
+type Props = { action: WorkflowActionId; target: ActionTarget; restoreTo?: RequestStatus; onClose: () => void }
 
 /** Diálogo de confirmación de una acción de flujo (asignar, reasignar, prioridad, cerrar, resolver…). */
-export function ActionModal({ action, target, onClose }: Props) {
+export function ActionModal({ action, target, restoreTo, onClose }: Props) {
   const config = ACTION_CONFIG[action]
   const toast = useToast()
   const client = useQueryClient()
@@ -45,6 +46,9 @@ export function ActionModal({ action, target, onClose }: Props) {
   } = useForm<ActionValues>({
     resolver: zodResolver(schema),
     values: { technicianId: '', priorityId: initialPriority, reason: '' },
+    // Al llegar los catálogos cambia la prioridad inicial y el formulario se actualiza: sin esto, se borraba lo que
+    // la persona ya había escrito (el motivo) si lo escribía antes de que terminaran de cargar.
+    resetOptions: { keepDirtyValues: true },
   })
 
   const chosenId = useWatch({ control, name: 'priorityId' })
@@ -52,10 +56,32 @@ export function ActionModal({ action, target, onClose }: Props) {
   const newDue = chosenPriority ? dateLong(target.createdAt + chosenPriority.slaHours * 3_600_000) : ''
   const techOptions = (technicians.data ?? []).filter((t) => t.fullName !== target.technician)
 
+  /** «Deshacer» de la cancelación: la restaura al estado que tenía. Corre aunque el diálogo ya se haya cerrado. */
+  const undoCancel = async (to: RequestStatus) => {
+    try {
+      await apiPost(`/requests/${target.code}/transitions`, { to })
+      toast('La solicitud volvió al estado que tenía.', { title: 'Cancelación deshecha' })
+    } catch (e) {
+      toast(errorMessage(e, 'No pudimos deshacer la cancelación. Restáurala desde su detalle.'), { tone: 'error' })
+    } finally {
+      void client.invalidateQueries({ queryKey: requestsKey })
+      void client.invalidateQueries({ queryKey: notificationsKey })
+    }
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await run.mutateAsync(toApiCall(action, values))
-      toast(`${config.title}: listo. Historial y notificación actualizados.`)
+      await run.mutateAsync(toApiCall(action, values, restoreTo))
+      if (action === 'cancel' && restoreTo) {
+        toast('Puedes restaurarla durante 7 días desde su detalle.', {
+          title: 'Solicitud cancelada',
+          action: { label: 'Deshacer', onClick: () => void undoCancel(restoreTo) },
+        })
+      } else if (action === 'restore') {
+        toast('Volvió al estado que tenía y su plazo se corrió lo que estuvo cancelada.', { title: 'Solicitud restaurada' })
+      } else {
+        toast(`${config.title}: listo. Historial y notificación actualizados.`)
+      }
       onClose()
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -116,7 +142,8 @@ export function ActionModal({ action, target, onClose }: Props) {
       )}
       {errors.root && <Alert>{errors.root.message}</Alert>}
       <ModalActions>
-        <Button onClick={onClose}>Cancelar</Button>
+        {/* «Cancelar» junto a «Cancelar solicitud» confundiría: aquí el botón para salir dice «Volver». */}
+        <Button onClick={onClose}>{action === 'cancel' ? 'Volver' : 'Cancelar'}</Button>
         <Button type="submit" variant={config.danger ? 'danger' : 'primary'} loading={isSubmitting}>
           {config.cta}
         </Button>

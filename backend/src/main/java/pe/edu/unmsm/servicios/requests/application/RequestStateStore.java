@@ -2,6 +2,7 @@ package pe.edu.unmsm.servicios.requests.application;
 
 import java.util.Optional;
 
+import pe.edu.unmsm.servicios.requests.domain.Cancellation;
 import pe.edu.unmsm.servicios.requests.domain.RequestHistoryEntry;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
 
@@ -16,5 +17,10 @@ public interface RequestStateStore {
 
 	/** Saves the new status, technician and closure reason together with the history entry of the change. */
 	ServiceRequest update(ServiceRequest request, RequestHistoryEntry entry);
+
+	/** The last cancellation of the request, read from its history; empty if it was never cancelled. */
+	default Optional<Cancellation> lastCancellation(long requestId) {
+		return Optional.empty();
+	}
 
 }

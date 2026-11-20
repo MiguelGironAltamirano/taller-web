@@ -28,7 +28,8 @@ public class ListAuditEvents {
 			RequestStatus.ASIGNADA, "Asignada",
 			RequestStatus.EN_ATENCION, "En atención",
 			RequestStatus.RESUELTA, "Resuelta",
-			RequestStatus.CERRADA, "Cerrada"));
+			RequestStatus.CERRADA, "Cerrada",
+			RequestStatus.CANCELADA, "Cancelada"));
 
 	private final RequestHistoryQuery history;
 

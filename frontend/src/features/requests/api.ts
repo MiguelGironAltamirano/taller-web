@@ -1,10 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiPost, type QueryParams } from '../../shared/api/client'
+import { apiDelete, apiGet, apiPost, apiPut, type QueryParams } from '../../shared/api/client'
 import {
   notificationsKey,
   requestCountsKey,
   requestDetailKey,
   requestListKey,
+  requestDraftKey,
   requestPageKey,
   requestsKey,
 } from '../../shared/api/keys'
@@ -14,6 +15,8 @@ import {
   type CreateRequestBody,
   type Page,
   type RequestCounts,
+  type RequestDraft,
+  type RequestDraftFields,
   type RequestDetail,
   type RequestListQuery,
   type RequestSummary,
@@ -94,6 +97,35 @@ export function useCreateRequest() {
     onSuccess: () => {
       client.invalidateQueries({ queryKey: requestsKey })
       client.invalidateQueries({ queryKey: notificationsKey })
+      // Registrar la solicitud descarta el borrador en el servidor.
+      client.setQueryData(requestDraftKey, null)
     },
+  })
+}
+
+/** El borrador de «Nueva solicitud» del solicitante, o `null` si no tiene (`204`). */
+export function useRequestDraft(enabled = true) {
+  return useQuery({
+    queryKey: requestDraftKey,
+    queryFn: async () => (await apiGet<RequestDraft | undefined>('/me/request-draft')) ?? null,
+    enabled,
+    staleTime: 0,
+  })
+}
+
+/** Guarda el borrador; uno vacío lo elimina (el servidor responde `204`). */
+export function useSaveRequestDraft() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async (fields: RequestDraftFields) => (await apiPut<RequestDraft | undefined>('/me/request-draft', fields)) ?? null,
+    onSuccess: (draft) => client.setQueryData(requestDraftKey, draft),
+  })
+}
+
+export function useDiscardRequestDraft() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiDelete('/me/request-draft'),
+    onSuccess: () => client.setQueryData(requestDraftKey, null),
   })
 }

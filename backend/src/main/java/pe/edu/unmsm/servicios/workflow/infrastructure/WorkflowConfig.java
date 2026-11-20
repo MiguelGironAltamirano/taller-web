@@ -52,14 +52,14 @@ class WorkflowConfig {
 
 	/** The detail of a request offers each user only the transitions the state machine allows them. */
 	@Bean
-	AllowedTransitions allowedTransitions() {
-		return new WorkflowAllowedTransitions();
+	AllowedTransitions allowedTransitions(Clock clock) {
+		return new WorkflowAllowedTransitions(clock);
 	}
 
 	/** The interface actions (allowedActions) behind those transitions. */
 	@Bean
-	AllowedActions allowedActions() {
-		return new WorkflowAllowedActions();
+	AllowedActions allowedActions(Clock clock) {
+		return new WorkflowAllowedActions(clock);
 	}
 
 }

@@ -69,6 +69,7 @@ public class CreateNotificationsForTransition {
 			case "EN_ATENCION" -> "En atención";
 			case "RESUELTA" -> "Resuelta";
 			case "CERRADA" -> "Cerrada";
+			case "CANCELADA" -> "Cancelada";
 			default -> status;
 		};
 	}

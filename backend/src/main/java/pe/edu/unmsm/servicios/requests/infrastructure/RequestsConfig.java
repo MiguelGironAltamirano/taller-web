@@ -12,8 +12,10 @@ import pe.edu.unmsm.servicios.requests.application.ChangePriority;
 import pe.edu.unmsm.servicios.requests.application.CreateRequest;
 import pe.edu.unmsm.servicios.requests.application.GetRequest;
 import pe.edu.unmsm.servicios.requests.application.ListRequests;
+import pe.edu.unmsm.servicios.requests.application.ManageRequestDraft;
 import pe.edu.unmsm.servicios.requests.application.RequestCodeGenerator;
 import pe.edu.unmsm.servicios.requests.application.RequestCollaboration;
+import pe.edu.unmsm.servicios.requests.application.RequestDraftRepository;
 import pe.edu.unmsm.servicios.requests.application.RequestQueries;
 import pe.edu.unmsm.servicios.requests.application.RequestRatings;
 import pe.edu.unmsm.servicios.requests.application.RequestRepository;
@@ -25,8 +27,13 @@ class RequestsConfig {
 
 	@Bean
 	CreateRequest createRequest(CatalogLookup catalog, RequestCodeGenerator codes, RequestRepository requests,
-			Clock clock) {
-		return new CreateRequest(catalog, codes, requests, clock);
+			RequestDraftRepository drafts, Clock clock) {
+		return new CreateRequest(catalog, codes, requests, drafts, clock);
+	}
+
+	@Bean
+	ManageRequestDraft manageRequestDraft(RequestDraftRepository drafts, Clock clock) {
+		return new ManageRequestDraft(drafts, clock);
 	}
 
 	/**

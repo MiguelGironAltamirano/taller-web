@@ -38,4 +38,4 @@ export const slaTextClass = (tone: SlaTone) =>
   tone === 'bad' ? 'text-err-fg' : tone === 'warn' ? 'text-warn-fg' : 'text-muted'
 
 /** Solicitudes abiertas = aún no llegaron a "Resuelta". */
-export const isOpen = (r: RequestRow) => r.state !== 'Resuelta' && r.state !== 'Cerrada'
+export const isOpen = (r: RequestRow) => r.state !== 'Resuelta' && r.state !== 'Cerrada' && r.state !== 'Cancelada'

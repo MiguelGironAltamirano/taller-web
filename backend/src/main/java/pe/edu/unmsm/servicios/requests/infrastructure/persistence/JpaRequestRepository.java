@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import pe.edu.unmsm.servicios.requests.application.RequestRepository;
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
+import pe.edu.unmsm.servicios.requests.domain.Cancellation;
 import pe.edu.unmsm.servicios.requests.domain.ClosureReason;
 import pe.edu.unmsm.servicios.requests.domain.RequestHistoryEntry;
 import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
@@ -57,6 +58,13 @@ class JpaRequestRepository implements RequestRepository, RequestStateStore {
 		ServiceRequestEntity stored = requests.saveAndFlush(entity);
 		appendHistory(stored.id, entry);
 		return toDomain(stored);
+	}
+
+	@Override
+	public Optional<Cancellation> lastCancellation(long requestId) {
+		return history.findFirstByRequestIdAndToStatusOrderByCreatedAtDescIdDesc(requestId, RequestStatus.CANCELADA.name())
+				.filter(row -> row.fromStatus != null)
+				.map(row -> new Cancellation(RequestStatus.valueOf(row.fromStatus), row.createdAt));
 	}
 
 	/** Everything that may change after the registration (creation data never does). */

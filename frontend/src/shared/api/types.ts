@@ -8,7 +8,7 @@
 
 export type Role = 'SOLICITANTE' | 'TECNICO' | 'SUPERVISOR' | 'ADMINISTRADOR'
 export type RequesterType = 'ESTUDIANTE' | 'DOCENTE' | 'ADMINISTRATIVO'
-export type RequestStatus = 'REGISTRADA' | 'EN_EVALUACION' | 'ASIGNADA' | 'EN_ATENCION' | 'RESUELTA' | 'CERRADA'
+export type RequestStatus = 'REGISTRADA' | 'EN_EVALUACION' | 'ASIGNADA' | 'EN_ATENCION' | 'RESUELTA' | 'CERRADA' | 'CANCELADA'
 export type ClosureReason = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
 
 export type UserSummary = { id: number; fullName: string; email: string; role: Role; areaId: number | null }
@@ -69,7 +69,17 @@ export type HistoryEntry = {
   note?: string | null
 }
 
-export type WorkflowActionId = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
+export type WorkflowActionId =
+  | 'eval'
+  | 'assign'
+  | 'reassign'
+  | 'prio'
+  | 'noproc'
+  | 'dup'
+  | 'start'
+  | 'resolve'
+  | 'cancel'
+  | 'restore'
 
 export type CommentDto = { id: number; authorName: string; text: string; createdAt: string }
 export type EvidenceDto = { id: number; fileName: string; kind: 'IMG' | 'PDF'; sizeBytes: number }
@@ -212,3 +222,14 @@ export type AuditEvent = { id: number; createdAt: string; actorName: string; req
 export type AppConfig = { autoCloseHours: number; emailNotifications: boolean; triageSuggestions: boolean }
 
 export type StateInfo = { order: number; status: RequestStatus; description: string }
+
+/** Lo escrito en «Nueva solicitud», tal como está en el formulario (contrato «Borrador de nueva solicitud»). */
+export type RequestDraftFields = {
+  category: string
+  description: string
+  priority: string
+  faculty: string
+  pavilion: string
+  room: string
+}
+export type RequestDraft = RequestDraftFields & { updatedAt: string }

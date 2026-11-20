@@ -33,7 +33,7 @@
   --chart-blue: #2563eb;
 
   /* Estados de la solicitud (fondo / texto)
-     0=Registrada 1=En evaluación 2=Asignada 3=En atención 4=Resuelta 5=Cerrada */
+     0=Registrada 1=En evaluación 2=Asignada 3=En atención 4=Resuelta 5=Cerrada 6=Cancelada */
   --st-0-bg: #e5e7eb;
   --st-0-fg: #374151;
   --st-1-bg: #fef9c3;
@@ -46,6 +46,8 @@
   --st-4-fg: #2f6a50;
   --st-5-bg: #e2e8f0;
   --st-5-fg: #475569;
+  --st-6-bg: #f5e9ea;
+  --st-6-fg: #7a3a40;
 
   /* Prioridades (fondo / texto) */
   --pr-critica-bg: #fee2e2;
@@ -105,6 +107,8 @@
   --st-4-fg: #a8cdb9;
   --st-5-bg: #2b3340;
   --st-5-fg: #cbd5e1;
+  --st-6-bg: #3d2a2d;
+  --st-6-fg: #f0cdd1;
 
   --pr-critica-bg: #7f1d1d;
   --pr-critica-fg: #fecaca;

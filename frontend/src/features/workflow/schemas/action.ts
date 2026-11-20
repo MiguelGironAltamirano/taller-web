@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ChangePriorityBody, TransitionBody } from '../../../shared/api/types'
+import type { ChangePriorityBody, RequestStatus, TransitionBody } from '../../../shared/api/types'
 import type { WorkflowActionId } from '../../../shared/domain'
 import type { ActionConfig } from '../lib/transitions'
 
@@ -22,8 +22,11 @@ export type ApiCall =
   | { kind: 'transition'; body: TransitionBody }
   | { kind: 'priority'; body: ChangePriorityBody }
 
-/** Traduce la acción de la interfaz al contrato de la API (`/transitions` o `/priority`). */
-export function toApiCall(action: WorkflowActionId, v: ActionValues): ApiCall {
+/**
+ * Traduce la acción de la interfaz al contrato de la API (`/transitions` o `/priority`). Restaurar vuelve al estado que
+ * la solicitud tenía al cancelarse: el único que el servidor permite (`restoreTo`, de `allowedTransitions`).
+ */
+export function toApiCall(action: WorkflowActionId, v: ActionValues, restoreTo?: RequestStatus): ApiCall {
   const reason = v.reason.trim()
   switch (action) {
     case 'eval':
@@ -42,5 +45,9 @@ export function toApiCall(action: WorkflowActionId, v: ActionValues): ApiCall {
       return { kind: 'transition', body: { to: 'CERRADA', closureReason: 'DUPLICADA', reason } }
     case 'prio':
       return { kind: 'priority', body: { priorityId: Number(v.priorityId) } }
+    case 'cancel':
+      return { kind: 'transition', body: { to: 'CANCELADA', reason } }
+    case 'restore':
+      return { kind: 'transition', body: { to: restoreTo ?? 'REGISTRADA' } }
   }
 }

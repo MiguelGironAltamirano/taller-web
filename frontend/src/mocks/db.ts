@@ -3,6 +3,7 @@ import type {
   ClosureReason,
   HistoryEntry,
   LocationKind,
+  RequestDraft,
   RequestStatus,
   RequesterType,
   Role,
@@ -90,6 +91,8 @@ export type MockDb = {
   notifications: MockNotification[]
   rules: MockTriageRule[]
   passkeys: MockPasskey[]
+  /** Borrador de «Nueva solicitud» por id de usuario. */
+  drafts: Record<number, RequestDraft>
   config: AppConfig
 }
 
@@ -347,6 +350,7 @@ export function createSeed(now: number): MockDb {
     notifications,
     rules,
     passkeys: [],
+    drafts: {},
     config: { autoCloseHours: 72, emailNotifications: false, triageSuggestions: true },
   }
 }

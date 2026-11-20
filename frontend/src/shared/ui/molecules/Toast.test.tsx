@@ -100,4 +100,22 @@ describe('ToastProvider', () => {
     expect(screen.getAllByText('Primero')).toHaveLength(1)
     expect(screen.getByText('Primero')).toBeInTheDocument()
   })
+
+  it('ofrece una acción, como «Deshacer», que se ejecuta una vez y cierra el aviso', () => {
+    const undo = vi.fn()
+    renderToast('Solicitud cancelada.', { action: { label: 'Deshacer', onClick: undo } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
+
+    expect(undo).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Solicitud cancelada.')).not.toBeInTheDocument()
+  })
+
+  it('un aviso con acción dura más, para que dé tiempo de usarla', () => {
+    renderToast('Solicitud cancelada.', { action: { label: 'Deshacer', onClick: () => {} } })
+    act(() => vi.advanceTimersByTime(9999))
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(screen.queryByRole('button', { name: 'Deshacer' })).not.toBeInTheDocument()
+  })
 })

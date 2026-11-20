@@ -30,7 +30,7 @@ public final class StateMachine {
 	private static final String REQUESTER = "SOLICITANTE";
 
 	private enum Step {
-		EVALUATE, ASSIGN, REASSIGN, START, RESOLVE, CONFIRM, REJECT, CLOSE_UNRESOLVED
+		EVALUATE, ASSIGN, REASSIGN, START, RESOLVE, CONFIRM, REJECT, CLOSE_UNRESOLVED, CANCEL, RESTORE
 	}
 
 	private StateMachine() {
@@ -38,11 +38,11 @@ public final class StateMachine {
 
 	public static TransitionOutcome transition(AuthenticatedUser actor, WorkflowSubject subject,
 			TransitionCommand command, Technician technician) {
-		Step step = stepFor(subject.status(), command.to())
+		Step step = stepFor(subject, command.to())
 				.orElseThrow(() -> new InvalidTransitionException(subject.status(), command.to()));
 		if (!mayPerform(step, actor, subject)) {
-			throw new TransitionForbiddenException("No tienes permiso para pasar la solicitud de " + subject.status()
-					+ " a " + command.to());
+			throw new TransitionForbiddenException("No tienes permiso para pasar la solicitud de «"
+					+ subject.status().label() + "» a «" + command.to().label() + "»");
 		}
 
 		Map<String, String> errors = new LinkedHashMap<>();
@@ -76,6 +76,16 @@ public final class StateMachine {
 				yield same(subject, command.to(), "Solución rechazada: " + reason);
 			}
 			case CLOSE_UNRESOLVED -> closeUnresolved(errors, subject, command, reason);
+			case CANCEL -> {
+				requireText(errors, reason, "Cuéntanos por qué cancelas la solicitud");
+				yield same(subject, command.to(), "Cancelada por el solicitante: " + reason);
+			}
+			case RESTORE -> {
+				if (!subject.cancellation().restorableAt(subject.now())) {
+					throw new RestoreExpiredException();
+				}
+				yield same(subject, command.to(), "Solicitud restaurada por el solicitante");
+			}
 		};
 
 		if (!errors.isEmpty()) {
@@ -101,8 +111,8 @@ public final class StateMachine {
 	public static List<RequestStatus> allowedTransitions(AuthenticatedUser actor, WorkflowSubject subject) {
 		Set<RequestStatus> allowed = new LinkedHashSet<>();
 		for (RequestStatus to : RequestStatus.values()) {
-			Optional<Step> step = stepFor(subject.status(), to);
-			if (step.isPresent() && mayPerform(step.get(), actor, subject)) {
+			Optional<Step> step = stepFor(subject, to);
+			if (step.isPresent() && mayPerform(step.get(), actor, subject) && stillInTime(step.get(), subject)) {
 				allowed.add(to);
 			}
 		}
@@ -117,7 +127,7 @@ public final class StateMachine {
 	public static List<RequestAction> allowedActions(AuthenticatedUser actor, WorkflowSubject subject) {
 		Set<RequestAction> actions = new LinkedHashSet<>();
 		for (RequestStatus to : RequestStatus.values()) {
-			stepFor(subject.status(), to).filter(step -> mayPerform(step, actor, subject))
+			stepFor(subject, to).filter(step -> mayPerform(step, actor, subject) && stillInTime(step, subject))
 					.ifPresent(step -> actions.addAll(actionsOf(step)));
 		}
 		return List.copyOf(actions);
@@ -131,20 +141,33 @@ public final class StateMachine {
 			case CLOSE_UNRESOLVED -> List.of(RequestAction.NO_PROCEDE, RequestAction.DUPLICATE);
 			case START -> List.of(RequestAction.START);
 			case RESOLVE -> List.of(RequestAction.RESOLVE);
+			case CANCEL -> List.of(RequestAction.CANCEL);
+			case RESTORE -> List.of(RequestAction.RESTORE);
 			case CONFIRM, REJECT -> List.of();
 		};
 	}
 
-	private static Optional<Step> stepFor(RequestStatus from, RequestStatus to) {
-		return switch (from) {
+	/** Restoring is only offered within the window; every other step has no deadline. */
+	private static boolean stillInTime(Step step, WorkflowSubject subject) {
+		return step != Step.RESTORE || subject.cancellation().restorableAt(subject.now());
+	}
+
+	/**
+	 * The step from the subject's status to {@code to}. A cancelled request may only go back to the status it had,
+	 * so that row of the table depends on the subject and not only on the two statuses.
+	 */
+	private static Optional<Step> stepFor(WorkflowSubject subject, RequestStatus to) {
+		return switch (subject.status()) {
 			case REGISTRADA -> switch (to) {
 				case EN_EVALUACION -> Optional.of(Step.EVALUATE);
 				case CERRADA -> Optional.of(Step.CLOSE_UNRESOLVED);
+				case CANCELADA -> Optional.of(Step.CANCEL);
 				default -> Optional.empty();
 			};
 			case EN_EVALUACION -> switch (to) {
 				case ASIGNADA -> Optional.of(Step.ASSIGN);
 				case CERRADA -> Optional.of(Step.CLOSE_UNRESOLVED);
+				case CANCELADA -> Optional.of(Step.CANCEL);
 				default -> Optional.empty();
 			};
 			case ASIGNADA -> switch (to) {
@@ -159,6 +182,8 @@ public final class StateMachine {
 				default -> Optional.empty();
 			};
 			case CERRADA -> Optional.empty();
+			case CANCELADA -> subject.cancellation() != null && subject.now() != null
+					&& to == subject.cancellation().previousStatus() ? Optional.of(Step.RESTORE) : Optional.empty();
 		};
 	}
 
@@ -166,7 +191,8 @@ public final class StateMachine {
 		return switch (step) {
 			case EVALUATE, ASSIGN, REASSIGN, CLOSE_UNRESOLVED -> AccessPolicy.isSupervisorOfArea(actor, subject.areaId());
 			case START, RESOLVE -> AccessPolicy.isAssignedTechnician(actor, subject.technicianId());
-			case CONFIRM, REJECT -> REQUESTER.equals(actor.role()) && AccessPolicy.isOwner(actor, subject.requesterId());
+			case CONFIRM, REJECT, CANCEL, RESTORE -> REQUESTER.equals(actor.role())
+					&& AccessPolicy.isOwner(actor, subject.requesterId());
 		};
 	}
 

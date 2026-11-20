@@ -44,10 +44,10 @@ class UserAccountRulesTest {
 	}
 
 	@Test
-	void requestStatesAreTheSixStatesInWorkflowOrder() {
+	void requestStatesAreTheSevenStatesInWorkflowOrder() {
 		assertThat(RequestStates.ALL).extracting(RequestState::status).containsExactly("REGISTRADA", "EN_EVALUACION",
-				"ASIGNADA", "EN_ATENCION", "RESUELTA", "CERRADA");
-		assertThat(RequestStates.ALL).extracting(RequestState::order).containsExactly(1, 2, 3, 4, 5, 6);
+				"ASIGNADA", "EN_ATENCION", "RESUELTA", "CERRADA", "CANCELADA");
+		assertThat(RequestStates.ALL).extracting(RequestState::order).containsExactly(1, 2, 3, 4, 5, 6, 7);
 		assertThat(RequestStates.ALL).allSatisfy(state -> assertThat(state.description()).isNotBlank());
 	}
 

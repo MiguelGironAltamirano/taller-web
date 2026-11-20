@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../../shared/api/client'
 import { QueryErrorState } from '../../../shared/api/QueryErrorState'
-import { REQUEST_STATES, stateIndex, type RequestDetailView } from '../../../shared/domain'
+import { FLOW_STATES, lastCancellation, RESTORE_DAYS, type RequestDetailView, type RequestState } from '../../../shared/domain'
 import { useNow } from '../../../shared/hooks/useNow'
 import { dateLong } from '../../../shared/lib/format'
 import {
@@ -34,12 +34,16 @@ import { cn } from '../../../shared/lib/cn'
 
 type Tab = 'sum' | 'com' | 'ev' | 'hist'
 
-const STEP_ICONS = REQUEST_STATES.map(stateIcon)
+const STEP_ICONS = FLOW_STATES.map(stateIcon)
+
+/** El paso del progreso: una cancelada se queda donde estaba al cancelarse (la franja de arriba lo explica). */
+const progressState = (r: RequestDetailView): RequestState =>
+  r.state === 'Cancelada' ? (lastCancellation(r)?.previous ?? 'Registrada') : r.state
 
 /** Fecha en que la solicitud alcanzó cada etapa ya recorrida (la más reciente si se repitió). */
 function stepCaptions(r: RequestDetailView): (string | undefined)[] {
-  const current = stateIndex(r.state)
-  return REQUEST_STATES.map((state, i) => {
+  const current = FLOW_STATES.indexOf(progressState(r))
+  return FLOW_STATES.map((state, i) => {
     if (i > current) return undefined
     const entry = [...r.history].reverse().find((h) => h.to === state)
     const at = entry?.at ?? (i === 0 ? r.createdAt : undefined)
@@ -48,6 +52,33 @@ function stepCaptions(r: RequestDetailView): (string | undefined)[] {
 }
 
 const SECTION_LABEL = 'm-0 text-[11px] font-semibold uppercase tracking-wider text-muted'
+
+/** Franja de una solicitud cancelada: cuándo y por qué, y hasta cuándo se puede restaurar (botón en «Acciones»). */
+function CancelledNotice({ request, isOwner }: { request: RequestDetailView; isOwner: boolean }) {
+  const cancellation = lastCancellation(request)
+  if (!cancellation) return null
+  const restorable = request.allowedActions.includes('restore')
+  const until = dateLong(cancellation.at + RESTORE_DAYS * 86_400_000)
+  return (
+    <section
+      aria-label="Solicitud cancelada"
+      className="flex flex-col gap-1 rounded-xl border border-line px-4 py-3 text-[13px]"
+      style={{ background: 'var(--st-6-bg)', color: 'var(--st-6-fg)' }}
+    >
+      <b>
+        {isOwner ? 'Cancelaste' : 'El solicitante canceló'} esta solicitud el {dateLong(cancellation.at)}.
+      </b>
+      <span>Motivo: {cancellation.reason}</span>
+      {isOwner && (
+        <span>
+          {restorable
+            ? `Puedes restaurarla hasta el ${until} con «Restaurar solicitud».`
+            : 'Pasaron más de 7 días desde que la cancelaste; ya no se puede restaurar.'}
+        </span>
+      )}
+    </section>
+  )
+}
 
 function SummaryTab({ r }: { r: RequestDetailView }) {
   return (
@@ -112,6 +143,21 @@ const SLA_TONE: Record<SlaTone, { panel: string; text: string; icon: IconName }>
 function SlaPanel({ r, sla }: { r: RequestDetailView; sla: SlaStatus }) {
   const tone = SLA_TONE[sla.tone]
   const hours = Math.round((r.dueAt - r.createdAt) / 3_600_000)
+  // Una cancelada no está atendida ni vencida: su plazo está en pausa (se corre si se restaura).
+  if (r.state === 'Cancelada') {
+    return (
+      <section aria-labelledby="sla-title" className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface2/50 p-3.5">
+        <h2 id="sla-title" className={SECTION_LABEL}>
+          Plazo de atención · {hours} h
+        </h2>
+        <div className="flex items-center gap-2 text-[15px] font-semibold text-muted">
+          <Icon name="ban" size={18} strokeWidth={2} />
+          En pausa mientras está cancelada
+        </div>
+        <div className="text-[11px] text-muted">Si la restauras, el plazo se corre lo que estuvo cancelada.</div>
+      </section>
+    )
+  }
   return (
     <section aria-labelledby="sla-title" className={cn('flex flex-col gap-2.5 rounded-lg border p-3.5', tone.panel)}>
       <div className="flex items-center justify-between gap-2">
@@ -220,11 +266,12 @@ export function RequestDetailPage() {
 
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[2_1_560px] flex-col gap-3.5">
+          {request.state === 'Cancelada' && <CancelledNotice request={request} isOwner={user.role === 'solicitante'} />}
           <SatisfactionPanel request={request} user={user} />
           <Card className="overflow-x-auto px-4 pb-4 pt-5">
             <Stepper
-              steps={REQUEST_STATES}
-              current={stateIndex(request.state)}
+              steps={FLOW_STATES}
+              current={FLOW_STATES.indexOf(progressState(request))}
               icons={STEP_ICONS}
               captions={stepCaptions(request)}
               label="Progreso de la solicitud"

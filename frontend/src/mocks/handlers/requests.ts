@@ -13,15 +13,18 @@ import { computeDueAt } from '../../features/workflow/lib/sla'
 import { codeOf, getDb, type MockRequest, type MockUser } from '../db'
 import { forbidden, notFound, problem, secured } from '../http'
 import { countRequests, listRequests, parseListQuery } from '../requestList'
-import { areaIdOf, detailOf, findByCode, inScope, notify } from '../views'
+import { areaIdOf, detailOf, findByCode, inScope, lastCancellation, notify, restorableUntil } from '../views'
 
 const actorLabel = (u: MockUser) =>
   u.role === 'SUPERVISOR' ? `${u.fullName} (Supervisor)` : u.role === 'ADMINISTRADOR' ? `${u.fullName} (Administrador)` : u.fullName
 
-type Kind = 'eval' | 'assign' | 'reassign' | 'start' | 'resolve' | 'confirm' | 'reject' | 'close'
+type Kind = 'eval' | 'assign' | 'reassign' | 'start' | 'resolve' | 'confirm' | 'reject' | 'close' | 'cancel' | 'restore'
 
 /** Transiciones listadas en spec §6; cualquier otra devuelve 409. */
-function kindOf(from: RequestStatus, to: RequestStatus): Kind | null {
+function kindOf(from: RequestStatus, to: RequestStatus, r?: MockRequest): Kind | null {
+  if ((from === 'REGISTRADA' || from === 'EN_EVALUACION') && to === 'CANCELADA') return 'cancel'
+  // Una cancelada solo vuelve al estado que tenía (contrato «Cancelar y restaurar una solicitud»).
+  if (from === 'CANCELADA' && r && lastCancellation(r)?.previous === to) return 'restore'
   if (from === 'REGISTRADA' && to === 'EN_EVALUACION') return 'eval'
   if (from === 'EN_EVALUACION' && to === 'ASIGNADA') return 'assign'
   if (from === 'ASIGNADA' && to === 'ASIGNADA') return 'reassign'
@@ -93,6 +96,8 @@ export const requestHandlers = [
       }
       if (Object.keys(errors).length) return problem(400, 'Datos no válidos', 'Revisa los campos marcados.', errors)
 
+      // Como el backend: registrar la solicitud descarta el borrador del solicitante.
+      delete db.drafts[user.id]
       const now = Date.now()
       const year = new Date(now).getFullYear()
       const seq = Math.max(0, ...db.requests.filter((r) => r.year === year).map((r) => r.seq)) + 1
@@ -138,7 +143,7 @@ export const requestHandlers = [
       const r = findByCode(String(params.code))
       if (!r || !inScope(r, user)) return notFound()
       const body = (await request.json()) as TransitionBody
-      const kind = kindOf(r.status, body.to)
+      const kind = kindOf(r.status, body.to, r)
       if (!kind) {
         return problem(409, 'Transición inválida', `No se puede pasar de ${statusToState(r.status)} a ${body.to ? statusToState(body.to) : '—'}.`)
       }
@@ -164,6 +169,10 @@ export const requestHandlers = [
         errors.reason = 'Indica un motivo de al menos 5 caracteres.'
       }
       if (kind === 'reject' && reason.length < 10) errors.reason = 'Indica un motivo de al menos 10 caracteres.'
+      if (kind === 'cancel' && !reason) errors.reason = 'Cuéntanos por qué cancelas la solicitud'
+      if (kind === 'restore' && Date.now() > restorableUntil(r)!) {
+        return problem(409, 'Conflict', 'Pasaron más de 7 días desde que la cancelaste; ya no se puede restaurar')
+      }
       if (kind === 'close' && !body.closureReason) errors.closureReason = 'Indica si no procede o es duplicada.'
       if (Object.keys(errors).length) return problem(400, 'Datos no válidos', Object.values(errors)[0], errors)
 
@@ -214,6 +223,18 @@ export const requestHandlers = [
           if (r.technicianId) notify([r.technicianId], `La solución de ${code} fue rechazada por el solicitante.`, code)
           toRequester(`Tu solicitud ${code} volvió a En atención por rechazo de la solución.`)
           break
+        case 'cancel':
+          r.status = 'CANCELADA'
+          pushHistory(r, { from, to: r.status, actor, reason: `Cancelada por el solicitante: ${reason}` })
+          if (from === 'EN_EVALUACION') notify(supervisorsOf(areaIdOf(r)), `La solicitud ${code} pasó a Cancelada.`, code)
+          break
+        case 'restore': {
+          // El plazo no corre mientras está cancelada: al restaurarla se corre lo que estuvo cancelada.
+          r.dueAt += Date.now() - lastCancellation(r)!.at
+          r.status = body.to
+          pushHistory(r, { from, to: r.status, actor, reason: 'Solicitud restaurada por el solicitante' })
+          break
+        }
         case 'close':
           r.status = 'CERRADA'
           r.closureReason = body.closureReason!
@@ -238,7 +259,7 @@ export const requestHandlers = [
       if (!r || !inScope(r, user)) return notFound()
       const body = (await request.json()) as ChangePriorityBody
       // Mismo orden que el backend: 409 (resuelta o cerrada) antes que 400 (prioridad inválida o sin cambio).
-      if (r.status === 'RESUELTA' || r.status === 'CERRADA') return problem(409, 'Transición inválida', 'La solicitud ya no admite cambios.')
+      if (r.status === 'RESUELTA' || r.status === 'CERRADA' || r.status === 'CANCELADA') return problem(409, 'Transición inválida', 'La solicitud ya no admite cambios.')
       const priority = db.priorities.find((p) => p.id === body.priorityId)
       if (!priority) return problem(400, 'Datos no válidos', 'Prioridad inexistente.', { priorityId: 'Selecciona una prioridad.' })
       if (priority.id === r.priorityId) {

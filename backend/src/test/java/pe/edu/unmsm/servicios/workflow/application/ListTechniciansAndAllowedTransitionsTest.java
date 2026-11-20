@@ -98,7 +98,8 @@ class ListTechniciansAndAllowedTransitionsTest {
 				.containsExactly(RequestStatus.EN_ATENCION);
 		assertThat(allowed.forUser(OWNER, detail(RequestStatus.RESUELTA, 4, 1, 3L)))
 				.containsExactlyInAnyOrder(RequestStatus.CERRADA, RequestStatus.EN_ATENCION);
-		assertThat(allowed.forUser(OWNER, detail(RequestStatus.REGISTRADA, 4, 1, null))).isEmpty();
+		assertThat(allowed.forUser(OWNER, detail(RequestStatus.REGISTRADA, 4, 1, null)))
+				.containsExactly(RequestStatus.CANCELADA);
 	}
 
 	@Test
