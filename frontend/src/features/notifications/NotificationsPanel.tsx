@@ -1,30 +1,46 @@
-import { useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import { cn } from '../../shared/lib/cn'
 import { dateLong } from '../../shared/lib/format'
 import type { NotificationItem } from '../../shared/domain'
-import { Icon, Tabs } from '../../shared/ui'
+import { Icon, SkeletonRows } from '../../shared/ui'
 import { useMarkAllRead, useMarkRead, useNotifications } from './api'
 import { notificationVisual, VISUAL_TONE } from './lib/visual'
 
-type Filter = 'all' | 'unread'
+/** Cuántas notificaciones muestra el panel rápido; el resto está en la página completa. */
+export const PANEL_LIMIT = 5
 
-const FILTERS = [
-  { id: 'all' as const, label: 'Todas' },
-  { id: 'unread' as const, label: 'No leídas' },
-]
+/** Las no leídas primero y, dentro de cada grupo, las más recientes. */
+function latest(items: NotificationItem[]): NotificationItem[] {
+  return [...items].sort((a, b) => Number(a.read) - Number(b.read) || b.at - a.at).slice(0, PANEL_LIMIT)
+}
 
-type Props = { onClose: () => void }
+type Props = {
+  /** Cierra el panel porque la persona navega (a una solicitud o a «Ver todas»). */
+  onClose: () => void
+  /** Cierra el panel sin navegar (tocar fuera): quien lo abrió devuelve el foco a la campana. */
+  onDismiss?: () => void
+}
 
-/** Panel desplegable de la campana: lista breve con "Marcar todas como leídas" y enlace a la página completa. */
-export function NotificationsPanel({ onClose }: Props) {
+/**
+ * Panel de la campana: las últimas notificaciones, «Marcar todo como leído» y «Ver todas».
+ * Usa las mismas consultas que la página completa, así el contador de la campana se actualiza solo.
+ */
+export function NotificationsPanel({ onClose, onDismiss = onClose }: Props) {
   const navigate = useNavigate()
-  const { data = [] } = useNotifications()
+  const notifications = useNotifications()
+  const { data = [], isLoading, isError } = notifications
   const markRead = useMarkRead()
   const markAll = useMarkAllRead()
-  const [filter, setFilter] = useState<Filter>('all')
-  const items = data.filter((n) => filter === 'all' || !n.read)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const items = latest(data)
   const unread = data.filter((n) => !n.read).length
+
+  // El foco entra al panel al abrirlo, para que el teclado y el lector de pantalla lo encuentren.
+  useEffect(() => {
+    panelRef.current?.focus()
+  }, [])
 
   const open = (n: NotificationItem) => {
     if (!n.read) markRead.mutate(n.id)
@@ -34,11 +50,13 @@ export function NotificationsPanel({ onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 z-40 bg-black/45 md:bg-transparent" onClick={onDismiss} aria-hidden="true" />
       <div
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-label="Notificaciones"
-        className="fixed right-2 top-14 z-[41] flex w-[min(400px,calc(100%-16px))] animate-pop flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-pop md:right-4 md:top-16"
+        className="fixed left-2 right-2 top-14 z-[41] flex animate-pop flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-pop outline-none md:left-auto md:right-4 md:top-16 md:w-[380px]"
       >
         <div className="flex items-center gap-2 px-4 pb-2.5 pt-3.5">
           <span className="flex flex-1 items-center gap-2 text-[15px] font-semibold">
@@ -53,21 +71,24 @@ export function NotificationsPanel({ onClose }: Props) {
             type="button"
             onClick={() => markAll.mutate()}
             disabled={unread === 0}
-            className="rounded-md border-0 bg-transparent px-2 py-1 text-xs font-medium text-primary-fg hover:bg-primary-soft disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent"
+            className="min-h-11 rounded-md border-0 bg-transparent px-2 py-1 text-xs font-medium text-primary-fg hover:bg-primary-soft disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent md:min-h-0"
           >
-            Marcar todas como leídas
+            Marcar todo como leído
           </button>
         </div>
-        <div className="px-4 pb-2.5">
-          <Tabs variant="pill" label="Filtro de notificaciones" items={FILTERS} value={filter} onChange={setFilter} />
-        </div>
-        <div className="max-h-[360px] overflow-auto border-t border-line">
-          {items.length === 0 && (
+        <div className="max-h-[min(60dvh,360px)] overflow-auto border-t border-line">
+          {isLoading && <SkeletonRows count={3} rowClass="h-14" />}
+          {isError && !notifications.data && (
+            <div className="px-4 py-3">
+              <QueryErrorState what="tus notificaciones" query={notifications} compact />
+            </div>
+          )}
+          {!isLoading && !isError && items.length === 0 && (
             <div className="flex flex-col items-center gap-2 px-6 py-8 text-center text-muted">
               <span className="grid size-10 place-items-center rounded-full bg-ok-bg text-ok-fg">
                 <Icon name="check" size={18} strokeWidth={2.25} />
               </span>
-              Estás al día.
+              No tienes notificaciones nuevas
             </div>
           )}
           {items.map((n) => {
@@ -78,7 +99,7 @@ export function NotificationsPanel({ onClose }: Props) {
                 type="button"
                 onClick={() => open(n)}
                 className={cn(
-                  'flex w-full items-start gap-3 border-0 border-b border-line px-4 py-3 text-left text-fg last:border-0',
+                  'flex min-h-11 w-full items-start gap-3 border-0 border-b border-line px-4 py-3 text-left text-fg last:border-0',
                   n.read ? 'bg-transparent hover:bg-surface2' : 'bg-primary-soft/40 hover:bg-primary-soft/70',
                 )}
               >
@@ -114,7 +135,7 @@ export function NotificationsPanel({ onClose }: Props) {
           }}
           className="flex h-11 w-full items-center justify-center gap-1.5 border-0 border-t border-line bg-surface2/50 font-semibold text-primary-fg hover:bg-surface2"
         >
-          Ver todas
+          Ver todas ({data.length})
           <Icon name="chevR" size={15} strokeWidth={2.25} />
         </button>
       </div>

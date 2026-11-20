@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
+import { homePathFor, useSessionUser } from '../auth'
 import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import { cn } from '../../shared/lib/cn'
 import { dateLong, dayGroup } from '../../shared/lib/format'
@@ -16,6 +17,8 @@ const GROUPS = ['Hoy', 'Ayer', 'Anteriores'] as const
 
 export function NotificationsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const user = useSessionUser()
   const now = useNow()
   const notifications = useNotifications()
   const { data = [], isLoading, isError } = notifications
@@ -29,8 +32,15 @@ export function NotificationsPage() {
     (g) => g.items.length,
   )
 
+  // Sin pestaña propia en móvil: un botón claro para volver (a la pantalla anterior, o al inicio si se entró directo).
+  const goBack = () => (location.key === 'default' ? navigate(homePathFor(user.role)) : navigate(-1))
+
   return (
     <>
+      <Button variant="ghost" className="self-start md:hidden" onClick={goBack}>
+        <Icon name="arrowL" size={16} strokeWidth={2} />
+        Volver
+      </Button>
       <PageHeader
         icon="bell"
         title="Notificaciones"

@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { Link, useNavigate } from 'react-router'
 import type { Role, SessionUser } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
@@ -9,6 +10,10 @@ type TopbarProps = {
   role: Role
   pathname: string
   unread: number
+  /** El panel rápido de la campana está abierto. */
+  notificationsOpen: boolean
+  /** Para devolver el foco a la campana al cerrar el panel. */
+  bellRef: Ref<HTMLButtonElement>
   onToggleSidebar: () => void
   onOpenPalette: () => void
   onOpenDrawer: () => void
@@ -21,6 +26,8 @@ export function Topbar({
   role,
   pathname,
   unread,
+  notificationsOpen,
+  bellRef,
   onToggleSidebar,
   onOpenPalette,
   onOpenDrawer,
@@ -95,10 +102,15 @@ export function Topbar({
 
       {/* Names come from content (not aria-label) so the visible badge and avatar never contradict them (WCAG 2.5.3). */}
       <button
+        ref={bellRef}
         type="button"
         aria-haspopup="dialog"
+        aria-expanded={notificationsOpen}
         onClick={onToggleNotifications}
-        className="relative grid size-11 place-items-center rounded-lg border-0 bg-transparent text-fg hover:bg-surface2 md:size-9"
+        className={cn(
+          'relative grid size-11 place-items-center rounded-lg border-0 text-fg hover:bg-surface2 md:size-9',
+          notificationsOpen || pathname === '/notificaciones' ? 'bg-primary-soft text-primary-fg' : 'bg-transparent',
+        )}
       >
         <Icon name="bell" size={20} />
         <span className="sr-only">{unread > 0 ? `Notificaciones, ${unread} sin leer` : 'Notificaciones'}</span>
