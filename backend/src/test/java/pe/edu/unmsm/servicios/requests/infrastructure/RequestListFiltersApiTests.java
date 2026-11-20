@@ -165,8 +165,10 @@ class RequestListFiltersApiTests {
 		set(resolvedLate, "due_at = ?", past);
 		set(resolvedLate, "status = ?", "RESUELTA");
 
-		assertThat(codes(STUDENT, "?overdue=true")).containsExactly(late);
-		assertThat(codes(STUDENT, "?overdue=false")).containsExactlyInAnyOrder(resolvedLate, onTime);
+		assertThat(codes(SUPERVISOR, "?overdue=true")).containsExactly(late);
+		assertThat(codes(SUPERVISOR, "?overdue=false")).containsExactlyInAnyOrder(resolvedLate, onTime);
+		// The requester does not see due dates, so the filter is ignored for them.
+		assertThat(codes(STUDENT, "?overdue=true")).containsExactlyInAnyOrder(late, resolvedLate, onTime);
 	}
 
 	@Test
@@ -249,12 +251,14 @@ class RequestListFiltersApiTests {
 		String resolvedSoon = create(ELECTRICITY, CRITICAL);
 		set(resolvedSoon, "status = ?", "RESUELTA");
 
-		assertThat(codes(STUDENT, "")).containsExactly(resolvedSoon, high, critical, low);
-		assertThat(codes(STUDENT, "?sort=newest")).containsExactly(resolvedSoon, high, critical, low);
-		assertThat(codes(STUDENT, "?sort=oldest")).containsExactly(low, critical, high, resolvedSoon);
-		assertThat(codes(STUDENT, "?sort=priority")).containsExactly(resolvedSoon, critical, high, low);
-		assertThat(codes(STUDENT, "?sort=due")).as("pending first, by due date").containsExactly(critical, high,
+		assertThat(codes(SUPERVISOR, "")).containsExactly(resolvedSoon, high, critical, low);
+		assertThat(codes(SUPERVISOR, "?sort=newest")).containsExactly(resolvedSoon, high, critical, low);
+		assertThat(codes(SUPERVISOR, "?sort=oldest")).containsExactly(low, critical, high, resolvedSoon);
+		assertThat(codes(SUPERVISOR, "?sort=priority")).containsExactly(resolvedSoon, critical, high, low);
+		assertThat(codes(SUPERVISOR, "?sort=due")).as("pending first, by due date").containsExactly(critical, high,
 				low, resolvedSoon);
+		assertThat(codes(STUDENT, "?sort=due")).as("the requester sorts by the estimated date")
+				.containsExactly(critical, high, low, resolvedSoon);
 		ApiClient.assertProblem(list(STUDENT, "?sort=" + encode("created_at; drop table users")), 400);
 	}
 
@@ -303,13 +307,14 @@ class RequestListFiltersApiTests {
 		HttpResponse<String> student = api.get("/api/v1/requests/counts", token(STUDENT));
 		assertThat(student.statusCode()).as(student.body()).isEqualTo(200);
 		assertThat(ApiClient.<Integer>read(student, "$.total")).isEqualTo(3);
-		assertThat(ApiClient.<Integer>read(student, "$.overdue")).isEqualTo(1);
+		assertThat(ApiClient.<Integer>read(student, "$.overdue")).as("the requester never sees overdue").isZero();
 		assertThat(ApiClient.<Integer>read(student, "$.byStatus.REGISTRADA")).isEqualTo(2);
 		assertThat(ApiClient.<Integer>read(student, "$.byStatus.RESUELTA")).isEqualTo(1);
 		assertThat(ApiClient.<Integer>read(student, "$.byStatus.CERRADA")).isZero();
 
 		HttpResponse<String> supervisor = api.get("/api/v1/requests/counts", token(SUPERVISOR));
 		assertThat(ApiClient.<Integer>read(supervisor, "$.total")).isEqualTo(3);
+		assertThat(ApiClient.<Integer>read(supervisor, "$.overdue")).isEqualTo(1);
 		HttpResponse<String> technician = api.get("/api/v1/requests/counts", token(TECHNICIAN));
 		assertThat(ApiClient.<Integer>read(technician, "$.total")).isZero();
 		assertThat(ApiClient.<Map<String, Integer>>read(technician, "$.byStatus")).hasSize(7);

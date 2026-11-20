@@ -87,6 +87,15 @@ test.describe('Supervisor', () => {
     await expect(history).toContainText('Prioridad Media → Prioridad Crítica')
     await expect(history).toContainText(/Nuevo vencimiento: /)
     await expect(history).toContainText(`Asignada a ${accounts.tecnico.name}`)
+
+    // The requester never learns about the change: same priority they chose, its estimated date (72 h of Media),
+    // never overdue and no history entry.
+    type Seen = { priorityName: string; createdAt: string; dueAt: string; overdue: boolean; history: { note: string | null }[] }
+    const seen = await requester.get<Seen>(`/requests/${code}`)
+    expect(seen.priorityName).toBe('Media')
+    expect((Date.parse(seen.dueAt) - Date.parse(seen.createdAt)) / 3_600_000).toBe(72)
+    expect(seen.overdue).toBe(false)
+    expect(seen.history.some((h) => h.note)).toBe(false)
   })
 
   test('dashboard shows the real indicators for 7 days, 30 days and this month', async ({ page }) => {

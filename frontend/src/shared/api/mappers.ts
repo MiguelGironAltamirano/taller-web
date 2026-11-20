@@ -76,6 +76,7 @@ export function toRequestRow(s: RequestSummary): RequestRow {
     technician: s.technicianName,
     createdAt: Date.parse(s.createdAt),
     dueAt: Date.parse(s.dueAt),
+    estimatedDue: s.estimatedDue ?? false,
   }
 }
 

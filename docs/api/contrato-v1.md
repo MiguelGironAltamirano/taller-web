@@ -63,10 +63,29 @@ Inicio de sesión con huella o passkey (WebAuthn): ver [`passkeys-v1.md`](passke
 | `GET /requests/counts` | Token | — | `200` `RequestCounts` sobre todo lo visible para el usuario |
 | `GET /requests/{code}` | Token, con visibilidad | — | `200` `RequestDetail` · `404` si no existe o no es visible |
 | `POST /requests/{code}/transitions` | Token, según la tabla de transiciones | `{ to, reason?, technicianId?, closureReason? }` | `200` `RequestDetail` · `400` falta un dato obligatorio · `403` rol no autorizado · `409` transición inválida |
-| `PATCH /requests/{code}/priority` | Rol `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `400` prioridad inexistente o igual a la actual · `403` · `404` · `409` si está `RESUELTA` o `CERRADA` |
+| `PATCH /requests/{code}/priority` | Rol `SUPERVISOR` del área | `{ priorityId }` | `200` `RequestDetail` con `dueAt` recalculado · `400` prioridad inexistente o igual a la actual · `403` · `404` · `409` si está `RESUELTA` o `CERRADA`. El solicitante no ve el cambio (ver [Prioridad que ve el solicitante](#prioridad-que-ve-el-solicitante)) |
 | `POST /requests/{code}/rating` | Rol `SOLICITANTE` dueño | `{ score: 1..5, comment? }` | `200` `RequestDetail` con `rating` · `400` · `403` · `404` · `409` si no está `CERRADA` por confirmación o ya fue calificada |
 
 Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNICO` las asignadas a él; `ADMINISTRADOR` todas.
+
+### Prioridad que ve el solicitante
+
+Cada solicitud guarda dos prioridades: la **solicitada** (la que eligió el solicitante al registrarla, que no cambia nunca) y la **vigente** (la que usa el personal; empieza igual y el supervisor del área la puede cambiar con `PATCH /requests/{code}/priority`). El solicitante nunca se entera de ese cambio:
+
+| Dato | `SOLICITANTE` | `SUPERVISOR`, `TECNICO`, `ADMINISTRADOR` |
+|---|---|---|
+| `priorityName` (lista y detalle) | Prioridad solicitada | Prioridad vigente |
+| `dueAt` | **Fecha estimada**: registro + horas del SLA de la prioridad solicitada, fijada al registrar (no cambia aunque el supervisor cambie la prioridad o el administrador las horas del SLA) | Fecha límite según la prioridad vigente |
+| `estimatedDue` | `true` | `false` |
+| `overdue` | Siempre `false`: pasada la fecha estimada no se muestra como vencida | Regla del SLA |
+| `history` | Sin las entradas de cambio de prioridad | Completo |
+| `priorityId`, `sort=priority` y `sort=due` en `GET /requests` | Sobre la prioridad solicitada y la fecha estimada | Sobre la prioridad vigente y la fecha límite |
+| `overdue` en `GET /requests` | Se ignora | Según la regla |
+| `overdue` en `GET /requests/counts` | `0` | Según la regla |
+
+La fecha estimada es una referencia para el solicitante, no un compromiso del SLA: si el supervisor bajó la prioridad, el personal puede atenderla después de esa fecha sin estar vencida. La interfaz la muestra como «Fecha estimada» y, una vez pasada, indica que la solicitud sigue en atención en lugar de marcarla como vencida.
+
+El dashboard, los reportes, el tablero y el calendario son solo del personal y usan la prioridad vigente.
 
 ### Listado de solicitudes
 
@@ -307,7 +326,7 @@ StateInfo     = { order, status: RequestStatus, description }
 TokenResponse = { accessToken, expiresIn, user: UserSummary }
 Catalogs      = { areas: [{ id, name }], categories: [{ id, name, areaId }],
                   priorities: [{ id, name, slaHours }], locations: [{ id, name, kind, parentId }] }
-RequestSummary = { code, categoryName, locationName, priorityName, status, createdAt, dueAt, overdue,
+RequestSummary = { code, categoryName, locationName, priorityName, status, createdAt, dueAt, estimatedDue, overdue,
                   description, requesterName, areaName, technicianName, facultyName, pavilionName, roomName }
 RequestDetail  = RequestSummary & { requester: { id, fullName }, area: { id, name },
                   technician: { id, fullName } | null, closureReason: ClosureReason | null,
@@ -330,7 +349,7 @@ RequestCounts  = { total, overdue, byStatus: { [RequestStatus]: number } }
 Otros campos del detalle:
 
 - `solution`: comentario de solución del técnico; se guarda al pasar a `RESUELTA`, se conserva al cerrar y se borra si el solicitante la rechaza.
-- `history[].note`: solo en cambios que no cambian de estado; el cambio de prioridad registra `Prioridad Alta → Prioridad Media` y en `reason` el nuevo vencimiento (hora de Lima). El nuevo `dueAt` es la fecha de registro más las horas del SLA de la nueva prioridad.
+- `history[].note`: solo en cambios que no cambian de estado; el cambio de prioridad registra `Prioridad Alta → Prioridad Media` y en `reason` el nuevo vencimiento (hora de Lima). El nuevo `dueAt` es la fecha de registro más las horas del SLA de la nueva prioridad. Estas entradas no se muestran al solicitante.
 - `comments` y `evidences`: los mismos datos que `GET /requests/{code}/comments` y `GET /requests/{code}/evidences`.
 - `autoCloseAt`: solo cuando `status = RESUELTA` (en otro caso `null`). Fecha ISO-8601 (UTC) a partir de la cual el backend puede cerrar automáticamente la solicitud: última entrada a `RESUELTA` + `autoCloseHours` vigente. Lo ve cualquier usuario que vea la solicitud, así el solicitante conoce su plazo sin leer `/admin/config`. El cierre ocurre en la siguiente ejecución del proceso posterior a esa hora.
 - `rating`: `null` hasta que el solicitante califica. Calificar no cambia el estado; la solicitud ya se cerró con la transición `RESUELTA → CERRADA`.

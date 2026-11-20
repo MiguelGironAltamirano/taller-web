@@ -25,7 +25,6 @@ export function HomePage() {
   const kpis = [
     { label: 'Abiertas', value: views.filter(isOpen).length, to: '/solicitudes?view=open', icon: 'folder', tone: 'bg-info-bg text-info-fg' },
     { label: 'Por confirmar', value: views.filter((r) => r.state === 'Resuelta').length, to: '/solicitudes?view=confirm', icon: 'checkCircle', tone: 'bg-ok-bg text-ok-fg' },
-    { label: 'Vencidas', value: views.filter((r) => r.sla.overdue).length, to: '/solicitudes?view=venc', icon: 'alert', tone: 'bg-err-bg text-err-fg' },
     { label: 'Cerradas', value: views.filter((r) => r.state === 'Cerrada').length, to: '/solicitudes?status=Cerrada', icon: 'lock', tone: 'bg-surface2 text-muted' },
   ] as const
   const unseen = useUnseenCodes()

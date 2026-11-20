@@ -4,16 +4,17 @@ import { Icon, stateIcon, type IconName } from '../../../shared/ui'
 import { OVERDUE_STATUS } from '../lib/filters'
 
 type Counts = { total: number; overdue: number; byState: Record<string, number> }
-type Props = { counts: Counts; value: string; onChange: (status: string) => void }
+/** `showOverdue`: el solicitante no ve vencimientos, así que no tiene la pestaña de vencidas. */
+type Props = { counts: Counts; value: string; showOverdue?: boolean; onChange: (status: string) => void }
 
 type Item = { id: string; label: string; n: number; icon: IconName; danger?: boolean }
 
 /** Pestañas de estado con contador: resumen de la bandeja que también la filtra. */
-export function StatusStrip({ counts, value, onChange }: Props) {
+export function StatusStrip({ counts, value, showOverdue = true, onChange }: Props) {
   const items: Item[] = [
     { id: '', label: 'Todas', n: counts.total, icon: 'folder' },
     ...REQUEST_STATES.map((s: RequestState) => ({ id: s, label: s, n: counts.byState[s] ?? 0, icon: stateIcon(s) })),
-    { id: OVERDUE_STATUS, label: 'Vencidas', n: counts.overdue, icon: 'clock', danger: true },
+    ...(showOverdue ? [{ id: OVERDUE_STATUS, label: 'Vencidas', n: counts.overdue, icon: 'clock' as const, danger: true }] : []),
   ]
   return (
     <div role="group" aria-label="Filtrar por estado" className="-mb-px flex gap-1 overflow-x-auto px-3 pt-3 [scrollbar-width:none]">

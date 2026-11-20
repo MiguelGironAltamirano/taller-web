@@ -34,6 +34,8 @@ class JpaRequestRepository implements RequestRepository, RequestStateStore {
 		entity.description = request.description();
 		entity.areaId = request.areaId();
 		entity.createdAt = request.createdAt();
+		entity.requestedPriorityId = request.priorityId();
+		entity.requestedDueAt = request.dueAt();
 		copyMutableState(request, entity);
 		ServiceRequestEntity stored = requests.saveAndFlush(entity);
 		appendHistory(stored.id, firstEntry);
@@ -85,6 +87,7 @@ class JpaRequestRepository implements RequestRepository, RequestStateStore {
 		row.technicianId = entry.technicianId();
 		row.reason = entry.reason();
 		row.note = entry.note();
+		row.internal = entry.internal();
 		row.createdAt = entry.createdAt();
 		history.saveAndFlush(row);
 	}

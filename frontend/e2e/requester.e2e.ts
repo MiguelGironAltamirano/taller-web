@@ -40,7 +40,8 @@ test.describe('Requester', () => {
     await expect(detail).toContainText('Registrada')
     // Lita's redesigned summary shows the priority and its SLA hours in separate places.
     await expect(detail).toContainText('PrioridadAlta')
-    await expect(detail).toContainText('Plazo de atención · 24 h')
+    // The requester sees the estimated date of the priority they chose (contract, "Prioridad que ve el solicitante").
+    await expect(detail).toContainText('Fecha estimada de atención · 24 h')
     await expect(detail).toContainText('Mantenimiento')
     // The evidence picked in the form was uploaded to the new request.
     await expect(page.getByRole('tab', { name: /^Evidencias/ })).toContainText('1')

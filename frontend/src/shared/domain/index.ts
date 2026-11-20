@@ -88,6 +88,8 @@ export type RequestRow = {
   technician: string | null
   createdAt: number
   dueAt: number
+  /** El solicitante ve una fecha estimada con la prioridad que eligió, que nunca se marca como vencida. */
+  estimatedDue?: boolean
 }
 
 export type HistoryItem = {

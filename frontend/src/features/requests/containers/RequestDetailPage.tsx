@@ -139,6 +139,7 @@ const SLA_TONE: Record<SlaTone, { panel: string; text: string; icon: IconName }>
   done: { panel: 'border-line bg-ok-bg/50', text: 'text-ok-fg', icon: 'checkCircle' },
 }
 
+/** El solicitante ve la fecha estimada con la prioridad que eligió, no el plazo del personal. */
 function SlaPanel({ r, sla }: { r: RequestDetailView; sla: SlaStatus }) {
   const tone = SLA_TONE[sla.tone]
   const hours = Math.round((r.dueAt - r.createdAt) / 3_600_000)
@@ -161,7 +162,7 @@ function SlaPanel({ r, sla }: { r: RequestDetailView; sla: SlaStatus }) {
     <section aria-labelledby="sla-title" className={cn('flex flex-col gap-2.5 rounded-lg border p-3.5', tone.panel)}>
       <div className="flex items-center justify-between gap-2">
         <h2 id="sla-title" className={SECTION_LABEL}>
-          Plazo de atención · {hours} h
+          {r.estimatedDue ? 'Fecha estimada de atención' : 'Plazo de atención'} · {hours} h
         </h2>
         <span className="text-xs tabular-nums text-muted">{Math.round(sla.pct)}%</span>
       </div>
@@ -172,12 +173,14 @@ function SlaPanel({ r, sla }: { r: RequestDetailView; sla: SlaStatus }) {
       <ProgressBar
         value={sla.pct}
         color={slaBarColor(sla.tone)}
-        label="Plazo de atención consumido"
+        label={r.estimatedDue ? 'Tiempo transcurrido hasta la fecha estimada' : 'Plazo de atención consumido'}
         className="h-2"
       />
       <div className="flex justify-between gap-2 text-[11px] tabular-nums text-muted">
         <span>Inicio {dateLong(r.createdAt)}</span>
-        <span>Vence {dateLong(r.dueAt)}</span>
+        <span>
+          {r.estimatedDue ? 'Estimada' : 'Vence'} {dateLong(r.dueAt)}
+        </span>
       </div>
     </section>
   )

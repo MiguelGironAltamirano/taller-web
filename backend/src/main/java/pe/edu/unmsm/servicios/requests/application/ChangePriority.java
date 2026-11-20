@@ -22,7 +22,8 @@ import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 /**
  * The supervisor of the area changes the priority of a request that is still being handled. The due date is
  * recalculated with the SLA of the new priority and the change is recorded in the history with a note, without
- * changing the status.
+ * changing the status. The requester never learns about it: they keep the priority they chose and the entry is
+ * internal.
  */
 public class ChangePriority {
 
@@ -66,7 +67,7 @@ public class ChangePriority {
 		ServiceRequest changed = request.withPriority(priority.id(), priority.slaHours(), now);
 		RequestHistoryEntry entry = new RequestHistoryEntry(request.status(), request.status(), user.id(), null,
 				"Nuevo vencimiento: " + DUE_FORMAT.format(changed.dueAt()), now,
-				"Prioridad " + previousName + " → Prioridad " + priority.name());
+				"Prioridad " + previousName + " → Prioridad " + priority.name(), true);
 		return requests.update(changed, entry);
 	}
 

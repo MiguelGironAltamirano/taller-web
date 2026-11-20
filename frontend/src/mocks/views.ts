@@ -78,10 +78,19 @@ export function allowedTransitionsFor(r: MockRequest, user: MockUser): RequestSt
   return [...new Set(targets)]
 }
 
-export function summaryOf(r: MockRequest, now = Date.now()): RequestSummary {
+/** Como el backend: el solicitante ve la prioridad que eligió y su fecha estimada, sin cambios de prioridad. */
+const seesRequestedPriority = (viewer?: MockUser) => viewer?.role === 'SOLICITANTE'
+
+/** Prioridad que eligió el solicitante y su fecha estimada; las vigentes si nunca cambiaron. */
+export const requestedPriorityIdOf = (r: MockRequest) => r.requestedPriorityId ?? r.priorityId
+export const requestedDueAtOf = (r: MockRequest) => r.requestedDueAt ?? r.dueAt
+
+export function summaryOf(r: MockRequest, now = Date.now(), viewer?: MockUser): RequestSummary {
   const db = getDb()
   const category = db.categories.find((c) => c.id === r.categoryId)!
-  const priority = db.priorities.find((p) => p.id === r.priorityId)!
+  const requesterView = seesRequestedPriority(viewer)
+  const priorityId = requesterView ? requestedPriorityIdOf(r) : r.priorityId
+  const priority = db.priorities.find((p) => p.id === priorityId)!
   const room = db.locations.find((l) => l.id === r.locationId)!
   const pavilion = db.locations.find((l) => l.id === room.parentId)!
   const faculty = db.locations.find((l) => l.id === pavilion.parentId)!
@@ -96,8 +105,9 @@ export function summaryOf(r: MockRequest, now = Date.now()): RequestSummary {
     priorityName: priority.name,
     status: r.status,
     createdAt: iso(r.createdAt),
-    dueAt: iso(r.dueAt),
-    overdue: sla.overdue,
+    dueAt: iso(requesterView ? requestedDueAtOf(r) : r.dueAt),
+    estimatedDue: requesterView,
+    overdue: requesterView ? false : sla.overdue,
     description: r.description,
     requesterName: requester.fullName,
     areaName: area.name,
@@ -110,17 +120,18 @@ export function summaryOf(r: MockRequest, now = Date.now()): RequestSummary {
 
 export function detailOf(r: MockRequest, user: MockUser, now = Date.now()): RequestDetail {
   const db = getDb()
-  const base = summaryOf(r, now)
+  const base = summaryOf(r, now, user)
   const category = db.categories.find((c) => c.id === r.categoryId)!
   const area = db.areas.find((a) => a.id === category.areaId)!
   const technician = db.users.find((u) => u.id === r.technicianId)
+  const history = seesRequestedPriority(user) ? r.history.filter((h) => !h.internal) : r.history
   return {
     ...base,
     requester: { id: r.requesterId, fullName: base.requesterName },
     area: { id: area.id, name: area.name },
     technician: technician ? { id: technician.id, fullName: technician.fullName } : null,
     closureReason: r.closureReason,
-    history: r.history.map((h) => ({ ...h, createdAt: iso(h.createdAt) })),
+    history: history.map(({ internal: _internal, ...h }) => ({ ...h, createdAt: iso(h.createdAt) })),
     allowedTransitions: allowedTransitionsFor(r, user),
     allowedActions: allowedActionsFor(r, user),
     comments: r.comments.map((c) => ({ id: c.id, authorName: c.authorName, text: c.text, createdAt: iso(c.createdAt) })),

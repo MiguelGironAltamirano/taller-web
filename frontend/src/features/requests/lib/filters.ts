@@ -125,10 +125,22 @@ export function toStripCounts(counts: RequestCounts | undefined): StripCounts {
 export const openCount = (counts: RequestCounts | undefined) =>
   counts ? OPEN_STATUSES.reduce((sum, s) => sum + (counts.byStatus[s] ?? 0), 0) : 0
 
-/** CSV de las filas exportadas (se descarga desde el botón "Exportar"). */
+/** CSV de las filas exportadas (se descarga desde el botón "Exportar"). El solicitante exporta su fecha estimada. */
 export function toCsv(rows: RowView[]): string {
+  const estimated = rows.some((r) => r.estimatedDue)
   return buildCsv(
-    ['Código', 'Categoría', 'Ubicación', 'Prioridad', 'Estado', 'Responsable', 'Registro', 'Vencimiento', 'SLA', 'Descripción'],
+    [
+      'Código',
+      'Categoría',
+      'Ubicación',
+      'Prioridad',
+      'Estado',
+      'Responsable',
+      'Registro',
+      estimated ? 'Fecha estimada' : 'Vencimiento',
+      estimated ? 'Seguimiento' : 'SLA',
+      'Descripción',
+    ],
     rows.map((r) => [
       r.code,
       r.category,

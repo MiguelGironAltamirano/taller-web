@@ -12,4 +12,9 @@ public record RequestScope(String role, long userId, Long areaId) {
 		return new RequestScope(user.role(), user.id(), user.areaId());
 	}
 
+	/** The requester filters and sorts by the priority they chose (see RequestSummaryView#asSeenByRequester). */
+	public boolean isRequester() {
+		return "SOLICITANTE".equals(role);
+	}
+
 }

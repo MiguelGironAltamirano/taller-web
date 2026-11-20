@@ -86,7 +86,7 @@ export function RequestTable({ rows, compact, onOpen, attentionOf, unseen }: Pro
                 </span>
               )}
             </div>
-            <div title={`Vence ${dateShort(r.dueAt)}`}>
+            <div title={`${r.estimatedDue ? 'Fecha estimada' : 'Vence'} ${dateShort(r.dueAt)}`}>
               <ProgressBar value={r.sla.pct} color={slaBarColor(r.sla.tone)} label={`Plazo de ${r.code}`} />
               <div className={cn('mt-1 whitespace-nowrap text-[11px] font-medium', slaTextClass(r.sla.tone))}>
                 {r.sla.label}
