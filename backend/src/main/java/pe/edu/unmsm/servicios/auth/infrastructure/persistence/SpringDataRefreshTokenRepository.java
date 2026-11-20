@@ -16,15 +16,19 @@ interface SpringDataRefreshTokenRepository extends JpaRepository<RefreshTokenEnt
 	@Query("update RefreshTokenEntity t set t.revokedAt = :at where t.tokenHash = :hash and t.revokedAt is null")
 	int revokeIfActive(@Param("hash") String hash, @Param("at") Instant at);
 
-	@Modifying
-	@Query("update RefreshTokenEntity t set t.revokedAt = :at where t.userId = :userId and t.revokedAt is null")
-	int revokeAllActiveOfUser(@Param("userId") long userId, @Param("at") Instant at);
+
+
+	/** Ids of the user's active tokens: a plain read, it locks nothing (see JpaRefreshTokenRepository). */
+	@Query("select t.id from RefreshTokenEntity t where t.userId = :userId and t.revokedAt is null")
+	java.util.List<Long> findActiveIdsOfUser(@Param("userId") long userId);
+
+	@Query("select t.id from RefreshTokenEntity t where t.userId = :userId and t.revokedAt is null "
+			+ "and t.sessionId <> :kept")
+	java.util.List<Long> findActiveIdsOfUserExcept(@Param("userId") long userId, @Param("kept") String keptSessionId);
 
 	@Modifying
-	@Query("update RefreshTokenEntity t set t.revokedAt = :at where t.userId = :userId and t.revokedAt is null "
-			+ "and t.sessionId <> :kept")
-	int revokeAllActiveOfUserExcept(@Param("userId") long userId, @Param("kept") String keptSessionId,
-			@Param("at") Instant at);
+	@Query("update RefreshTokenEntity t set t.revokedAt = :at where t.id in :ids and t.revokedAt is null")
+	int revokeByIds(@Param("ids") java.util.List<Long> ids, @Param("at") Instant at);
 
 	/** The user row is the lock: every login of the user takes it before closing and opening sessions. */
 	@Query(value = "select id from users where id = :userId for update", nativeQuery = true)

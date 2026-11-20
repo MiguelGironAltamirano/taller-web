@@ -3,6 +3,7 @@ package pe.edu.unmsm.servicios.auth.application;
 import java.util.Locale;
 import java.util.Optional;
 
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.unmsm.servicios.auth.domain.InvalidCredentialsException;
@@ -25,7 +26,9 @@ public class Login {
 		this.limiter = limiter;
 	}
 
-	@Transactional
+	// Sessions of a user change one at a time (lockSessionsOf); READ_COMMITTED lets the read after that lock see what
+	// the previous login or refresh committed, and keeps MySQL from locking index gaps (see JpaRefreshTokenRepository).
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public AuthSession execute(String email, String password, String clientIp) {
 		limiter.acquire(email, clientIp);
 		Optional<User> found = users.findByEmail(email.trim().toLowerCase(Locale.ROOT));

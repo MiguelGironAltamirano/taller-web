@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.unmsm.servicios.auth.domain.RefreshToken;
@@ -31,7 +32,9 @@ public class SessionIssuer {
 		this.refreshTtl = refreshTtl;
 	}
 
-	@Transactional
+	// Sessions of a user change one at a time (lockSessionsOf); READ_COMMITTED lets the read after that lock see what
+	// the previous login or refresh committed, and keeps MySQL from locking index gaps (see JpaRefreshTokenRepository).
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public AuthSession issue(User user) {
 		Instant now = clock.instant();
 		refreshTokens.lockSessionsOf(user.id());

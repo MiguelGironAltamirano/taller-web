@@ -41,14 +41,25 @@ class JpaRefreshTokenRepository implements RefreshTokenRepository {
 		return repository.revokeIfActive(tokenHash, at) > 0;
 	}
 
+	/**
+	 * Revokes by primary key, never with {@code where user_id = ?}: in MySQL that update locks the gap of the
+	 * user_id index when the user has no active token (a first login), users with neighbouring ids share that gap,
+	 * and their inserts of the new token then deadlocked (found by the load test, infra/k6). Reading the ids is a
+	 * plain non-locking read; logins and refreshes of one user are serialized by {@link #lockSessionsOf}, so no
+	 * token of that user can appear between the read and the update.
+	 */
 	@Override
 	public int revokeAllForUser(long userId, Instant at) {
-		return repository.revokeAllActiveOfUser(userId, at);
+		return revokeByIds(repository.findActiveIdsOfUser(userId), at);
 	}
 
 	@Override
 	public int revokeAllForUserExcept(long userId, String keptSessionId, Instant at) {
-		return repository.revokeAllActiveOfUserExcept(userId, keptSessionId, at);
+		return revokeByIds(repository.findActiveIdsOfUserExcept(userId, keptSessionId), at);
+	}
+
+	private int revokeByIds(java.util.List<Long> ids, Instant at) {
+		return ids.isEmpty() ? 0 : repository.revokeByIds(ids, at);
 	}
 
 	@Override
