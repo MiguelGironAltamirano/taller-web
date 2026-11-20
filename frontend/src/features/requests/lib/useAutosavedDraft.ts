@@ -25,6 +25,11 @@ export function useAutosavedDraft(values: RequestDraftFields, enabled: boolean) 
   })
   const lastSaved = useRef<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Al salir de la pantalla se guarda igual, pero ya no hay estado que mostrar: no se actualiza un componente ido. */
+  const mounted = useRef(false)
+  const report = useCallback((next: AutosaveState | ((s: AutosaveState) => AutosaveState)) => {
+    if (mounted.current) setState(next)
+  }, [])
   const { mutateAsync } = save
 
   const flush = useCallback(async () => {
@@ -33,15 +38,15 @@ export function useAutosavedDraft(values: RequestDraftFields, enabled: boolean) 
     const { serialized: now, values: current, enabled: on } = latest.current
     if (!on || now === lastSaved.current) return
     lastSaved.current = now
-    setState((s) => ({ ...s, status: 'saving' }))
+    report((s) => ({ ...s, status: 'saving' }))
     try {
       await mutateAsync(current)
-      setState({ status: 'saved', savedAt: Date.now() })
+      report({ status: 'saved', savedAt: Date.now() })
     } catch {
       lastSaved.current = null
-      setState((s) => ({ ...s, status: 'error' }))
+      report((s) => ({ ...s, status: 'error' }))
     }
-  }, [mutateAsync])
+  }, [mutateAsync, report])
 
   useEffect(() => {
     if (!enabled || serialized === lastSaved.current) return
@@ -51,12 +56,14 @@ export function useAutosavedDraft(values: RequestDraftFields, enabled: boolean) 
 
   // Cerrar o cambiar de pestaña, y salir de la pantalla por el menú, guardan lo pendiente.
   useEffect(() => {
+    mounted.current = true
     const onHide = () => {
       if (document.visibilityState === 'hidden') void flush()
     }
     document.addEventListener('visibilitychange', onHide)
     return () => {
       document.removeEventListener('visibilitychange', onHide)
+      mounted.current = false
       void flush()
     }
   }, [flush])

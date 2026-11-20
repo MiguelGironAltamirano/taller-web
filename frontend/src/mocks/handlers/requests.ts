@@ -230,7 +230,10 @@ export const requestHandlers = [
           break
         case 'restore': {
           // El plazo no corre mientras está cancelada: al restaurarla se corre lo que estuvo cancelada.
-          r.dueAt += Date.now() - lastCancellation(r)!.at
+          const paused = Date.now() - lastCancellation(r)!.at
+          r.dueAt += paused
+          // La fecha estimada que ve el solicitante se corre lo mismo.
+          if (r.requestedDueAt !== undefined) r.requestedDueAt += paused
           r.status = body.to
           pushHistory(r, { from, to: r.status, actor, reason: 'Solicitud restaurada por el solicitante' })
           break

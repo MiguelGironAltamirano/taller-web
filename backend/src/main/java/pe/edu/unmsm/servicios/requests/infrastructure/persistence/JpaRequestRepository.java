@@ -54,6 +54,11 @@ class JpaRequestRepository implements RequestRepository, RequestStateStore {
 	@Override
 	public ServiceRequest update(ServiceRequest request, RequestHistoryEntry entry) {
 		ServiceRequestEntity entity = requests.findById(request.id()).orElseThrow();
+		// Restoring a cancelled request moves its due date by the time it was cancelled; the requester's estimated
+		// date moves just as much (contract «Cancelar y restaurar una solicitud»). Nothing else changes it.
+		if (entry.fromStatus() == RequestStatus.CANCELADA && entity.requestedDueAt != null) {
+			entity.requestedDueAt = entity.requestedDueAt.plus(java.time.Duration.between(entity.dueAt, request.dueAt()));
+		}
 		copyMutableState(request, entity);
 		ServiceRequestEntity stored = requests.saveAndFlush(entity);
 		appendHistory(stored.id, entry);

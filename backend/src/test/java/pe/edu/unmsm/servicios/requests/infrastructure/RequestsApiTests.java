@@ -78,14 +78,18 @@ class RequestsApiTests {
 		jdbc.update("delete from request_history");
 		jdbc.update("delete from service_requests");
 		jdbc.update("delete from request_code_sequences");
-		insertUser(90, "Otra Solicitante", OTHER_STUDENT, "SOLICITANTE", "DOCENTE", null);
-		insertUser(91, "Supervisor Soporte", SUPPORT_SUPERVISOR, "SUPERVISOR", null, 3);
-		insertUser(92, "Técnico Soporte", SUPPORT_TECHNICIAN, "TECNICO", null, 3);
+		insertUser("Otra Solicitante", OTHER_STUDENT, "SOLICITANTE", "DOCENTE", null);
+		insertUser("Supervisor Soporte", SUPPORT_SUPERVISOR, "SUPERVISOR", null, 3);
+		insertUser("Técnico Soporte", SUPPORT_TECHNICIAN, "TECNICO", null, 3);
 	}
 
-	private void insertUser(long id, String name, String email, String role, String requesterType, Integer areaId) {
-		jdbc.update("insert ignore into users (id, full_name, email, password_hash, role, requester_type, area_id, "
-				+ "created_at) values (?, ?, ?, ?, ?, ?, ?, utc_timestamp(6))", id, name, email, DEMO_HASH, role,
+	/**
+	 * Inserts the user if its email is missing. No fixed id: other test classes register users through the API on
+	 * the same database, so an id may already be taken and "insert ignore" would skip the user silently.
+	 */
+	private void insertUser(String name, String email, String role, String requesterType, Integer areaId) {
+		jdbc.update("insert ignore into users (full_name, email, password_hash, role, requester_type, area_id, "
+				+ "created_at) values (?, ?, ?, ?, ?, ?, utc_timestamp(6))", name, email, DEMO_HASH, role,
 				requesterType, areaId);
 	}
 
