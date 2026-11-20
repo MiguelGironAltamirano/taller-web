@@ -43,6 +43,13 @@ public record RequestDetailView(long id, RequestSummaryView summary, long reques
 				.max(Instant::compareTo);
 	}
 
+	/** See {@link RequestSummaryView#asSeenByRequester()}; the internal history entries are dropped too. */
+	public RequestDetailView asSeenByRequester() {
+		return new RequestDetailView(id, summary.asSeenByRequester(), requesterId, areaId, technicianId, closureReason,
+				solution, history.stream().filter(entry -> !entry.internal()).toList(), allowedTransitions,
+				allowedActions, comments, evidences, rating, autoCloseAt);
+	}
+
 	public RequestDetailView withPermissions(List<RequestStatus> transitions, List<RequestAction> actions) {
 		return new RequestDetailView(id, summary, requesterId, areaId, technicianId, closureReason, solution, history,
 				List.copyOf(transitions), List.copyOf(actions), comments, evidences, rating, autoCloseAt);

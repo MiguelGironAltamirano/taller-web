@@ -37,18 +37,24 @@ import pe.edu.unmsm.servicios.requests.domain.Sla;
 class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 
 	private static final String COLUMNS = """
-			select r.id, r.code, r.status, r.created_at, r.due_at, r.description, r.requester_id, r.area_id,
+			select r.id, r.code, r.status, r.created_at, r.due_at,
+			       coalesce(r.requested_due_at, r.due_at) as requested_due_at, r.description, r.requester_id, r.area_id,
 			       r.technician_id, r.closure_reason, r.solution,
-			       c.name as category_name, p.name as priority_name,
+			       c.name as category_name, p.name as priority_name, rp.name as requested_priority_name,
 			       room.name as room_name, pav.name as pavilion_name, fac.name as faculty_name,
 			       u.full_name as requester_name, a.name as area_name, t.full_name as technician_name
 			""";
 
-	/** Every join is on a mandatory foreign key except the technician, so none of them changes the row count. */
+	/**
+	 * Every join is on a mandatory foreign key except the technician, so none of them changes the row count. The
+	 * requested priority and estimated date fall back to the current ones for rows not yet backfilled (see
+	 * V20261119_1000 and V20261119_1100).
+	 */
 	private static final String FROM = """
 			  from service_requests r
 			  join categories c on c.id = r.category_id
 			  join priorities p on p.id = r.priority_id
+			  join priorities rp on rp.id = coalesce(r.requested_priority_id, r.priority_id)
 			  join locations room on room.id = r.location_id
 			  join locations pav on pav.id = room.parent_id
 			  join locations fac on fac.id = pav.parent_id
@@ -73,6 +79,14 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 			RequestSort.DUE, "case when r.status in " + FINISHED + " then 1 else 0 end, r.due_at asc, r.id asc",
 			RequestSort.PRIORITY, "p.sort_order asc, r.created_at desc, r.id desc");
 
+	/** The requester sorts by the priority they chose and by the estimated date instead of the due date. */
+	private static final Map<RequestSort, String> REQUESTER_ORDER = Map.of(
+			RequestSort.NEWEST, ORDER.get(RequestSort.NEWEST),
+			RequestSort.OLDEST, ORDER.get(RequestSort.OLDEST),
+			RequestSort.DUE, "case when r.status in " + FINISHED + " then 1 else 0 end, "
+					+ "coalesce(r.requested_due_at, r.due_at) asc, r.id asc",
+			RequestSort.PRIORITY, "rp.sort_order asc, r.created_at desc, r.id desc");
+
 	private final JdbcTemplate jdbc;
 
 	JdbcRequestQueries(JdbcTemplate jdbc) {
@@ -82,14 +96,15 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 	@Override
 	public PageView<RequestSummaryView> search(RequestScope scope, RequestListCriteria criteria, Instant now) {
 		List<Object> args = new ArrayList<>();
-		String where = scopeClause(scope, args) + filterClause(criteria, now, args);
+		String where = scopeClause(scope, args) + filterClause(criteria, scope.isRequester(), now, args);
 		Long total = jdbc.queryForObject("select count(*)" + FROM + " where " + where, Long.class, args.toArray());
 
 		List<Object> pageArgs = new ArrayList<>(args);
 		pageArgs.add(criteria.size());
 		pageArgs.add((long) criteria.page() * criteria.size());
+		String order = (scope.isRequester() ? REQUESTER_ORDER : ORDER).get(criteria.sort());
 		List<RequestSummaryView> items = jdbc.query(
-				SELECT + " where " + where + " order by " + ORDER.get(criteria.sort()) + " limit ? offset ?",
+				SELECT + " where " + where + " order by " + order + " limit ? offset ?",
 				(rs, row) -> summary(rs, now), pageArgs.toArray());
 		return new PageView<>(items, criteria.page(), criteria.size(), total == null ? 0 : total);
 	}
@@ -158,7 +173,8 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 	 * The optional filters, each one a fixed fragment with {@code ?} placeholders: user input only ever travels as
 	 * a bound parameter. They narrow the scope clause, never widen it.
 	 */
-	private static String filterClause(RequestListCriteria criteria, Instant now, List<Object> args) {
+	private static String filterClause(RequestListCriteria criteria, boolean requester, Instant now,
+			List<Object> args) {
 		StringBuilder where = new StringBuilder();
 		if (!criteria.statuses().isEmpty()) {
 			List<RequestStatus> statuses = criteria.statuses().stream().sorted().toList();
@@ -168,7 +184,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 		}
 		equal(where, args, "r.area_id", criteria.areaId());
 		equal(where, args, "r.category_id", criteria.categoryId());
-		equal(where, args, "r.priority_id", criteria.priorityId());
+		equal(where, args, requester ? "rp.id" : "r.priority_id", criteria.priorityId());
 		equal(where, args, "r.technician_id", criteria.technicianId());
 		if (criteria.unassigned()) {
 			where.append(" and r.technician_id is null");
@@ -221,7 +237,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 	private List<HistoryView> history(long requestId) {
 		return jdbc.query("""
 				select h.from_status, h.to_status, coalesce(actor.full_name, 'Sistema') as actor_name, h.reason, h.note,
-				       h.created_at
+				       h.internal, h.created_at
 				  from request_history h
 				  left join users actor on actor.id = h.actor_id
 				 where h.request_id = ?
@@ -230,7 +246,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 			String from = rs.getString("from_status");
 			return new HistoryView(from == null ? null : RequestStatus.valueOf(from),
 					RequestStatus.valueOf(rs.getString("to_status")), rs.getString("actor_name"),
-					rs.getString("reason"), instant(rs, "created_at"), rs.getString("note"));
+					rs.getString("reason"), instant(rs, "created_at"), rs.getString("note"), rs.getBoolean("internal"));
 		}, requestId);
 	}
 
@@ -244,7 +260,7 @@ class JdbcRequestQueries implements RequestQueries, TechnicianWorkload {
 				faculty + " → " + pavilion + " → " + room, rs.getString("priority_name"), status,
 				instant(rs, "created_at"), dueAt, Sla.isOverdue(status, dueAt, now), rs.getString("description"),
 				rs.getString("requester_name"), rs.getString("area_name"), rs.getString("technician_name"), faculty,
-				pavilion, room);
+				pavilion, room, rs.getString("requested_priority_name"), instant(rs, "requested_due_at"), false);
 	}
 
 	/** Timestamps are stored as UTC wall-clock values (see hibernate.jdbc.time_zone). */

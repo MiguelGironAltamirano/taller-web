@@ -158,11 +158,17 @@ class RequestsApiTests {
 	@Test
 	void dueDateIsRegistrationPlusTheSlaHoursOfThePriority() throws Exception {
 		long[][] priorityAndHours = { { 1, 8 }, { 2, 24 }, { 3, 72 }, { 4, 120 } };
+		String supervisor = api.login(SUPERVISOR);
 		for (long[] entry : priorityAndHours) {
-			HttpResponse<String> response = create(STUDENT, ELECTRICITY, VALID, entry[0]);
-			Instant created = Instant.parse(ApiClient.read(response, "$.createdAt", String.class));
-			Instant due = Instant.parse(ApiClient.read(response, "$.dueAt", String.class));
-			assertThat(Duration.between(created, due)).as("priority " + entry[0]).isEqualTo(Duration.ofHours(entry[1]));
+			HttpResponse<String> created = create(STUDENT, ELECTRICITY, VALID, entry[0]);
+			String code = ApiClient.read(created, "$.code", String.class);
+			// The staff's due date and the requester's estimated date are the same until the priority changes.
+			for (HttpResponse<String> response : List.of(created, api.get("/api/v1/requests/" + code, supervisor))) {
+				Instant registered = Instant.parse(ApiClient.read(response, "$.createdAt", String.class));
+				Instant due = Instant.parse(ApiClient.read(response, "$.dueAt", String.class));
+				assertThat(Duration.between(registered, due)).as("priority " + entry[0])
+						.isEqualTo(Duration.ofHours(entry[1]));
+			}
 		}
 	}
 
@@ -368,7 +374,7 @@ class RequestsApiTests {
 		jdbc.update("update service_requests set status = 'RESUELTA' where code = ?", resolved);
 		jdbc.update("update service_requests set status = 'CERRADA', closure_reason = 'CONFIRMADA' where code = ?",
 				closed);
-		String token = api.login(STUDENT);
+		String token = api.login(SUPERVISOR);
 
 		assertThat(ApiClient.<Boolean>read(api.get("/api/v1/requests/" + pending, token), "$.overdue")).isTrue();
 		assertThat(ApiClient.<Boolean>read(api.get("/api/v1/requests/" + resolved, token), "$.overdue")).isFalse();
@@ -377,6 +383,9 @@ class RequestsApiTests {
 
 		HttpResponse<String> list = api.get("/api/v1/requests", token);
 		assertThat(ApiClient.<List<String>>read(list, "$.items[?(@.overdue==true)].code")).containsExactly(pending);
+		// The requester never sees a request as overdue (contract, "Prioridad que ve el solicitante").
+		assertThat(ApiClient.<Boolean>read(api.get("/api/v1/requests/" + pending, api.login(STUDENT)), "$.overdue"))
+				.isFalse();
 	}
 
 	// ───── Filters, paging and order ─────
@@ -428,9 +437,11 @@ class RequestsApiTests {
 		jdbc.update("update service_requests set due_at = ? where code in (?, ?)", past, pending, resolved);
 		jdbc.update("update service_requests set status = 'RESUELTA' where code = ?", resolved);
 
-		assertThat(listedCodes(STUDENT, "?overdue=true")).containsExactly(pending);
-		assertThat(listedCodes(STUDENT, "?overdue=false")).containsExactlyInAnyOrder(resolved, onTime);
-		assertThat(listedCodes(STUDENT, "?overdue=true&status=RESUELTA")).isEmpty();
+		assertThat(listedCodes(SUPERVISOR, "?overdue=true")).containsExactly(pending);
+		assertThat(listedCodes(SUPERVISOR, "?overdue=false")).containsExactlyInAnyOrder(resolved, onTime);
+		assertThat(listedCodes(SUPERVISOR, "?overdue=true&status=RESUELTA")).isEmpty();
+		// The requester's filter is ignored, so it cannot reveal a priority change.
+		assertThat(listedCodes(STUDENT, "?overdue=true")).containsExactlyInAnyOrder(pending, resolved, onTime);
 	}
 
 	@Test

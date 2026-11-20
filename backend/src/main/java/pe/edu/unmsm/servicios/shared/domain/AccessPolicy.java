@@ -15,6 +15,10 @@ public final class AccessPolicy {
 		return user.id() == ownerId;
 	}
 
+	public static boolean isRequester(AuthenticatedUser user) {
+		return REQUESTER.equals(user.role());
+	}
+
 	public static boolean isSupervisorOfArea(AuthenticatedUser user, long areaId) {
 		return SUPERVISOR.equals(user.role()) && user.areaId() != null && user.areaId() == areaId;
 	}

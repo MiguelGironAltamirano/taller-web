@@ -140,14 +140,17 @@ class AdminCatalogsApiTests {
 		HttpResponse<String> before = api.post("/api/v1/requests", body, requester);
 		assertThat(before.statusCode()).as(before.body()).isEqualTo(201);
 		String code = read(before, "$.code", String.class);
-		String dueBefore = read(before, "$.dueAt", String.class);
+		String dueBefore = read(api.get("/api/v1/requests/" + code, admin), "$.dueAt", String.class);
 
 		HttpResponse<String> updated = api.send("PUT", "/api/v1/admin/priorities/3", "{\"slaHours\":10}", admin);
 
 		assertThat(updated.statusCode()).as(updated.body()).isEqualTo(200);
 		assertThat(read(updated, "$.slaHours", Integer.class)).isEqualTo(10);
-		assertThat(read(api.get("/api/v1/requests/" + code, requester), "$.dueAt", String.class)).isEqualTo(dueBefore);
-		HttpResponse<String> after = api.post("/api/v1/requests", body, requester);
+		assertThat(read(api.get("/api/v1/requests/" + code, admin), "$.dueAt", String.class)).isEqualTo(dueBefore);
+		assertThat(read(api.get("/api/v1/requests/" + code, requester), "$.dueAt", String.class))
+				.as("the requester's estimated date does not move either").isEqualTo(dueBefore);
+		String afterCode = read(api.post("/api/v1/requests", body, requester), "$.code", String.class);
+		HttpResponse<String> after = api.get("/api/v1/requests/" + afterCode, admin);
 		Duration sla = Duration.between(Instant.parse(read(after, "$.createdAt", String.class)),
 				Instant.parse(read(after, "$.dueAt", String.class)));
 		assertThat(sla).isEqualTo(Duration.ofHours(10));

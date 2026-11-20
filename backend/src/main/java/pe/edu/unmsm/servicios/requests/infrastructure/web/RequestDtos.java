@@ -37,13 +37,14 @@ public final class RequestDtos {
 
 	/** Contract summary plus the names the inboxes display (see docs/api/ui-extensions.md). */
 	record SummaryResponse(String code, String categoryName, String locationName, String priorityName, String status,
-			Instant createdAt, Instant dueAt, boolean overdue, String description, String requesterName,
-			String areaName, String technicianName, String facultyName, String pavilionName, String roomName) {
+			Instant createdAt, Instant dueAt, boolean estimatedDue, boolean overdue, String description,
+			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
+			String roomName) {
 
 		static SummaryResponse from(RequestSummaryView v) {
 			return new SummaryResponse(v.code(), v.categoryName(), v.locationName(), v.priorityName(),
-					v.status().name(), v.createdAt(), v.dueAt(), v.overdue(), v.description(), v.requesterName(),
-					v.areaName(), v.technicianName(), v.facultyName(), v.pavilionName(), v.roomName());
+					v.status().name(), v.createdAt(), v.dueAt(), v.estimatedDue(), v.overdue(), v.description(),
+					v.requesterName(), v.areaName(), v.technicianName(), v.facultyName(), v.pavilionName(), v.roomName());
 		}
 
 	}
@@ -70,9 +71,9 @@ public final class RequestDtos {
 	 * module answers its transitions with the updated detail.
 	 */
 	public record DetailResponse(String code, String categoryName, String locationName, String priorityName,
-			String status, Instant createdAt, Instant dueAt, boolean overdue, String description,
-			String requesterName, String areaName, String technicianName, String facultyName, String pavilionName,
-			String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
+			String status, Instant createdAt, Instant dueAt, boolean estimatedDue, boolean overdue,
+			String description, String requesterName, String areaName, String technicianName, String facultyName,
+			String pavilionName, String roomName, PersonRef requester, AreaRef area, PersonRef technician, String closureReason,
 			List<HistoryResponse> history, List<String> allowedTransitions, List<String> allowedActions,
 			List<CommentResponse> comments, List<EvidenceResponse> evidences, String solution, RatingResponse rating,
 			Instant autoCloseAt) {
@@ -82,8 +83,8 @@ public final class RequestDtos {
 			PersonRef technician = d.technicianId() == null ? null
 					: new PersonRef(d.technicianId(), s.technicianName());
 			return new DetailResponse(s.code(), s.categoryName(), s.locationName(), s.priorityName(),
-					s.status().name(), s.createdAt(), s.dueAt(), s.overdue(), s.description(), s.requesterName(),
-					s.areaName(), s.technicianName(), s.facultyName(), s.pavilionName(), s.roomName(),
+					s.status().name(), s.createdAt(), s.dueAt(), s.estimatedDue(), s.overdue(), s.description(),
+					s.requesterName(), s.areaName(), s.technicianName(), s.facultyName(), s.pavilionName(), s.roomName(),
 					new PersonRef(d.requesterId(), s.requesterName()), new AreaRef(d.areaId(), s.areaName()),
 					technician, d.closureReason() == null ? null : d.closureReason().name(),
 					d.history().stream().map(HistoryResponse::from).toList(),

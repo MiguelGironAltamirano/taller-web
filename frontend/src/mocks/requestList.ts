@@ -10,7 +10,7 @@ import {
 } from '../shared/api/types'
 import { normalizeText } from '../shared/lib/format'
 import { getDb, type MockRequest, type MockUser } from './db'
-import { areaIdOf, inScope, summaryOf } from './views'
+import { areaIdOf, inScope, requestedDueAtOf, requestedPriorityIdOf, summaryOf } from './views'
 
 /**
  * Misma semántica que `GET /requests` del backend (`RequestListCriteria` + `JdbcRequestQueries`): filtros con AND
@@ -103,11 +103,15 @@ const limaDayStart = (day: string) => Date.parse(`${day}T00:00:00-05:00`)
 
 const isOverdue = (r: MockRequest, now: number) => !FINISHED.includes(r.status) && r.dueAt < now
 
-function matches(r: MockRequest, s: RequestSummary, f: ParsedListQuery, now: number): boolean {
+/** El solicitante filtra y ordena por la prioridad que eligió y su fecha estimada; el personal, por las vigentes. */
+const priorityFor = (r: MockRequest, requester: boolean) => (requester ? requestedPriorityIdOf(r) : r.priorityId)
+const dueFor = (r: MockRequest, requester: boolean) => (requester ? requestedDueAtOf(r) : r.dueAt)
+
+function matches(r: MockRequest, s: RequestSummary, f: ParsedListQuery, now: number, requester: boolean): boolean {
   if (f.status && !f.status.includes(r.status)) return false
   if (f.areaId !== undefined && areaIdOf(r) !== f.areaId) return false
   if (f.categoryId !== undefined && r.categoryId !== f.categoryId) return false
-  if (f.priorityId !== undefined && r.priorityId !== f.priorityId) return false
+  if (f.priorityId !== undefined && priorityFor(r, requester) !== f.priorityId) return false
   if (f.technicianId !== undefined && r.technicianId !== f.technicianId) return false
   if (f.unassigned && r.technicianId !== null) return false
   if (f.overdue !== undefined && isOverdue(r, now) !== f.overdue) return false
@@ -121,28 +125,33 @@ function matches(r: MockRequest, s: RequestSummary, f: ParsedListQuery, now: num
 }
 
 /** Igual que el backend: cada orden termina en un desempate estable (el número de solicitud). */
-function compare(sort: RequestSortParam) {
+function compare(sort: RequestSortParam, requester: boolean) {
   const newest = (a: MockRequest, b: MockRequest) => b.createdAt - a.createdAt || b.seq - a.seq
   switch (sort) {
     case 'oldest':
       return (a: MockRequest, b: MockRequest) => -newest(a, b)
     case 'due':
       return (a: MockRequest, b: MockRequest) =>
-        Number(FINISHED.includes(a.status)) - Number(FINISHED.includes(b.status)) || a.dueAt - b.dueAt || a.seq - b.seq
+        Number(FINISHED.includes(a.status)) - Number(FINISHED.includes(b.status)) ||
+        dueFor(a, requester) - dueFor(b, requester) ||
+        a.seq - b.seq
     case 'priority':
       // Los ids de prioridad del mock siguen el orden de importancia (1 = Crítica).
-      return (a: MockRequest, b: MockRequest) => a.priorityId - b.priorityId || newest(a, b)
+      return (a: MockRequest, b: MockRequest) => priorityFor(a, requester) - priorityFor(b, requester) || newest(a, b)
     default:
       return newest
   }
 }
 
-export function listRequests(user: MockUser, f: ParsedListQuery, now = Date.now()): Page<RequestSummary> {
+export function listRequests(user: MockUser, query: ParsedListQuery, now = Date.now()): Page<RequestSummary> {
+  const requester = user.role === 'SOLICITANTE'
+  // Como el backend: para el solicitante nada está vencido, así que `overdue` se ignora.
+  const f: ParsedListQuery = requester ? { ...query, overdue: undefined } : query
   const all = getDb()
     .requests.filter((r) => inScope(r, user))
-    .map((r) => ({ r, s: summaryOf(r, now) }))
-    .filter(({ r, s }) => matches(r, s, f, now))
-    .sort((a, b) => compare(f.sort)(a.r, b.r))
+    .map((r) => ({ r, s: summaryOf(r, now, user) }))
+    .filter(({ r, s }) => matches(r, s, f, now, requester))
+    .sort((a, b) => compare(f.sort, requester)(a.r, b.r))
   const start = f.page * f.size
   return {
     items: all.slice(start, start + f.size).map(({ s }) => s),
@@ -160,7 +169,7 @@ export function countRequests(user: MockUser, now = Date.now()): RequestCounts {
   for (const r of getDb().requests.filter((x) => inScope(x, user))) {
     byStatus[r.status]++
     total++
-    if (isOverdue(r, now)) overdue++
+    if (user.role !== 'SOLICITANTE' && isOverdue(r, now)) overdue++
   }
   return { total, overdue, byStatus }
 }

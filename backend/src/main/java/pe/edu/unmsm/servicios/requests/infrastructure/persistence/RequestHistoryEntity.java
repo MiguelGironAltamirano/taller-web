@@ -40,6 +40,10 @@ class RequestHistoryEntity {
 	@Column(length = 200)
 	String note;
 
+	/** Hidden from the requester (priority changes). */
+	@Column(nullable = false)
+	boolean internal;
+
 	@Column(name = "created_at", nullable = false)
 	Instant createdAt;
 
