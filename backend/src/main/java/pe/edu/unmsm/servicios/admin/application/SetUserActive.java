@@ -2,6 +2,7 @@ package pe.edu.unmsm.servicios.admin.application;
 
 import java.time.Clock;
 
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.unmsm.servicios.admin.domain.ManagedUser;
@@ -22,7 +23,9 @@ public class SetUserActive {
 	}
 
 	/** Deactivating ends the user's sessions: their refresh tokens are revoked at once. */
-	@Transactional
+	// Sessions of a user change one at a time (lockSessionsOf); READ_COMMITTED lets the read after that lock see what
+	// the previous login or refresh committed, and keeps MySQL from locking index gaps (see JpaRefreshTokenRepository).
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ManagedUser execute(long actorId, long userId, boolean active) {
 		users.findById(userId).orElseThrow(() -> new ManagedUserNotFoundException(userId));
 		if (actorId == userId && !active) {
@@ -30,6 +33,7 @@ public class SetUserActive {
 		}
 		ManagedUser updated = users.setActive(userId, active);
 		if (!active) {
+			refreshTokens.lockSessionsOf(userId);
 			refreshTokens.revokeAllForUser(userId, clock.instant());
 		}
 		return updated;

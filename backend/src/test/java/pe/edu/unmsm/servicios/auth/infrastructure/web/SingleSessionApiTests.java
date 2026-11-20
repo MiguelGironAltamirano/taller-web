@@ -264,6 +264,43 @@ class SingleSessionApiTests {
 		assertThat(openSessions()).isEqualTo(1);
 	}
 
+	/**
+	 * Found by the load test (infra/k6): the first logins of different users at the same moment deadlocked in MySQL
+	 * (closing the other sessions locked index gaps those users shared) and some answered 500.
+	 */
+	@Test
+	void simultaneousFirstLoginsOfDifferentUsersNeverFail() throws Exception {
+		int users = 20;
+		List<String> emails = new ArrayList<>();
+		for (int i = 0; i < users; i++) {
+			String other = "p" + UUID.randomUUID().toString().replace("-", "").substring(0, 12) + "@unmsm.edu.pe";
+			assertThat(send("POST", "/api/v1/auth/register", "{\"fullName\":\"Pepe Paralelo\",\"email\":\"" + other
+					+ "\",\"password\":\"" + PASSWORD + "\",\"requesterType\":\"ESTUDIANTE\"}", null, null).statusCode())
+					.isEqualTo(201);
+			emails.add(other);
+		}
+		ExecutorService pool = Executors.newFixedThreadPool(users);
+		CountDownLatch start = new CountDownLatch(1);
+		try {
+			List<Future<HttpResponse<String>>> results = new ArrayList<>();
+			for (String other : emails) {
+				results.add(pool.submit(() -> {
+					start.await();
+					return send("POST", "/api/v1/auth/login",
+							"{\"email\":\"" + other + "\",\"password\":\"" + PASSWORD + "\"}", null, null);
+				}));
+			}
+			start.countDown();
+			for (Future<HttpResponse<String>> result : results) {
+				HttpResponse<String> response = result.get();
+				assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+			}
+		}
+		finally {
+			pool.shutdownNow();
+		}
+	}
+
 	@Test
 	void aPasskeyLoginAlsoClosesTheOtherSession() throws Exception {
 		Session pc = login();
