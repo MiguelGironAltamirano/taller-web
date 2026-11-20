@@ -137,13 +137,13 @@ describe('SatisfactionPanel: solicitud resuelta', () => {
   })
 
   it('si el cierre falla, muestra el motivo del servidor y no califica', async () => {
-    const calls = recordCalls({ transitions: () => problem(409, 'Transición no permitida: de CERRADA a CERRADA') })
+    const calls = recordCalls({ transitions: () => problem(409, 'Esta solicitud no puede pasar de «Cerrada» a «Cerrada». Actualiza la página para ver su estado actual') })
     renderPanel(detail())
 
     await userEvent.click(screen.getByRole('radio', { name: '3 estrellas' }))
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y cerrar' }))
 
-    expect(await screen.findByText('Transición no permitida: de CERRADA a CERRADA')).toBeInTheDocument()
+    expect(await screen.findByText('Esta solicitud no puede pasar de «Cerrada» a «Cerrada». Actualiza la página para ver su estado actual.')).toBeInTheDocument()
     expect(calls.map((c) => c.path)).toEqual(['transitions'])
   })
 
@@ -220,7 +220,7 @@ describe('SatisfactionPanel: solicitud cerrada', () => {
     await userEvent.click(screen.getByRole('radio', { name: '3 estrellas' }))
     await userEvent.click(screen.getByRole('button', { name: 'Enviar calificación' }))
 
-    expect(await screen.findByText('Ya calificaste esta solicitud')).toBeInTheDocument()
+    expect(await screen.findByText('Ya calificaste esta solicitud.')).toBeInTheDocument()
   })
 
   it('el personal no puede calificar en nombre del solicitante', () => {

@@ -37,7 +37,7 @@ describe('ToastProvider', () => {
   })
 
   it('un error se anuncia de inmediato (role="alert")', () => {
-    renderToast('No pudimos guardar.', { bad: true })
+    renderToast('No pudimos guardar.', { tone: 'error' })
     const alert = screen.getByRole('alert')
     expect(alert).toHaveTextContent('No se pudo completar')
     expect(alert).toHaveTextContent('No pudimos guardar.')
@@ -51,7 +51,7 @@ describe('ToastProvider', () => {
   it.each([
     ['éxito', undefined, 4000],
     ['información', { tone: 'info' as const }, 5000],
-    ['error', { bad: true }, 7000],
+    ['error', { tone: 'error' as const }, 7000],
   ])('un aviso de %s se lee con calma: dura %s ms', (_, options, duration) => {
     renderToast('Mensaje', options)
     act(() => vi.advanceTimersByTime(duration - 1))

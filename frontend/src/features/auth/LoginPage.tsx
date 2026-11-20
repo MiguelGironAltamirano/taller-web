@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
 import { isPasskeyCancelled, isPasskeySupported } from '../../shared/lib/webauthn'
 import { sessionStore } from '../../shared/session/session-store'
 import { Alert, Avatar, Button, Field, Icon, Input, PasswordInput, useToast } from '../../shared/ui'
@@ -43,7 +43,7 @@ export function LoginPage() {
       if (isPasskeyCancelled(e)) {
         toast('Se canceló el ingreso con huella o passkey.', { tone: 'info' })
       } else {
-        setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos usar tu huella o passkey. Inténtalo de nuevo.')
+        setFormError(errorMessage(e, 'No pudimos usar tu huella o passkey. Inténtalo de nuevo.'))
       }
     } finally {
       setPasskeyBusy(false)
@@ -71,7 +71,7 @@ export function LoginPage() {
       goHome()
     } catch (e) {
       consumeWelcome()
-      setFormError(e instanceof ApiError ? e.detail || e.title : 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
+      setFormError(errorMessage(e, 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'))
     }
   })
 

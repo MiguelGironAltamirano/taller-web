@@ -5,6 +5,7 @@ import { NotificationsPage } from '../features/notifications'
 import { CalendarPage, HomePage, NewRequestPage, RequestDetailPage, RequestListPage } from '../features/requests'
 import { RulesPage } from '../features/triage'
 import { AppLayout } from './layout/AppLayout'
+import { RouteError } from './RouteError'
 
 /**
  * Carga la pantalla al entrar a su ruta (React Router `lazy`), así el paquete inicial no arrastra
@@ -22,6 +23,7 @@ const lazyPage = (load: () => Promise<ComponentType>): Pick<RouteObject, 'lazy'>
 export const appRoutes: RouteObject[] = [
   {
     element: <PublicOnly />,
+    errorElement: <RouteError />,
     children: [
       { path: '/login', element: <LoginPage /> },
       { path: '/registro', element: <RegisterPage /> },
@@ -29,10 +31,15 @@ export const appRoutes: RouteObject[] = [
   },
   {
     element: <RequireAuth />,
+    errorElement: <RouteError />,
     children: [
       {
         element: <AppLayout />,
         children: [
+          {
+            // A failing screen shows RouteError inside the layout, so the navigation stays usable.
+            errorElement: <RouteError />,
+            children: [
           { path: '/', element: <RoleHome /> },
           { path: '/solicitudes', element: <RequestListPage /> },
           { path: '/solicitudes/:code', element: <RequestDetailPage /> },
@@ -67,6 +74,8 @@ export const appRoutes: RouteObject[] = [
             ],
           },
           { path: '*', element: <ErrorPage kind="404" /> },
+            ],
+          },
         ],
       },
     ],

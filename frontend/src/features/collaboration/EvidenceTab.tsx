@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import type { EvidenceItem, RequestDetailView } from '../../shared/domain'
 import { MAX_FILE_BYTES, MAX_FILES } from '../../shared/lib/files'
 import { sessionStore } from '../../shared/session/session-store'
@@ -11,7 +12,8 @@ const ALLOWED_REGEX = /\.(jpe?g|png|pdf)$/i
 /** Pestaña "Evidencias": archivos adjuntos con su descarga y subida autenticada. */
 export function EvidenceTab({ request }: { request: RequestDetailView }) {
   const toast = useToast()
-  const { data: remoteEvidences } = useEvidences(request.code)
+  const evidencesQuery = useEvidences(request.code)
+  const { data: remoteEvidences } = evidencesQuery
   const upload = useUploadEvidence(request.code)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,7 +43,7 @@ export function EvidenceTab({ request }: { request: RequestDetailView }) {
       a.remove()
       URL.revokeObjectURL(url)
     } catch {
-      toast('No pudimos descargar la evidencia.', { bad: true })
+      toast('No pudimos descargar la evidencia. Inténtalo de nuevo en unos segundos.', { tone: 'error' })
     }
   }
 
@@ -69,7 +71,7 @@ export function EvidenceTab({ request }: { request: RequestDetailView }) {
       await upload.mutateAsync(file)
       toast('Evidencia subida correctamente.')
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail || err.title : 'No se pudo subir la evidencia.')
+      setError(errorMessage(err, 'No se pudo subir la evidencia.'))
     } finally {
       e.target.value = ''
     }
@@ -77,7 +79,9 @@ export function EvidenceTab({ request }: { request: RequestDetailView }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {evidences.length === 0 ? (
+      {evidencesQuery.isError && !remoteEvidences ? (
+        <QueryErrorState what="las evidencias" query={evidencesQuery} compact />
+      ) : evidences.length === 0 ? (
         <div className="py-2 text-muted">Esta solicitud no tiene evidencias.</div>
       ) : (
         <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 p-0">

@@ -60,7 +60,7 @@ export function RegisterPage() {
           if (mapped) setError(mapped, { message })
         }
       } else {
-        toast('No pudimos crear la cuenta. Inténtalo de nuevo.', { bad: true })
+        toast('No pudimos crear la cuenta. Inténtalo de nuevo.', { tone: 'error' })
       }
     }
   })

@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 
 export type ToastOptions = {
-  bad?: boolean
+  /** Sin tono, el aviso es de éxito. Los errores llevan `tone: 'error'` y un texto de `errorMessage`. */
   tone?: 'success' | 'error' | 'info'
   /** Título propio; si no, se usa el del tono ("Listo", "Aviso"...). */
   title?: string

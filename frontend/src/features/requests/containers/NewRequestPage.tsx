@@ -4,6 +4,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { buildLocationTree, useCatalogs } from '../../../shared/api/catalogs'
 import { ApiError } from '../../../shared/api/client'
+import { QueryErrorState } from '../../../shared/api/QueryErrorState'
 import type { Priority } from '../../../shared/domain'
 import { useNow } from '../../../shared/hooks/useNow'
 import { cn } from '../../../shared/lib/cn'
@@ -42,7 +43,8 @@ const FIELD_MAP: Record<string, keyof NewRequestValues> = {
 export function NewRequestPage() {
   const navigate = useNavigate()
   const toast = useToast()
-  const { data: catalogs } = useCatalogs()
+  const catalogsQuery = useCatalogs()
+  const { data: catalogs } = catalogsQuery
   const create = useCreateRequest()
   const now = useNow()
   const [files, setFiles] = useState<PickedFile[]>([])
@@ -95,7 +97,7 @@ export function NewRequestPage() {
             if (mapped) setError(mapped, { message })
           }
         }
-        toast('Revisa los campos marcados', { bad: true })
+        toast('Revisa los campos marcados', { tone: 'error' })
         return
       }
       // The request exists from here on: evidences go to it afterwards and a failed upload never undoes it.
@@ -106,13 +108,13 @@ export function NewRequestPage() {
       setCreated(res.code)
       if (failed) {
         toast(`Solicitud ${res.code} registrada, pero no pudimos adjuntar ${failed} evidencia(s). Súbelas desde el detalle.`, {
-          bad: true,
+          tone: 'error',
         })
       } else {
         toast(`Solicitud ${res.code} registrada`)
       }
     },
-    () => toast('Revisa los campos marcados', { bad: true }),
+    () => toast('Revisa los campos marcados', { tone: 'error' }),
   )
 
   if (created) {
@@ -148,6 +150,11 @@ export function NewRequestPage() {
   return (
     <>
       <PageHeader icon="plus" title="Nueva solicitud" subtitle="Los campos con * son obligatorios." />
+      {catalogsQuery.isError && !catalogs && (
+        <Card>
+          <QueryErrorState what="las categorías, prioridades y ubicaciones" query={catalogsQuery} compact />
+        </Card>
+      )}
       <form onSubmit={onSubmit} noValidate className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[2_1_560px] flex-col gap-3.5">
           <Card className="flex flex-col gap-3 p-4">

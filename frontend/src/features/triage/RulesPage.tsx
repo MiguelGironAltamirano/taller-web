@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useCatalogs } from '../../shared/api/catalogs'
 import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import type { TriageRuleDto } from '../../shared/api/types'
 import { PRIORITIES, type Priority } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
@@ -62,7 +64,7 @@ function RuleDrawer({ rule, onClose }: { rule: TriageRuleDto | null; onClose: ()
         }
         return
       }
-      setError('root', { message: e instanceof ApiError ? e.detail || e.title : 'No pudimos guardar la regla.' })
+      setError('root', { message: errorMessage(e, 'No pudimos guardar la regla.') })
     }
   })
 
@@ -111,7 +113,8 @@ function RuleDrawer({ rule, onClose }: { rule: TriageRuleDto | null; onClose: ()
 /** Gestión de reglas de triage (spec §5: triage, prioridad S) con un probador de descripciones. */
 export function RulesPage() {
   const toast = useToast()
-  const { data: rules = [], isLoading } = useTriageRules()
+  const rulesQuery = useTriageRules()
+  const { data: rules = [], isLoading, isError } = rulesQuery
   const save = useSaveRule()
   const remove = useDeleteRule()
   const [editing, setEditing] = useState<TriageRuleDto | 'new' | null>(null)
@@ -151,7 +154,8 @@ export function RulesPage() {
       <div className="flex flex-wrap items-start gap-3.5">
         <Card className="min-w-0 flex-[2_1_560px] overflow-hidden">
           {isLoading && <SkeletonRows count={4} rowClass="h-12" />}
-          {!isLoading && rules.length === 0 && (
+          {isError && <QueryErrorState what="las reglas" query={rulesQuery} compact />}
+          {!isLoading && !isError && rules.length === 0 && (
             <EmptyState icon="zap" title="Aún no hay reglas" description="Crea una regla para sugerir categoría y prioridad." compact />
           )}
           {rules.length > 0 && (

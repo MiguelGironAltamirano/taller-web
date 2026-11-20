@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { useNow } from '../../../shared/hooks/useNow'
 import { cn } from '../../../shared/lib/cn'
 import { dateShort, dateWeekday, timeShort } from '../../../shared/lib/format'
+import { QueryErrorState } from '../../../shared/api/QueryErrorState'
 import { Button, Card, Icon, IconButton, PageHeader, PriorityBadge, type IconName } from '../../../shared/ui'
 import { useSessionUser } from '../../auth'
 import { useRequestRows } from '../api'
@@ -56,7 +57,8 @@ export function CalendarPage() {
   const now = useNow()
   const user = useSessionUser()
   const unseen = useUnseenCodes()
-  const { data: rows } = useRequestRows()
+  const rowsQuery = useRequestRows()
+  const { data: rows } = rowsQuery
   const [offset, setOffset] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
 
@@ -94,6 +96,11 @@ export function CalendarPage() {
   return (
     <>
       <PageHeader icon="calendar" title="Calendario de vencimientos" subtitle="Tus solicitudes según su fecha límite de atención" />
+      {rowsQuery.isError && !rows && (
+        <Card>
+          <QueryErrorState what="tus solicitudes" query={rowsQuery} compact />
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat icon="alert" label="Vencidas" value={stats.overdue} tone="bg-err-bg text-err-fg" />

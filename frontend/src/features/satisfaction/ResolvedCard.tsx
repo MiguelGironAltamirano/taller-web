@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
 import type { RequestDetailView } from '../../shared/domain'
 import { dateLong } from '../../shared/lib/format'
 import { Alert, Button, Modal, ModalActions, StarRating, Textarea, useToast } from '../../shared/ui'
@@ -29,9 +29,9 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
       const result = await confirmSolution.mutateAsync(score ? { score, comment: comment.trim() || undefined } : null)
       if (!score) toast('Solicitud cerrada.')
       else if (result.rated) toast('Solicitud cerrada. Gracias por tu calificación.')
-      else toast('Solicitud cerrada, pero no pudimos guardar tu calificación. Puedes volver a enviarla.', { bad: true })
+      else toast('Solicitud cerrada, pero no pudimos guardar tu calificación. Puedes volver a enviarla.', { tone: 'error' })
     } catch (e) {
-      toast(e instanceof ApiError ? e.detail || e.title : 'No pudimos cerrar la solicitud.', { bad: true })
+      toast(errorMessage(e, 'No pudimos cerrar la solicitud.'), { tone: 'error' })
     }
   }
 
@@ -46,7 +46,7 @@ export function ResolvedCard({ request }: { request: RequestDetailView }) {
       setRejecting(false)
       toast('Solución rechazada. La solicitud volvió a En atención.')
     } catch (err) {
-      setReasonError(err instanceof ApiError ? err.detail || err.title : 'No pudimos rechazar la solución.')
+      setReasonError(errorMessage(err, 'No pudimos rechazar la solución.'))
     }
   }
 

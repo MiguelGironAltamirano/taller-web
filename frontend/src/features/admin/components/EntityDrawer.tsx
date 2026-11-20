@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, type DefaultValues, type Path, type Resolver } from 'react-hook-form'
 import type { ZodType } from 'zod'
 import { ApiError } from '../../../shared/api/client'
+import { errorMessage } from '../../../shared/api/errors'
 import { Alert, Button, Field, Input, Modal, ModalActions, Select } from '../../../shared/ui'
 
 export type FieldDef = {
@@ -41,7 +42,7 @@ export function EntityDrawer<V extends Record<string, string>>({ title, fields, 
       if (e instanceof ApiError && e.fieldErrors) {
         for (const [field, message] of Object.entries(e.fieldErrors)) setError(field as Path<V>, { message })
       }
-      setError('root', { message: e instanceof ApiError ? e.detail || e.title : 'No pudimos guardar los cambios.' })
+      setError('root', { message: errorMessage(e, 'No pudimos guardar los cambios.') })
     }
   })
 
