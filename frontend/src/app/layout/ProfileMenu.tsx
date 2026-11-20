@@ -9,6 +9,7 @@ type ProfileMenuProps = {
   placement: 'sidebar' | 'topbar'
   collapsed: boolean
   onChangePassword: () => void
+  onPasskeys: () => void
   onToggleTheme: () => void
   onLogout: () => void
   onClose: () => void
@@ -33,7 +34,17 @@ function Item({ icon, label, onClick, danger }: ItemProps) {
   )
 }
 
-export function ProfileMenu({ user, dark, placement, collapsed, onChangePassword, onToggleTheme, onLogout, onClose }: ProfileMenuProps) {
+export function ProfileMenu({
+  user,
+  dark,
+  placement,
+  collapsed,
+  onChangePassword,
+  onPasskeys,
+  onToggleTheme,
+  onLogout,
+  onClose,
+}: ProfileMenuProps) {
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
@@ -52,6 +63,7 @@ export function ProfileMenu({ user, dark, placement, collapsed, onChangePassword
           </div>
         </div>
         <Item icon="lock" label="Cambiar contraseña" onClick={onChangePassword} />
+        <Item icon="fingerprint" label="Huella y passkeys" onClick={onPasskeys} />
         <Item icon={dark ? 'sun' : 'moon'} label={dark ? 'Modo claro' : 'Modo oscuro'} onClick={onToggleTheme} />
         <Item icon="logout" label="Cerrar sesión" onClick={onLogout} danger />
       </div>

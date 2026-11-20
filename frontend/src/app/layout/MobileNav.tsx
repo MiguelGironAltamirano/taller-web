@@ -54,12 +54,13 @@ type DrawerProps = {
   dark: boolean
   onClose: () => void
   onChangePassword: () => void
+  onPasskeys: () => void
   onToggleTheme: () => void
   onLogout: () => void
 }
 
 /** Cajón lateral con el menú completo (móvil). */
-export function MobileDrawer({ role, counts, dark, onClose, onChangePassword, onToggleTheme, onLogout }: DrawerProps) {
+export function MobileDrawer({ role, counts, dark, onClose, onChangePassword, onPasskeys, onToggleTheme, onLogout }: DrawerProps) {
   const rowClass = 'h-12 rounded-lg border-0 bg-transparent px-3 text-left text-fg'
   return (
     <>
@@ -81,6 +82,9 @@ export function MobileDrawer({ role, counts, dark, onClose, onChangePassword, on
           <div className="mt-2 flex flex-col gap-0.5 border-t border-line pt-2">
             <button type="button" className={rowClass} onClick={onChangePassword}>
               Cambiar contraseña
+            </button>
+            <button type="button" className={rowClass} onClick={onPasskeys}>
+              Huella y passkeys
             </button>
             <button type="button" className={rowClass} onClick={onToggleTheme}>
               {dark ? 'Modo claro' : 'Modo oscuro'}

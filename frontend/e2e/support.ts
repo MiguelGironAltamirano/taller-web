@@ -23,7 +23,7 @@ export async function login(page: Page, account: { email: string; home?: string 
   await page.goto('/login')
   await page.getByLabel('Correo').fill(account.email)
   await page.getByLabel('Contraseña').fill(password)
-  await page.getByRole('button', { name: 'Ingresar' }).click()
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
   if (account.home) await expect(page).toHaveURL(new RegExp(`${account.home}$`))
   else await expect(page).not.toHaveURL(/\/login$/)
 }

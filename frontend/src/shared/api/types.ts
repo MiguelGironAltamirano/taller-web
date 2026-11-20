@@ -14,6 +14,12 @@ export type ClosureReason = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMAT
 export type UserSummary = { id: number; fullName: string; email: string; role: Role; areaId: number | null }
 export type TokenResponse = { accessToken: string; expiresIn: number; user: UserSummary }
 
+/** Opciones de una ceremonia WebAuthn (docs/api/passkeys-v1.md): `publicKey` va tal cual al navegador. */
+export type PasskeyOptions<T> = { challengeId: string; publicKey: T }
+
+/** `synced`: el proveedor la respalda en la nube, así que borrarla aquí no la quita de otros equipos. */
+export type PasskeyDto = { id: number; name: string; createdAt: string; lastUsedAt: string | null; synced: boolean }
+
 export type RegisterBody = { fullName: string; email: string; password: string; requesterType: RequesterType }
 export type LoginBody = { email: string; password: string }
 export type ChangePasswordBody = { currentPassword: string; newPassword: string }

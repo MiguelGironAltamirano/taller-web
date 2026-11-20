@@ -9,7 +9,7 @@ for (const [role, user] of Object.entries(demoUsers)) {
 
     await page.getByLabel('Correo').fill(user.email)
     await page.getByLabel('Contraseña').fill(DEMO_PASSWORD)
-    await page.getByRole('button', { name: 'Ingresar' }).click()
+    await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
 
     await expect(page).toHaveURL(new RegExp(`${user.home}$`))
     await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeHidden()

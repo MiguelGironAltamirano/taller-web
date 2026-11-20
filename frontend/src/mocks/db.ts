@@ -67,6 +67,16 @@ export type MockNotification = {
 
 export type MockTriageRule = { id: number; keywords: string[]; categoryId: number; priorityId: number; active: boolean }
 
+/** Passkey registrada: el mock no verifica firmas, solo asocia el id de la credencial con su usuario. */
+export type MockPasskey = {
+  id: number
+  userId: number
+  credentialId: string
+  name: string
+  createdAt: number
+  lastUsedAt: number | null
+}
+
 export type MockDb = {
   now: number
   nextId: number
@@ -79,6 +89,7 @@ export type MockDb = {
   requests: MockRequest[]
   notifications: MockNotification[]
   rules: MockTriageRule[]
+  passkeys: MockPasskey[]
   config: AppConfig
 }
 
@@ -335,6 +346,7 @@ export function createSeed(now: number): MockDb {
     requests,
     notifications,
     rules,
+    passkeys: [],
     config: { autoCloseHours: 72, emailNotifications: false, triageSuggestions: true },
   }
 }
