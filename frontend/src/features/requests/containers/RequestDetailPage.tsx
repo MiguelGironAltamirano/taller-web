@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../../shared/api/client'
+import { QueryErrorState } from '../../../shared/api/QueryErrorState'
 import { REQUEST_STATES, stateIndex, type RequestDetailView } from '../../../shared/domain'
 import { useNow } from '../../../shared/hooks/useNow'
 import { dateLong } from '../../../shared/lib/format'
@@ -8,7 +9,6 @@ import {
   Avatar,
   Button,
   Card,
-  ErrorState,
   Icon,
   IconButton,
   type IconName,
@@ -187,12 +187,7 @@ export function RequestDetailPage() {
   if (error instanceof ApiError && (error.status === 404 || error.status === 403)) return <ErrorPage kind="404" />
   if (!request) {
     return (
-      <ErrorState
-        title="No pudimos cargar la solicitud"
-        description="Revisa tu conexión y vuelve a intentarlo."
-        onRetry={() => void refetch()}
-        retrying={isFetching}
-      />
+      <QueryErrorState what="la solicitud" query={{ error, refetch, isFetching }} />
     )
   }
 

@@ -49,7 +49,7 @@ describe('Usuarios (administración)', () => {
     const ownRow = (await screen.findByText(ADMIN)).closest('[role="row"]') as HTMLElement
     await user.click(within(ownRow).getByRole('button', { name: 'Desactivar' }))
 
-    expect(await screen.findByText('No puedes desactivar tu propia cuenta')).toBeInTheDocument()
+    expect(await screen.findByText('No puedes desactivar tu propia cuenta.')).toBeInTheDocument()
     expect(within(ownRow).getByText('Activo')).toBeInTheDocument()
   })
 })

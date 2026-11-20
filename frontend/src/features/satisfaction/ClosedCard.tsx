@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
 import type { RequestDetailView } from '../../shared/domain'
 import { Button, StarRating, Textarea, useToast } from '../../shared/ui'
 import { RATING_COMMENT_MAX } from '../../shared/api/types'
@@ -78,7 +78,7 @@ function RateForm({ code, solution }: { code: string; solution: string | null })
       await rate.mutateAsync({ score, comment: comment.trim() || undefined })
       toast('Gracias por tu calificación.')
     } catch (err) {
-      toast(err instanceof ApiError ? err.detail || err.title : 'No pudimos guardar tu calificación.', { bad: true })
+      toast(errorMessage(err, 'No pudimos guardar tu calificación.'), { tone: 'error' })
     }
   }
 

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
+import { QueryErrorState } from '../../../shared/api/QueryErrorState'
 import { useNow } from '../../../shared/hooks/useNow'
 import { dateFull, dateLong } from '../../../shared/lib/format'
 import { Card, CardTitle, Icon, KpiCard, PageHeader } from '../../../shared/ui'
@@ -15,7 +16,8 @@ export function HomePage() {
   const user = useSessionUser()
   const navigate = useNavigate()
   const now = useNow()
-  const { data: rows } = useRequestRows()
+  const rowsQuery = useRequestRows()
+  const { data: rows } = rowsQuery
   const { data: notifications = [] } = useNotifications()
 
   const views = useMemo(() => (rows ?? []).map((r) => withSla(r, now)), [rows, now])
@@ -37,6 +39,11 @@ export function HomePage() {
         title={`Hola, ${user.name.split(' ')[0]}`}
         subtitle={`Resumen de tus solicitudes al ${dateFull(now)}.`}
       />
+      {rowsQuery.isError && !rows && (
+        <Card>
+          <QueryErrorState what="el resumen de tus solicitudes" query={rowsQuery} compact />
+        </Card>
+      )}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
         {kpis.map((k) => (
           <KpiCard

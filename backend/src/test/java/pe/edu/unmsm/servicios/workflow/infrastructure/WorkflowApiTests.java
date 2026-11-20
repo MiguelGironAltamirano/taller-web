@@ -184,7 +184,11 @@ class WorkflowApiTests {
 	void aTransitionOutsideTheTableIsAConflictAndTheRequestDoesNotChange() throws Exception {
 		String code = createRequest(STUDENT);
 
-		ApiClient.assertProblem(transition(SUPERVISOR, code, "{\"to\":\"RESUELTA\",\"reason\":\"saltando pasos\"}"), 409);
+		HttpResponse<String> skipping = transition(SUPERVISOR, code, "{\"to\":\"RESUELTA\",\"reason\":\"saltando pasos\"}");
+		ApiClient.assertProblem(skipping, 409);
+		// The message names the states as the interface shows them, never their codes.
+		assertThat(ApiClient.<String>read(skipping, "$.detail")).isEqualTo(
+				"Esta solicitud no puede pasar de «Registrada» a «Resuelta». Actualiza la página para ver su estado actual");
 		ApiClient.assertProblem(transition(SUPERVISOR, code, to("REGISTRADA")), 409);
 		ApiClient.assertProblem(transition(SUPERVISOR, code, assign(3)), 409);
 		ApiClient.assertProblem(transition(STUDENT, code, to("RESUELTA")), 409);

@@ -1,4 +1,5 @@
 import { useCatalogs } from '../../shared/api/catalogs'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import { cn } from '../../shared/lib/cn'
 import { Avatar, Card, EmptyState, GridRow, GridTable, PageHeader, ProgressBar, SkeletonRows } from '../../shared/ui'
 import { useSessionUser } from '../auth'
@@ -10,7 +11,8 @@ const COLUMNS = '2fr 1fr 1fr 1fr 1.6fr'
 export function TeamPage() {
   const user = useSessionUser()
   const { data: catalogs } = useCatalogs()
-  const { data: team = [], isLoading } = useTeam()
+  const teamQuery = useTeam()
+  const { data: team = [], isLoading, isError } = teamQuery
   const area = catalogs?.areas.find((a) => a.id === user.areaId)?.name ?? ''
 
   return (
@@ -18,7 +20,8 @@ export function TeamPage() {
       <PageHeader icon="users" title="Equipo" subtitle={`Carga actual por técnico · ${area}`} />
       <Card className="overflow-hidden">
         {isLoading && <SkeletonRows count={4} />}
-        {!isLoading && team.length === 0 && <EmptyState icon="users" title="Sin técnicos en tu área" compact />}
+        {isError && <QueryErrorState what="el equipo" query={teamQuery} compact />}
+        {!isLoading && !isError && team.length === 0 && <EmptyState icon="users" title="Sin técnicos en tu área" compact />}
         {team.length > 0 && (
           <GridTable columns={COLUMNS} minWidth="680px" label="Carga por técnico" heads={['Técnico', 'Asignadas', 'En atención', 'Vencidas', 'Carga']}>
             {team.map((t) => {

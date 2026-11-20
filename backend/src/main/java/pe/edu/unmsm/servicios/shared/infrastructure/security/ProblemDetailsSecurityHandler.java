@@ -25,13 +25,13 @@ class ProblemDetailsSecurityHandler implements AuthenticationEntryPoint, AccessD
 			write(response, 401, "Unauthorized", SESSION_REPLACED_DETAIL, "SESSION_REPLACED");
 			return;
 		}
-		write(response, 401, "Unauthorized", "Authentication is required", null);
+		write(response, 401, "Unauthorized", "Tu sesión no es válida o expiró. Vuelve a iniciar sesión", null);
 	}
 
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException ex)
 			throws IOException {
-		write(response, 403, "Forbidden", "You do not have permission to perform this action", null);
+		write(response, 403, "Forbidden", "No tienes permiso para realizar esta acción", null);
 	}
 
 	private static boolean wasReplaced(Throwable ex) {

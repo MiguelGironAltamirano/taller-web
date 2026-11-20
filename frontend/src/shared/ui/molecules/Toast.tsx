@@ -15,8 +15,7 @@ const TONE: Record<Tone, { icon: IconName; badge: string; bar: string; title: st
 }
 
 function toastTone(opts?: ToastOptions): Tone {
-  if (opts?.tone) return opts.tone
-  return opts?.bad ? 'error' : 'success'
+  return opts?.tone ?? 'success'
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {

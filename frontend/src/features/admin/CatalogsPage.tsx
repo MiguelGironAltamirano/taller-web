@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { buildLocationTree, useCatalogs } from '../../shared/api/catalogs'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import { REQUEST_STATES, type Priority } from '../../shared/domain'
 import { Button, Card, EmptyState, GridRow, GridTable, PageHeader, PriorityBadge, SkeletonRows, StatusBadge, Tabs, useToast } from '../../shared/ui'
 import {
@@ -39,7 +40,8 @@ const TABS = [
 /** Catálogos del sistema: áreas, categorías, prioridades (SLA), ubicaciones y estados (solo lectura). */
 export function CatalogsPage() {
   const toast = useToast()
-  const { data: catalogs, isLoading } = useCatalogs()
+  const catalogsQuery = useCatalogs()
+  const { data: catalogs, isLoading } = catalogsQuery
   const states = useStates()
   const [tab, setTab] = useState<TabId>('areas')
   const [drawer, setDrawer] = useState<Drawer>(null)
@@ -65,7 +67,7 @@ export function CatalogsPage() {
   const remove = (run: () => Promise<unknown>, ok: string) =>
     run().then(
       () => toast(ok),
-      (e: unknown) => toast(e instanceof ApiError ? e.detail || e.title : 'No pudimos eliminar.', { bad: true }),
+      (e: unknown) => toast(errorMessage(e, 'No pudimos eliminar.'), { tone: 'error' }),
     )
 
   const action = (label: string, onClick: () => void) => (
@@ -100,6 +102,8 @@ export function CatalogsPage() {
       <Tabs label="Catálogos" items={TABS} value={tab} onChange={setTab} />
       <Card className="overflow-hidden">
         {isLoading && <SkeletonRows count={4} />}
+        {tab !== 'states' && catalogsQuery.isError && <QueryErrorState what="los catálogos" query={catalogsQuery} compact />}
+        {tab === 'states' && states.isError && <QueryErrorState what="los estados" query={states} compact />}
 
         {catalogs && tab === 'areas' && (
           <GridTable columns="2fr 1fr 1fr 120px" label="Áreas" heads={['Área', 'Categorías', 'Técnicos', '']}>

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { ApiError, apiDelete, apiGet, apiPost } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import type { PasskeyDto, PasskeyOptions } from '../../shared/api/types'
 import { dateLong } from '../../shared/lib/format'
 import {
@@ -41,7 +43,7 @@ export function PasskeysModal({ open, onClose }: Props) {
       toast('Passkey eliminada')
       void queryClient.invalidateQueries({ queryKey: PASSKEYS_KEY })
     },
-    onError: () => toast('No pudimos eliminar la passkey. Inténtalo de nuevo.', { tone: 'error' }),
+    onError: (error) => toast(errorMessage(error, 'No pudimos eliminar la passkey. Inténtalo de nuevo.'), { tone: 'error' }),
   })
 
   const close = () => {
@@ -80,10 +82,8 @@ export function PasskeysModal({ open, onClose }: Props) {
         setFormError('Se canceló el registro en el dispositivo. Puedes intentarlo de nuevo.')
       } else if (error instanceof ApiError && error.fieldErrors?.currentPassword) {
         setPasswordError(error.fieldErrors.currentPassword)
-      } else if (error instanceof ApiError) {
-        setFormError(error.detail || error.title)
       } else {
-        setFormError('No pudimos registrar la passkey. Inténtalo de nuevo.')
+        setFormError(errorMessage(error, 'No pudimos registrar la passkey. Inténtalo de nuevo.'))
       }
     } finally {
       setAdding(false)
@@ -113,7 +113,7 @@ export function PasskeysModal({ open, onClose }: Props) {
         {list.isLoading ? (
           <SkeletonRows count={2} rowClass="h-11" />
         ) : list.isError ? (
-          <Alert>No pudimos cargar tus passkeys.</Alert>
+          <QueryErrorState what="tus passkeys" query={list} compact />
         ) : passkeys.length === 0 ? (
           <p className="m-0 rounded-lg border border-dashed border-line-strong px-3 py-3 text-[13px] text-muted">
             Aún no registraste ninguna.

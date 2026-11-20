@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import type { CommentItem, RequestDetailView } from '../../shared/domain'
 import { dateLong } from '../../shared/lib/format'
 import { Avatar, Icon, Input, useToast } from '../../shared/ui'
@@ -13,7 +14,8 @@ const MAX_LENGTH = 1000
 export function CommentsTab({ request, currentUserName }: Props) {
   const toast = useToast()
   const add = useAddComment(request.code)
-  const { data: remoteComments } = useComments(request.code)
+  const commentsQuery = useComments(request.code)
+  const { data: remoteComments } = commentsQuery
   const [text, setText] = useState('')
 
   const comments: CommentItem[] = remoteComments
@@ -33,13 +35,17 @@ export function CommentsTab({ request, currentUserName }: Props) {
       await add.mutateAsync({ text: value })
       setText('')
     } catch (err) {
-      toast(err instanceof ApiError ? err.detail || err.title : 'No pudimos enviar el comentario.', { bad: true })
+      toast(errorMessage(err, 'No pudimos enviar el comentario.'), { tone: 'error' })
     }
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {comments.length === 0 && <div className="text-muted">Aún no hay comentarios.</div>}
+      {commentsQuery.isError && !remoteComments ? (
+        <QueryErrorState what="los comentarios" query={commentsQuery} compact />
+      ) : (
+        comments.length === 0 && <div className="text-muted">Aún no hay comentarios.</div>
+      )}
       {comments.map((c) => (
         <div key={c.id} className="flex gap-2.5">
           <Avatar name={c.author} size="md" tone={c.author === currentUserName ? 'primary' : 'neutral'} />

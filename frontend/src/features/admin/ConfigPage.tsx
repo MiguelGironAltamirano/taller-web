@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import type { AppConfig } from '../../shared/api/types'
 import { Alert, Button, Card, Field, Input, PageHeader, Skeleton, Switch, useToast } from '../../shared/ui'
 import { useConfig, useSaveConfig } from './api'
@@ -27,7 +28,7 @@ function ConfigForm({ config }: { config: AppConfig }) {
       await save.mutateAsync({ autoCloseHours: Number(v.autoCloseHours), emailNotifications: email, triageSuggestions: triage })
       toast('Configuración guardada')
     } catch (e) {
-      setError('root', { message: e instanceof ApiError ? e.detail || e.title : 'No pudimos guardar la configuración.' })
+      setError('root', { message: errorMessage(e, 'No pudimos guardar la configuración.') })
     }
   })
 
@@ -58,11 +59,20 @@ function ConfigForm({ config }: { config: AppConfig }) {
 
 /** Parámetros generales: cierre automático, correo y sugerencias de triage. */
 export function ConfigPage() {
-  const { data } = useConfig()
+  const config = useConfig()
+  const { data } = config
   return (
     <>
       <PageHeader icon="cog" title="Configuración" subtitle="Parámetros generales del sistema" />
-      {data ? <ConfigForm config={data} /> : <Skeleton className="h-64 max-w-[640px]" />}
+      {data ? (
+        <ConfigForm config={data} />
+      ) : config.isError ? (
+        <Card className="max-w-[640px]">
+          <QueryErrorState what="la configuración" query={config} />
+        </Card>
+      ) : (
+        <Skeleton className="h-64 max-w-[640px]" />
+      )}
     </>
   )
 }

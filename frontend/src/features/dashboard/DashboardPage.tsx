@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useCatalogs } from '../../shared/api/catalogs'
 import { toRequestRow } from '../../shared/api/mappers'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import type { DashboardRange } from '../../shared/api/types'
 import { useNow } from '../../shared/hooks/useNow'
 import { buildCsv } from '../../shared/lib/csv'
@@ -40,7 +41,8 @@ export function DashboardPage() {
   const [range, setRange] = useState<DashboardRange>('30')
   const [areaId, setAreaId] = useState<number | null>(null)
   const isAdmin = user.role === 'administrador'
-  const { data, isLoading } = useIndicators(range, isAdmin ? areaId : null)
+  const indicators = useIndicators(range, isAdmin ? areaId : null)
+  const { data, isLoading } = indicators
 
   const exportCsv = () => {
     if (!data) return
@@ -90,7 +92,11 @@ export function DashboardPage() {
         }
       />
 
-      {isLoading || !data ? (
+      {indicators.isError && !data ? (
+        <Card>
+          <QueryErrorState what="los indicadores" query={indicators} />
+        </Card>
+      ) : isLoading || !data ? (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3" role="status" aria-label="Cargando indicadores">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-28" />

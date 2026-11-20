@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useCatalogs } from '../../shared/api/catalogs'
+import { errorMessage } from '../../shared/api/errors'
 import { useNow } from '../../shared/hooks/useNow'
 import { downloadText } from '../../shared/lib/download'
 import { Button, Card, GridRow, GridTable, PageHeader, useToast } from '../../shared/ui'
@@ -16,12 +17,21 @@ export function ReportsPage() {
   const toast = useToast()
   const now = useNow()
   const { data: catalogs } = useCatalogs()
-  const { data: rows } = useRequestRows()
-  const { data: team = [] } = useTeam()
+  const rowsQuery = useRequestRows()
+  const teamQuery = useTeam()
+  const { data: rows } = rowsQuery
+  const { data: team = [] } = teamQuery
   const views = useMemo(() => (rows ?? []).map((r) => withSla(r, now)), [rows, now])
   const area = catalogs?.areas.find((a) => a.id === user.areaId)?.name ?? ''
 
   const download = (id: ReportId, title: string) => {
+    // A report built without its data would look complete but be empty: better to say it could not be prepared.
+    const failed = rowsQuery.isError ? rowsQuery : teamQuery.isError ? teamQuery : null
+    if (failed) {
+      toast(errorMessage(failed.error, 'No pudimos preparar el reporte. Inténtalo de nuevo.'), { tone: 'error' })
+      void failed.refetch()
+      return
+    }
     const { filename, csv } = buildReport(id, views, team)
     downloadText(filename, csv)
     toast(`${title} exportado (CSV)`)
@@ -40,7 +50,7 @@ export function ReportsPage() {
                 <Button size="sm" onClick={() => download(r.id, r.title)}>
                   CSV
                 </Button>
-                <Button size="sm" onClick={() => toast('La exportación a PDF aún no está disponible.', { bad: true })}>
+                <Button size="sm" onClick={() => toast('La exportación a PDF aún no está disponible.', { tone: 'error' })}>
                   PDF
                 </Button>
               </div>

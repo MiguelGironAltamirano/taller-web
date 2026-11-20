@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
 import { useCatalogs } from '../../shared/api/catalogs'
 import { requestsKey } from '../../shared/api/keys'
 import type { Priority, WorkflowActionId } from '../../shared/domain'
@@ -59,7 +60,10 @@ export function ActionModal({ action, target, onClose }: Props) {
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         // Otro usuario cambió la solicitud antes: se avisa y se refresca para mostrar su estado actual.
-        toast('Transición no permitida', { bad: true })
+        toast('Otra persona actualizó esta solicitud mientras la revisabas. Ya ves su estado actual.', {
+          tone: 'error',
+          title: 'La solicitud cambió',
+        })
         await client.invalidateQueries({ queryKey: requestsKey })
         onClose()
         return
@@ -70,7 +74,7 @@ export function ActionModal({ action, target, onClose }: Props) {
         if (f.reason) setError('reason', { message: f.reason })
         if (f.priorityId) setError('priorityId', { message: f.priorityId })
       }
-      setError('root', { message: e instanceof ApiError ? e.detail || e.title : 'No pudimos completar la acción.' })
+      setError('root', { message: errorMessage(e, 'No pudimos completar la acción.') })
     }
   })
 

@@ -170,7 +170,7 @@ describe('Login with fingerprint or passkey', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Ingresar con huella o passkey' }))
 
-    expect(await screen.findByText('No pudimos verificar tu passkey')).toBeInTheDocument()
+    expect(await screen.findByText('No pudimos verificar tu passkey.')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument()
   })
 

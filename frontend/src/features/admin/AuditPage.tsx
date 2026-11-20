@@ -3,6 +3,7 @@ import { dateLong } from '../../shared/lib/format'
 import { Button, Card, EmptyState, GridRow, GridTable, PageHeader, SkeletonRows, useToast } from '../../shared/ui'
 import { buildCsv } from '../../shared/lib/csv'
 import { downloadText } from '../../shared/lib/download'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import { useAudit } from './api'
 
 const COLUMNS = '130px 1.3fr 130px 3fr'
@@ -11,7 +12,8 @@ const COLUMNS = '130px 1.3fr 130px 3fr'
 export function AuditPage() {
   const toast = useToast()
   const [q, setQ] = useState('')
-  const { data: events = [], isLoading } = useAudit(q.trim())
+  const audit = useAudit(q.trim())
+  const { data: events = [], isLoading, isError } = audit
 
   const exportCsv = () => {
     downloadText(
@@ -43,7 +45,8 @@ export function AuditPage() {
       />
       <Card className="overflow-hidden">
         {isLoading && <SkeletonRows count={6} />}
-        {!isLoading && events.length === 0 && <EmptyState icon="shield" title="Sin resultados" compact />}
+        {isError && <QueryErrorState what="la auditoría" query={audit} compact />}
+        {!isLoading && !isError && events.length === 0 && <EmptyState icon="shield" title="Sin resultados" compact />}
         {events.length > 0 && (
           <GridTable columns={COLUMNS} minWidth="860px" label="Auditoría" heads={['Fecha', 'Usuario', 'Solicitud', 'Cambio']}>
             {events.map((e) => (

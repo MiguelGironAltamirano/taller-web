@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import { cn } from '../../shared/lib/cn'
 import { dateLong, dayGroup } from '../../shared/lib/format'
 import { useNow } from '../../shared/hooks/useNow'
@@ -16,7 +17,8 @@ const GROUPS = ['Hoy', 'Ayer', 'Anteriores'] as const
 export function NotificationsPage() {
   const navigate = useNavigate()
   const now = useNow()
-  const { data = [], isLoading } = useNotifications()
+  const notifications = useNotifications()
+  const { data = [], isLoading, isError } = notifications
   const unread = useUnreadCount()
   const markRead = useMarkRead()
   const markAll = useMarkAllRead()
@@ -41,7 +43,12 @@ export function NotificationsPage() {
         }
       />
       <Tabs variant="pill" label="Filtro de notificaciones" items={FILTERS} value={filter} onChange={setFilter} />
-      {!isLoading && groups.length === 0 && (
+      {isError && !notifications.data && (
+        <Card>
+          <QueryErrorState what="tus notificaciones" query={notifications} />
+        </Card>
+      )}
+      {!isLoading && !(isError && !notifications.data) && groups.length === 0 && (
         <Card>
           <EmptyState
             icon="bell"

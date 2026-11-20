@@ -2,6 +2,25 @@
 
 Base: `/api/v1`. JSON en UTF-8. Fechas ISO-8601 en UTC. Errores: `application/problem+json` con `type`, `title`, `status`, `detail` y, en validación, `errors: { campo: mensaje }`.
 
+### Errores
+
+- **`detail` siempre en español**, escrito para la persona: qué pasó y qué puede hacer, sin códigos ni nombres internos ([guía de mensajes](../calidad/guia-mensajes-de-error.md)). `title` es técnico y el frontend no lo muestra.
+- **Errores generales**, cuando ningún módulo los maneja:
+
+| Caso | Estado | `detail` |
+|---|---|---|
+| Sin sesión o sesión vencida | `401` | Tu sesión no es válida o expiró. Vuelve a iniciar sesión |
+| Sin permiso | `403` | No tienes permiso para realizar esta acción |
+| Cuerpo que no es JSON válido | `400` | Los datos enviados no tienen el formato esperado |
+| Falta un parámetro | `400` | Falta el dato «nombre» |
+| Parámetro con tipo incorrecto | `400` | El dato «nombre» no es válido |
+| Ruta que no existe | `404` | La dirección solicitada no existe |
+| Método no admitido | `405` | Esta operación no está disponible |
+| Tipo de contenido no admitido | `415` | El formato de los datos enviados no es compatible |
+| Archivo demasiado grande (backend o nginx) | `413` o `400` | El archivo supera el tamaño máximo permitido de 5 MB, con `errors.file` |
+| Error inesperado | `500` | Ocurrió un error inesperado. Inténtalo de nuevo en unos minutos (sin la causa; queda en el registro del servidor) |
+| El backend no responde (nginx) | `503` | El servicio no está disponible en este momento. Inténtalo de nuevo en unos minutos |
+
 ## Autenticación
 
 | Método y ruta | Acceso | Cuerpo | Respuesta |

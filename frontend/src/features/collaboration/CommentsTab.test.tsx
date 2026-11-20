@@ -119,6 +119,6 @@ describe('CommentsTab', () => {
     await user.type(input, 'Texto rechazado')
     await user.click(screen.getByRole('button', { name: 'Enviar' }))
 
-    expect(await screen.findByText('El comentario no puede superar los 1000 caracteres')).toBeInTheDocument()
+    expect(await screen.findByText('El comentario no puede superar los 1000 caracteres.')).toBeInTheDocument()
   })
 })

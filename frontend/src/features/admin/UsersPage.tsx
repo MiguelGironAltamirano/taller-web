@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useCatalogs } from '../../shared/api/catalogs'
-import { ApiError } from '../../shared/api/client'
+import { errorMessage } from '../../shared/api/errors'
+import { QueryErrorState } from '../../shared/api/QueryErrorState'
 import type { AdminUser, Role } from '../../shared/api/types'
 import { roleFromApi } from '../../shared/api/mappers'
 import { ROLE_LABELS, ROLES } from '../../shared/domain'
@@ -32,7 +33,8 @@ const belongsToArea = (role: string) => role === 'TECNICO' || role === 'SUPERVIS
 export function UsersPage() {
   const toast = useToast()
   const { data: catalogs } = useCatalogs()
-  const { data: users = [], isLoading } = useAdminUsers()
+  const usersQuery = useAdminUsers()
+  const { data: users = [], isLoading, isError } = usersQuery
   const save = useSaveUser()
   const setActive = useSetUserActive()
   const [q, setQ] = useState('')
@@ -82,7 +84,8 @@ export function UsersPage() {
       </div>
       <Card className="overflow-hidden">
         {isLoading && <SkeletonRows count={5} />}
-        {!isLoading && visible.length === 0 && <EmptyState icon="users" title="Sin resultados" compact />}
+        {isError && <QueryErrorState what="los usuarios" query={usersQuery} compact />}
+        {!isLoading && !isError && visible.length === 0 && <EmptyState icon="users" title="Sin resultados" compact />}
         {visible.length > 0 && (
           <GridTable columns={COLUMNS} minWidth="920px" label="Usuarios" heads={['Nombre', 'Correo', 'Rol', 'Área', 'Estado', '']}>
             {visible.map((u) => (
@@ -109,7 +112,7 @@ export function UsersPage() {
                         {
                           onSuccess: () => toast(u.active ? 'Usuario desactivado' : 'Usuario activado'),
                           onError: (e) =>
-                            toast(e instanceof ApiError ? e.detail || e.title : 'No pudimos cambiar el estado.', { bad: true }),
+                            toast(errorMessage(e, 'No pudimos cambiar el estado.'), { tone: 'error' }),
                         },
                       )
                     }

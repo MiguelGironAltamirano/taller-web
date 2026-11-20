@@ -33,7 +33,7 @@ export function KanbanBoard<T extends KanbanItem>({ items, role, onOpen, attenti
     if (!item || item.state === to) return
     const action = resolveTransition(role, item.state, to)
     if (!action) {
-      toast(`Transición no válida: ${item.state} → ${to}`, { bad: true })
+      toast(`No puedes mover una solicitud de «${item.state}» a «${to}».`, { tone: 'error', title: 'Movimiento no permitido' })
       return
     }
     setPending({ action, item })
