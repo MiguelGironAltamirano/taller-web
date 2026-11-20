@@ -26,7 +26,27 @@ export function inScope(r: MockRequest, user: MockUser): boolean {
   }
 }
 
+/** Días durante los que el solicitante puede restaurar una solicitud cancelada (como el backend). */
+export const RESTORE_DAYS = 7
+
+/** La última cancelación según el historial: el estado que tenía y cuándo. */
+export function lastCancellation(r: MockRequest): { previous: RequestStatus; at: number } | null {
+  const entry = [...r.history].reverse().find((h) => h.toStatus === 'CANCELADA' && h.fromStatus)
+  return entry ? { previous: entry.fromStatus!, at: entry.createdAt } : null
+}
+
+export function restorableUntil(r: MockRequest): number | null {
+  const c = lastCancellation(r)
+  return c ? c.at + RESTORE_DAYS * 86_400_000 : null
+}
+
 export function allowedActionsFor(r: MockRequest, user: MockUser): WorkflowActionId[] {
+  if (user.role === 'SOLICITANTE') {
+    if (r.requesterId !== user.id) return []
+    if (r.status === 'REGISTRADA' || r.status === 'EN_EVALUACION') return ['cancel']
+    const until = restorableUntil(r)
+    return r.status === 'CANCELADA' && until !== null && Date.now() <= until ? ['restore'] : []
+  }
   if (user.role === 'SUPERVISOR' && areaIdOf(r) !== user.areaId) return []
   if (user.role === 'TECNICO' && r.technicianId !== user.id) return []
   return availableActions(roleKey(user), statusToState(r.status))
@@ -41,11 +61,16 @@ const ACTION_TARGET: Record<WorkflowActionId, RequestStatus | null> = {
   noproc: 'CERRADA',
   dup: 'CERRADA',
   prio: null,
+  cancel: 'CANCELADA',
+  restore: null,
 }
 
 export function allowedTransitionsFor(r: MockRequest, user: MockUser): RequestStatus[] {
   if (user.role === 'SOLICITANTE' && r.requesterId === user.id && r.status === 'RESUELTA') {
     return ['CERRADA', 'EN_ATENCION']
+  }
+  if (user.role === 'SOLICITANTE' && r.status === 'CANCELADA' && allowedActionsFor(r, user).includes('restore')) {
+    return [lastCancellation(r)!.previous]
   }
   const targets = allowedActionsFor(r, user)
     .map((a) => ACTION_TARGET[a])

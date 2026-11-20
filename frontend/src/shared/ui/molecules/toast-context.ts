@@ -5,6 +5,8 @@ export type ToastOptions = {
   tone?: 'success' | 'error' | 'info'
   /** Título propio; si no, se usa el del tono ("Listo", "Aviso"...). */
   title?: string
+  /** Un botón en el aviso, como «Deshacer»: se ejecuta una vez y cierra el aviso. Con acción, el aviso dura 10 s. */
+  action?: { label: string; onClick: () => void }
 }
 export type ToastApi = { toast: (message: string, options?: ToastOptions) => void }
 

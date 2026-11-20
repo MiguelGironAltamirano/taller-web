@@ -1,7 +1,17 @@
 import type { RequestState, Role } from '../../../shared/domain'
 
 /** Acciones de flujo disponibles (spec §6). */
-export type WorkflowAction = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
+export type WorkflowAction =
+  | 'eval'
+  | 'assign'
+  | 'reassign'
+  | 'prio'
+  | 'noproc'
+  | 'dup'
+  | 'start'
+  | 'resolve'
+  | 'cancel'
+  | 'restore'
 
 export type ActionConfig = {
   title: string
@@ -46,6 +56,19 @@ export const ACTION_CONFIG: Record<WorkflowAction, ActionConfig> = {
     reasonLabel: 'Comentario de solución',
     cta: 'Marcar como resuelta',
   },
+  cancel: {
+    title: 'Cancelar solicitud',
+    message: 'Dejará de atenderse. Podrás restaurarla durante 7 días desde el detalle de la solicitud.',
+    needReason: true,
+    reasonLabel: '¿Por qué la cancelas?',
+    cta: 'Cancelar solicitud',
+    danger: true,
+  },
+  restore: {
+    title: 'Restaurar solicitud',
+    message: 'Volverá al estado que tenía y su plazo de atención se correrá lo que estuvo cancelada.',
+    cta: 'Restaurar',
+  },
 }
 
 const SUPERVISOR_ACTIONS: Record<RequestState, WorkflowAction[]> = {
@@ -55,6 +78,7 @@ const SUPERVISOR_ACTIONS: Record<RequestState, WorkflowAction[]> = {
   'En atención': ['prio'],
   Resuelta: [],
   Cerrada: [],
+  Cancelada: [],
 }
 
 /** Acciones que el rol puede ejecutar sobre una solicitud en ese estado. */
@@ -98,6 +122,10 @@ export function actionsFromTransitions(state: RequestState, allowed: RequestStat
       if (state === 'Registrada' && can('En evaluación')) actions.push('eval')
       if (state === 'En evaluación' && can('Asignada')) actions.push('assign')
       if (can('Cerrada')) actions.push('noproc', 'dup')
+      if (can('Cancelada')) actions.push('cancel')
+      break
+    case 'Cancelada':
+      if (allowed.length > 0) actions.push('restore')
       break
     case 'Asignada':
       if (can('Asignada')) actions.push('reassign')

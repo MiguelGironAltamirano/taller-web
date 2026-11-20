@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { RequestDetailView, WorkflowActionId } from '../../shared/domain'
+import { stateToStatus } from '../../shared/api/mappers'
+import { lastCancellation, type RequestDetailView, type WorkflowActionId } from '../../shared/domain'
 import { Button, Icon, type IconName } from '../../shared/ui'
 import { ActionModal } from './ActionModal'
 import { ACTION_CONFIG } from './lib/transitions'
@@ -13,6 +14,8 @@ const ACTION_ICON: Record<WorkflowActionId, IconName> = {
   dup: 'copy',
   start: 'play',
   resolve: 'checkCircle',
+  cancel: 'ban',
+  restore: 'inbox',
 }
 
 /**
@@ -53,7 +56,15 @@ export function ActionsPanel({ request }: { request: RequestDetailView }) {
           ))}
         </div>
       )}
-      {active && <ActionModal action={active} target={request} onClose={() => setActive(null)} />}
+      {active && (
+        <ActionModal
+          action={active}
+          target={request}
+          // Cancelar ofrece «Deshacer» (volver al estado actual); restaurar vuelve al que tenía al cancelarse.
+          restoreTo={stateToStatus(active === 'restore' ? (lastCancellation(request)?.previous ?? request.state) : request.state)}
+          onClose={() => setActive(null)}
+        />
+      )}
     </section>
   )
 }

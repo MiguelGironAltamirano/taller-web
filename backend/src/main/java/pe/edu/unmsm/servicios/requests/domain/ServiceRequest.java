@@ -59,6 +59,15 @@ public record ServiceRequest(Long id, String code, long requesterId, long catego
 	}
 
 	/**
+	 * The same request restored to {@code status} after being cancelled for {@code cancelledFor}: its due date moves
+	 * that much, because the SLA does not run while a request is cancelled.
+	 */
+	public ServiceRequest restoredTo(RequestStatus newStatus, java.time.Duration cancelledFor, Instant now) {
+		return new ServiceRequest(id, code, requesterId, categoryId, locationId, description, priorityId, newStatus,
+				areaId, technicianId, closureReason, solution, createdAt, dueAt.plus(cancelledFor), now);
+	}
+
+	/**
 	 * The same request with another priority. The due date is recalculated from the registration date with the SLA
 	 * of the new priority, as if it had been registered with it. A resolved or closed request no longer changes.
 	 */
@@ -74,8 +83,12 @@ public record ServiceRequest(Long id, String code, long requesterId, long catego
 	/** Fails with a conflict when the status no longer admits a priority change. */
 	public void requirePriorityChangeAllowed() {
 		if (!status.allowsPriorityChange()) {
-			throw new RequestNotModifiableException("La solicitud ya está " + (status == RequestStatus.RESUELTA
-					? "resuelta" : "cerrada") + " y no admite cambios de prioridad");
+			String state = switch (status) {
+				case RESUELTA -> "resuelta";
+				case CANCELADA -> "cancelada";
+				default -> "cerrada";
+			};
+			throw new RequestNotModifiableException("La solicitud ya está " + state + " y no admite cambios de prioridad");
 		}
 	}
 

@@ -139,7 +139,8 @@ class RequestsApiTests {
 		assertThat(ApiClient.<Object>read(response, "$.history[0].fromStatus")).isNull();
 		assertThat(ApiClient.<String>read(response, "$.history[0].toStatus")).isEqualTo("REGISTRADA");
 		assertThat(ApiClient.<String>read(response, "$.history[0].actorName")).isEqualTo("Estudiante Demo");
-		assertThat(ApiClient.<List<Object>>read(response, "$.allowedTransitions")).isEmpty();
+		// The only thing the requester may do with a new request is cancel it.
+		assertThat(ApiClient.<List<Object>>read(response, "$.allowedTransitions")).containsExactly("CANCELADA");
 	}
 
 	@Test

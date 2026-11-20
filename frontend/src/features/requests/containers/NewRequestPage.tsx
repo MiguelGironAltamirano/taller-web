@@ -1,14 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { buildLocationTree, useCatalogs } from '../../../shared/api/catalogs'
 import { ApiError } from '../../../shared/api/client'
 import { QueryErrorState } from '../../../shared/api/QueryErrorState'
+import type { RequestDraft, RequestDraftFields } from '../../../shared/api/types'
 import type { Priority } from '../../../shared/domain'
 import { useNow } from '../../../shared/hooks/useNow'
 import { cn } from '../../../shared/lib/cn'
-import { dateLong } from '../../../shared/lib/format'
+import { dateLong, timeShort } from '../../../shared/lib/format'
 import type { PickedFile } from '../../../shared/lib/files'
 import {
   Button,
@@ -22,14 +23,27 @@ import {
   Select,
   StatusBadge,
   Textarea,
+  Alert,
   useToast,
 } from '../../../shared/ui'
 import { uploadEvidences } from '../../collaboration'
 import { SuggestionBanner, useTriageSuggestion } from '../../triage'
-import { useCreateRequest } from '../api'
+import { useCreateRequest, useDiscardRequestDraft, useRequestDraft } from '../api'
+import { useAutosavedDraft } from '../lib/useAutosavedDraft'
 import { DESCRIPTION_MAX, newRequestSchema, type NewRequestValues } from '../schemas/newRequest'
 
 const EMPTY: Partial<NewRequestValues> = { category: '', faculty: '', pavilion: '', room: '', description: '', priority: undefined }
+
+/** Los valores del borrador guardado, como valores del formulario (una prioridad vacía es «sin elegir»). */
+const fromDraft = (d: RequestDraft): NewRequestValues =>
+  ({
+    category: d.category,
+    description: d.description,
+    priority: (d.priority || undefined) as Priority | undefined,
+    faculty: d.faculty,
+    pavilion: d.pavilion,
+    room: d.room,
+  }) as NewRequestValues
 
 // Campos del contrato de la API → campos del formulario.
 const FIELD_MAP: Record<string, keyof NewRequestValues> = {
@@ -42,6 +56,7 @@ const FIELD_MAP: Record<string, keyof NewRequestValues> = {
 /** Formulario "Nueva solicitud" (solicitante): validación en vivo, sugerencia de triage, evidencias y resumen lateral. */
 export function NewRequestPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const toast = useToast()
   const catalogsQuery = useCatalogs()
   const { data: catalogs } = catalogsQuery
@@ -50,6 +65,12 @@ export function NewRequestPage() {
   const [files, setFiles] = useState<PickedFile[]>([])
   const [ignored, setIgnored] = useState(false)
   const [created, setCreated] = useState<string | null>(null)
+  /** Hubo cambios hechos por la persona: solo entonces se guarda (un formulario vacío no pisa un borrador). */
+  const [interacted, setInteracted] = useState(false)
+  /** El borrador guardado que se le ofrece retomar; `resumed` muestra el aviso de las evidencias. */
+  const [offer, setOffer] = useState<'pending' | 'resolved' | 'resumed'>('pending')
+  const draft = useRequestDraft()
+  const discard = useDiscardRequestDraft()
 
   const {
     register,
@@ -75,6 +96,58 @@ export function NewRequestPage() {
   const categoryInfo = catalogs?.categories.find((c) => c.name === category)
   const area = catalogs?.areas.find((a) => a.id === categoryInfo?.areaId)?.name
   const sla = catalogs?.priorities.find((p) => p.name === priority)?.slaHours
+
+  const draftValues: RequestDraftFields = {
+    category: category ?? '',
+    description: description ?? '',
+    priority: priority ?? '',
+    faculty: faculty ?? '',
+    pavilion: pavilion ?? '',
+    room: room ?? '',
+  }
+  // Escribir sin retomar el borrador ofrecido empieza una solicitud nueva, que lo reemplaza (así lo dice la oferta).
+  const offerPending = offer === 'pending' && Boolean(draft.data) && !interacted
+  const autosave = useAutosavedDraft(draftValues, interacted && !created)
+
+  const resume = (saved: RequestDraft) => {
+    reset(fromDraft(saved))
+    autosave.markSaved({
+      category: saved.category,
+      description: saved.description,
+      priority: saved.priority,
+      faculty: saved.faculty,
+      pavilion: saved.pavilion,
+      room: saved.room,
+    })
+    setInteracted(true)
+    setOffer('resumed')
+  }
+
+  // Desde el inicio («Retomar borrador») se llega con ?retomar=1: el borrador se aplica sin preguntar.
+  const resumeNow = params.get('retomar') === '1'
+  useEffect(() => {
+    if (resumeNow && offer === 'pending' && draft.data) resume(draft.data)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega el borrador
+  }, [resumeNow, draft.data])
+
+  const discardDraft = () => {
+    discard.mutate(undefined, {
+      onError: () => toast('No pudimos descartar el borrador. Inténtalo de nuevo.', { tone: 'error' }),
+    })
+    setOffer('resolved')
+  }
+
+  /** Cancelar no pierde lo escrito: se guarda como borrador y se dice dónde retomarlo. */
+  const cancel = async () => {
+    if (interacted) {
+      await autosave.flush()
+      toast('Puedes retomarlo desde «Nueva solicitud» o desde el inicio.', {
+        title: 'Guardamos tu borrador',
+        action: { label: 'Descartar borrador', onClick: () => discard.mutate() },
+      })
+    }
+    navigate('/solicitudes')
+  }
 
   const suggestion = useTriageSuggestion(description ?? '')
   const showSuggestion = suggestion && !ignored && (suggestion.category !== category || suggestion.priority !== priority)
@@ -133,6 +206,7 @@ export function NewRequestPage() {
               reset(EMPTY as NewRequestValues)
               setFiles([])
               setIgnored(false)
+              setInteracted(false)
               setCreated(null)
             }}
           >
@@ -155,7 +229,37 @@ export function NewRequestPage() {
           <QueryErrorState what="las categorías, prioridades y ubicaciones" query={catalogsQuery} compact />
         </Card>
       )}
-      <form onSubmit={onSubmit} noValidate className="flex flex-wrap items-start gap-3.5">
+      {offerPending && draft.data && (
+        <section
+          aria-label="Borrador sin enviar"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-info-bg px-4 py-3 text-info-fg"
+        >
+          <Icon name="file" size={18} className="shrink-0" />
+          <p className="m-0 min-w-0 flex-1 text-[13px]">
+            <b>Tienes un borrador sin enviar</b>, guardado el {dateLong(Date.parse(draft.data.updatedAt))}. Si empiezas
+            una solicitud nueva, el borrador se reemplazará.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={discardDraft}>
+              Descartar
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => resume(draft.data!)}>
+              Retomar
+            </Button>
+          </div>
+        </section>
+      )}
+      {offer === 'resumed' && (
+        <Alert tone="info">
+          Retomaste tu borrador. Las evidencias no se guardan en el borrador: si tenías fotos o PDF, vuelve a adjuntarlos.
+        </Alert>
+      )}
+      <form
+        onSubmit={onSubmit}
+        onChangeCapture={() => setInteracted(true)}
+        noValidate
+        className="flex flex-wrap items-start gap-3.5"
+      >
         <div className="flex min-w-0 flex-[2_1_560px] flex-col gap-3.5">
           <Card className="flex flex-col gap-3 p-4">
             <CardTitle className="mb-0">Datos de la solicitud</CardTitle>
@@ -199,8 +303,22 @@ export function NewRequestPage() {
                 <SuggestionBanner
                   suggestion={suggestion}
                   onAccept={() => {
+                    // Ctrl+Z del navegador no deshace este cambio (lo hace la app, no la persona): se ofrece «Deshacer».
+                    const previous = { category: category ?? '', priority }
                     setValue('category', suggestion.category, { shouldValidate: isSubmitted })
                     setValue('priority', suggestion.priority, { shouldValidate: isSubmitted })
+                    setInteracted(true)
+                    toast(`Categoría ${suggestion.category} y prioridad ${suggestion.priority}.`, {
+                      title: 'Sugerencia aplicada',
+                      action: {
+                        label: 'Deshacer',
+                        onClick: () => {
+                          setValue('category', previous.category, { shouldValidate: isSubmitted })
+                          setValue('priority', previous.priority as Priority, { shouldValidate: isSubmitted })
+                          setIgnored(true)
+                        },
+                      },
+                    })
                   }}
                   onIgnore={() => setIgnored(true)}
                 />
@@ -215,7 +333,10 @@ export function NewRequestPage() {
                     type="button"
                     role="radio"
                     aria-checked={priority === p.name}
-                    onClick={() => setValue('priority', p.name as Priority, { shouldValidate: true })}
+                    onClick={() => {
+                      setValue('priority', p.name as Priority, { shouldValidate: true })
+                      setInteracted(true)
+                    }}
                     className={cn(
                       'rounded-[10px] border-2 bg-surface px-3 py-2.5 text-left text-fg',
                       priority === p.name ? 'border-primary' : 'border-line hover:border-line-strong hover:bg-surface2',
@@ -320,7 +441,14 @@ export function NewRequestPage() {
           <Button type="submit" variant="primary" size="lg" loading={isSubmitting || create.isPending}>
             {isSubmitting || create.isPending ? 'Registrando…' : 'Registrar solicitud'}
           </Button>
-          <Button onClick={() => navigate('/solicitudes')}>Cancelar</Button>
+          <Button onClick={() => void cancel()}>Cancelar</Button>
+          <p aria-live="polite" className="m-0 min-h-4 text-center text-xs text-muted">
+            {autosave.status === 'saving' && 'Guardando borrador…'}
+            {autosave.status === 'saved' && autosave.savedAt && `Borrador guardado · ${timeShort(autosave.savedAt)}`}
+            {autosave.status === 'error' && (
+              <span className="text-err-fg">No pudimos guardar el borrador. Lo intentaremos de nuevo al seguir escribiendo.</span>
+            )}
+          </p>
         </Card>
       </form>
     </>

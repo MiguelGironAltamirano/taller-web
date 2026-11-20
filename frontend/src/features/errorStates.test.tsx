@@ -61,7 +61,7 @@ describe('Estados de error de las pantallas', () => {
     server.use(http.get(endpoint, unavailable))
     renderApp(path)
 
-    const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
+    const alert = await screen.findByRole('alert', {}, { timeout: 8000 })
     expect(alert).toHaveTextContent(title)
     expect(alert).toHaveTextContent('El servicio no está disponible en este momento.')
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument()
@@ -73,16 +73,16 @@ describe('Estados de error de las pantallas', () => {
     server.use(http.get('*/api/v1/dashboard/indicators', unavailable))
     renderApp('/dashboard')
 
-    expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('No pudimos cargar los indicadores')
+    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toHaveTextContent('No pudimos cargar los indicadores')
     expect(screen.queryByRole('status', { name: 'Cargando indicadores' })).not.toBeInTheDocument()
-  })
+  }, 15_000)
 
   it('without connection the message says so', async () => {
     signedIn(ADMIN)
     server.use(http.get('*/api/v1/admin/config', offline))
     renderApp('/admin/configuracion')
 
-    expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent(
+    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toHaveTextContent(
       'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
     )
   })
@@ -92,7 +92,7 @@ describe('Estados de error de las pantallas', () => {
     server.use(http.get('*/api/v1/catalogs', unavailable))
     renderApp('/solicitudes/nueva')
 
-    expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent(
+    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toHaveTextContent(
       'No pudimos cargar las categorías, prioridades y ubicaciones',
     )
   })

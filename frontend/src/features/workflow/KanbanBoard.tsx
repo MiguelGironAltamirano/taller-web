@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { REQUEST_STATES, type RequestRow, type RequestState, type Role, type WorkflowActionId } from '../../shared/domain'
+import { FLOW_STATES, type RequestRow, type RequestState, type Role, type WorkflowActionId } from '../../shared/domain'
 import type { SlaStatus } from './lib/sla'
 import { Icon, OverdueBadge, PriorityBadge, StatusBadge, useToast } from '../../shared/ui'
 import { cn } from '../../shared/lib/cn'
@@ -41,7 +41,7 @@ export function KanbanBoard<T extends KanbanItem>({ items, role, onOpen, attenti
 
   return (
     <div className="flex items-start gap-2.5 overflow-x-auto bg-surface2 p-3">
-      {REQUEST_STATES.map((state) => {
+      {FLOW_STATES.map((state) => {
         const cards = items.filter((i) => i.state === state)
         return (
           <div

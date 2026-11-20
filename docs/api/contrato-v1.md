@@ -77,7 +77,7 @@ Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNIC
 | `status` | Uno o varios `RequestStatus`, repetidos (`status=A&status=B`) o separados por comas (`status=A,B`) | El estado es alguno de los indicados |
 | `areaId`, `categoryId`, `priorityId`, `technicianId` | Entero positivo | Igualdad con el área, la categoría, la prioridad o el técnico asignado |
 | `unassigned` | `true` / `false` | `true`: sin técnico asignado. No se combina con `technicianId` (`400`) |
-| `overdue` | `true` / `false` | Misma regla que el campo `overdue`: no llegó a `RESUELTA` ni `CERRADA` y `dueAt` ya pasó. `false` devuelve las que no están vencidas |
+| `overdue` | `true` / `false` | Misma regla que el campo `overdue`: no llegó a `RESUELTA`, `CERRADA` ni `CANCELADA` y `dueAt` ya pasó. `false` devuelve las que no están vencidas |
 | `q` | Texto de hasta 100 caracteres; se recorta | Aparece en el código, la descripción, el nombre del solicitante, la categoría o el ambiente. No distingue mayúsculas ni tildes (colación de MySQL); `%` y `_` se tratan como caracteres literales |
 | `from`, `to` | Fecha `AAAA-MM-DD` | Fecha de registro entre ambos días, **inclusive**, en hora de Lima (`America/Lima`); se puede enviar solo uno. `to` no puede ser anterior a `from` (el mismo día sí vale) |
 | `sort` | `newest` (por defecto), `oldest`, `due`, `priority` | `newest`/`oldest`: por fecha de registro. `due`: primero las pendientes y, dentro de cada grupo, la fecha límite más próxima. `priority`: de mayor a menor prioridad y luego las más recientes. Cada orden termina en un desempate estable, así las páginas no se solapan |
@@ -86,7 +86,7 @@ Visibilidad: `SOLICITANTE` ve las propias; `SUPERVISOR` las de su área; `TECNIC
 
 - Un valor inválido (estado u orden desconocido, id no numérico, booleano distinto de `true`/`false`, fecha mal formada, `page` negativa, `size` fuera de rango, `to` anterior a `from`) responde `400` `ProblemDetail` con `errors` por parámetro, todos a la vez. `page` y `size` fuera de rango ya no se ajustan en silencio.
 - **Decisión documentada (integración de filtros):** `from` y `to` son días de calendario de Lima, no instantes UTC, para que la interfaz envíe directamente lo que elige el usuario en un selector de fecha y el servidor aplique la zona horaria (la misma que usa el año del código). Es la única excepción a la convención de fechas ISO-8601 en UTC, y solo afecta a estos dos parámetros de consulta; las respuestas siguen en UTC.
-- `GET /requests/counts` devuelve los contadores de la bandeja sobre todo lo visible para el usuario, sin otros filtros: `total`, `overdue` y `byStatus` con los seis estados (cero si no hay ninguna).
+- `GET /requests/counts` devuelve los contadores de la bandeja sobre todo lo visible para el usuario, sin otros filtros: `total`, `overdue` y `byStatus` con los siete estados (cero si no hay ninguna).
 
 Transiciones (`to`, quién, requisito):
 
@@ -100,6 +100,32 @@ Transiciones (`to`, quién, requisito):
 | `RESUELTA` | `CERRADA` | Solicitante dueño | — (motivo de cierre `CONFIRMADA`) |
 | `RESUELTA` | `EN_ATENCION` | Solicitante dueño | `reason` |
 | `REGISTRADA`, `EN_EVALUACION` | `CERRADA` | Supervisor del área | `reason` ∈ `NO_PROCEDE`, `DUPLICADA` |
+| `REGISTRADA`, `EN_EVALUACION` | `CANCELADA` | Solicitante dueño | `reason` (por qué la cancela) |
+| `CANCELADA` | El estado que tenía al cancelarse | Solicitante dueño | Dentro de los 7 días siguientes a la cancelación |
+
+### Cancelar y restaurar una solicitud
+
+- **Hasta cuándo se cancela.** El solicitante puede cancelar su solicitud mientras está `REGISTRADA` o `EN_EVALUACION`, es decir, **antes de que se le asigne un técnico**. Desde `ASIGNADA` hay un técnico comprometido: si ya no la necesita, lo pide en un comentario y decide el supervisor.
+- **Cómo se cancela.** `POST /requests/{code}/transitions` con `{ to: "CANCELADA", reason }`. `reason` es obligatorio (hasta 400 caracteres) y queda en el historial. Si estaba `EN_EVALUACION`, el supervisor del área recibe la notificación del cambio, como en cualquier transición.
+- **Restaurar.** Durante 7 días el solicitante puede devolverla al estado que tenía: `{ to: <ese estado> }`. El detalle lo ofrece en `allowedTransitions` y con la acción `restore`. Pasado ese plazo, `409` con «Pasaron más de 7 días desde que la cancelaste; ya no se puede restaurar». Restaurar a otro estado es `409` como cualquier transición fuera de la tabla.
+- **Plazo de atención.** Mientras está cancelada no corre: al restaurarla, `dueAt` se corre lo que estuvo cancelada.
+- **Efectos.** Una cancelada no está vencida (`overdue: false`), no cuenta como pendiente ni en el filtro `overdue`, no admite cambio de prioridad (`409`) y no se califica. Sí aparece en el listado, con `status=CANCELADA`, y en `byStatus`.
+- `WorkflowAction` agrega `cancel` (solicitante dueño, `REGISTRADA` o `EN_EVALUACION`) y `restore` (solicitante dueño, cancelada hace menos de 7 días).
+
+### Borrador de nueva solicitud
+
+Mientras el solicitante llena «Nueva solicitud», la interfaz guarda lo avanzado para que pueda salir y retomarlo después, desde cualquier dispositivo. Hay **un borrador por usuario**; se guarda en el servidor y no en el navegador, para que no quede en una computadora compartida.
+
+| Método y ruta | Acceso | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET /me/request-draft` | Rol `SOLICITANTE` | — | `200` `RequestDraft` · `204` si no tiene borrador |
+| `PUT /me/request-draft` | Rol `SOLICITANTE` | `RequestDraftFields` | `200` `RequestDraft` · `400` si un campo excede su largo |
+| `DELETE /me/request-draft` | Rol `SOLICITANTE` | — | `204`, exista o no |
+
+- `RequestDraftFields = { category, description, priority, faculty, pavilion, room }`: todos texto opcional, tal como están en el formulario (nombres, no ids, porque un borrador puede quedar a medias). `description` hasta 2000 caracteres; los demás hasta 150. Un borrador con todos los campos vacíos se elimina.
+- `RequestDraft = RequestDraftFields & { updatedAt }`.
+- Registrar la solicitud (`POST /requests`) elimina el borrador del solicitante.
+- Las evidencias no se guardan en el borrador: la interfaz avisa que se vuelven a adjuntar al retomarlo.
 
 ## Administración: usuarios y estados
 
@@ -272,7 +298,7 @@ Cuando una solicitud no es visible para el usuario, la API responde `404` (no `4
 ```ts
 type Role = 'SOLICITANTE' | 'TECNICO' | 'SUPERVISOR' | 'ADMINISTRADOR'
 type RequesterType = 'ESTUDIANTE' | 'DOCENTE' | 'ADMINISTRATIVO'
-type RequestStatus = 'REGISTRADA' | 'EN_EVALUACION' | 'ASIGNADA' | 'EN_ATENCION' | 'RESUELTA' | 'CERRADA'
+type RequestStatus = 'REGISTRADA' | 'EN_EVALUACION' | 'ASIGNADA' | 'EN_ATENCION' | 'RESUELTA' | 'CERRADA' | 'CANCELADA'
 
 UserSummary   = { id, fullName, email, role, areaId: number | null }
 AdminUser     = UserSummary & { areaName: string | null, requesterType: RequesterType | null, active: boolean,
@@ -292,7 +318,7 @@ RequestDetail  = RequestSummary & { requester: { id, fullName }, area: { id, nam
                   solution: string | null, rating: { score, comment: string | null } | null,
                   autoCloseAt: string | null }
 ClosureReason  = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
-WorkflowAction = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
+WorkflowAction = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve' | 'cancel' | 'restore'
 Page<T>        = { items: T[], page, size, total, totalPages }
 RequestCounts  = { total, overdue, byStatus: { [RequestStatus]: number } }
 ```

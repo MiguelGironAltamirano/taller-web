@@ -7,7 +7,7 @@ package pe.edu.unmsm.servicios.requests.domain;
 public enum RequestAction {
 
 	EVAL("eval"), ASSIGN("assign"), REASSIGN("reassign"), PRIORITY("prio"), NO_PROCEDE("noproc"),
-	DUPLICATE("dup"), START("start"), RESOLVE("resolve");
+	DUPLICATE("dup"), START("start"), RESOLVE("resolve"), CANCEL("cancel"), RESTORE("restore");
 
 	private final String apiName;
 

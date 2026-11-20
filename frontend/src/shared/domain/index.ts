@@ -10,7 +10,10 @@ export const REQUEST_STATES = [
   'En atención',
   'Resuelta',
   'Cerrada',
+  'Cancelada',
 ] as const
+/** Estados del flujo de atención (sin «Cancelada», que lo deja): columnas del kanban y pasos del detalle. */
+export const FLOW_STATES: readonly RequestState[] = REQUEST_STATES.filter((s) => s !== 'Cancelada')
 export type RequestState = (typeof REQUEST_STATES)[number]
 
 export const PRIORITIES = ['Crítica', 'Alta', 'Media', 'Baja'] as const
@@ -55,7 +58,17 @@ export type SessionUser = {
   areaId: number | null
 }
 
-export type WorkflowActionId = 'eval' | 'assign' | 'reassign' | 'prio' | 'noproc' | 'dup' | 'start' | 'resolve'
+export type WorkflowActionId =
+  | 'eval'
+  | 'assign'
+  | 'reassign'
+  | 'prio'
+  | 'noproc'
+  | 'dup'
+  | 'start'
+  | 'resolve'
+  | 'cancel'
+  | 'restore'
 
 /** Por qué se cerró una solicitud: sin resolver (no procede, duplicada), confirmada por el solicitante o a las 72 h. */
 export type ClosureReason = 'NO_PROCEDE' | 'DUPLICADA' | 'CONFIRMADA' | 'AUTOMATICA'
@@ -115,3 +128,17 @@ export type NotificationItem = {
 
 export const stateIndex = (s: RequestState): number => REQUEST_STATES.indexOf(s)
 export const isFinalState = (s: RequestState): boolean => stateIndex(s) >= 4
+
+/** La última cancelación según el historial: el estado que tenía (al que se restaura), cuándo y por qué. */
+export function lastCancellation(r: { history: HistoryItem[] }): { previous: RequestState; at: number; reason: string } | null {
+  const entry = [...r.history].reverse().find((h) => h.to === 'Cancelada')
+  if (!entry || !(REQUEST_STATES as readonly string[]).includes(entry.from)) return null
+  return {
+    previous: entry.from as RequestState,
+    at: entry.at,
+    reason: entry.reason.replace(/^Cancelada por el solicitante: /, ''),
+  }
+}
+
+/** Días durante los que el solicitante puede restaurar una solicitud cancelada (contrato). */
+export const RESTORE_DAYS = 7

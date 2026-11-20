@@ -32,12 +32,20 @@ public class CreateRequest {
 	private final CatalogLookup catalog;
 	private final RequestCodeGenerator codes;
 	private final RequestRepository requests;
+	private final RequestDraftRepository drafts;
 	private final Clock clock;
 
 	public CreateRequest(CatalogLookup catalog, RequestCodeGenerator codes, RequestRepository requests, Clock clock) {
+		this(catalog, codes, requests, null, clock);
+	}
+
+	/** With {@code drafts}, registering the request also discards the requester's draft of it. */
+	public CreateRequest(CatalogLookup catalog, RequestCodeGenerator codes, RequestRepository requests,
+			RequestDraftRepository drafts, Clock clock) {
 		this.catalog = catalog;
 		this.codes = codes;
 		this.requests = requests;
+		this.drafts = drafts;
 		this.clock = clock;
 	}
 
@@ -70,7 +78,11 @@ public class CreateRequest {
 				priority.get().slaHours(), now);
 		RequestHistoryEntry registered = new RequestHistoryEntry(null, RequestStatus.REGISTRADA, requester.id(), null,
 				"Solicitud creada", now);
-		return requests.save(request, registered);
+		ServiceRequest saved = requests.save(request, registered);
+		if (drafts != null) {
+			drafts.delete(requester.id());
+		}
+		return saved;
 	}
 
 }

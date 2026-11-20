@@ -101,21 +101,21 @@ describe('toServerQuery', () => {
 
 describe('contadores', () => {
   const counts = {
-    total: 9,
+    total: 11,
     overdue: 2,
-    byStatus: { REGISTRADA: 1, EN_EVALUACION: 2, ASIGNADA: 1, EN_ATENCION: 1, RESUELTA: 3, CERRADA: 1 },
+    byStatus: { REGISTRADA: 1, EN_EVALUACION: 2, ASIGNADA: 1, EN_ATENCION: 1, RESUELTA: 3, CERRADA: 1, CANCELADA: 2 },
   }
 
   it('usa las etiquetas de la interfaz', () => {
     expect(toStripCounts(counts)).toEqual({
-      total: 9,
+      total: 11,
       overdue: 2,
-      byState: { Registrada: 1, 'En evaluación': 2, Asignada: 1, 'En atención': 1, Resuelta: 3, Cerrada: 1 },
+      byState: { Registrada: 1, 'En evaluación': 2, Asignada: 1, 'En atención': 1, Resuelta: 3, Cerrada: 1, Cancelada: 2 },
     })
     expect(toStripCounts(undefined).total).toBe(0)
   })
 
-  it('las abiertas son las que no llegaron a Resuelta', () => {
+  it('las abiertas son las que no llegaron a Resuelta y no se cancelaron', () => {
     expect(openCount(counts)).toBe(5)
     expect(openCount(undefined)).toBe(0)
   })

@@ -91,7 +91,8 @@ class RequestDetailExtensionsApiTests {
 		String code = createRequest();
 
 		assertThat(actions(detail(SUPERVISOR, code))).containsExactly("eval", "noproc", "dup", "prio");
-		assertThat(actions(detail(STUDENT, code))).isEmpty();
+		// The owner may cancel it until a technician is assigned (contract «Cancelar y restaurar una solicitud»).
+		assertThat(actions(detail(STUDENT, code))).containsExactly("cancel");
 		assertThat(actions(detail(ADMIN, code))).isEmpty();
 
 		force(code, "ASIGNADA", 3L);

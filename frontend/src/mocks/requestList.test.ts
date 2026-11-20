@@ -142,7 +142,7 @@ describe('GET /requests/counts (mock)', () => {
     expect(counts.total).toBe(all.length)
     expect(counts.overdue).toBe(all.filter((r) => r.overdue).length)
     expect(counts.byStatus.RESUELTA).toBe(all.filter((r) => r.status === 'RESUELTA').length)
-    expect(Object.keys(counts.byStatus)).toHaveLength(6)
+    expect(Object.keys(counts.byStatus)).toHaveLength(7)
 
     await loginAs(SOLICITANTE)
     const mine = await apiGet<RequestCounts>('/requests/counts')

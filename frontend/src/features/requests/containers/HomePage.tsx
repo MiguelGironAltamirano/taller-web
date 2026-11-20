@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { QueryErrorState } from '../../../shared/api/QueryErrorState'
 import { useNow } from '../../../shared/hooks/useNow'
 import { dateFull, dateLong } from '../../../shared/lib/format'
 import { Card, CardTitle, Icon, KpiCard, PageHeader } from '../../../shared/ui'
 import { useSessionUser } from '../../auth'
 import { useNotifications } from '../../notifications'
-import { useRequestRows } from '../api'
+import { useRequestDraft, useRequestRows } from '../api'
 import { AttentionPanel } from '../components/AttentionPanel'
 import { attentionFor, sortByUrgency, useUnseenCodes } from '../lib/attention'
 import { isOpen, withSla } from '../lib/view'
@@ -18,6 +18,7 @@ export function HomePage() {
   const now = useNow()
   const rowsQuery = useRequestRows()
   const { data: rows } = rowsQuery
+  const { data: draft } = useRequestDraft()
   const { data: notifications = [] } = useNotifications()
 
   const views = useMemo(() => (rows ?? []).map((r) => withSla(r, now)), [rows, now])
@@ -40,6 +41,24 @@ export function HomePage() {
         title={`Hola, ${user.name.split(' ')[0]}`}
         subtitle={`Resumen de tus solicitudes al ${dateFull(now)}.`}
       />
+      {draft && (
+        <section
+          aria-label="Borrador sin enviar"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-info-bg px-4 py-3 text-info-fg"
+        >
+          <Icon name="file" size={18} className="shrink-0" />
+          <p className="m-0 min-w-0 flex-1 text-[13px]">
+            <b>Tienes una solicitud sin enviar</b>, guardada el {dateLong(Date.parse(draft.updatedAt))}
+            {draft.description.trim() && <>: «{draft.description.trim().slice(0, 80)}{draft.description.trim().length > 80 ? '…' : ''}»</>}
+          </p>
+          <Link
+            to="/solicitudes/nueva?retomar=1"
+            className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-[13px] font-semibold text-on-primary no-underline hover:opacity-90"
+          >
+            Retomar borrador
+          </Link>
+        </section>
+      )}
       {rowsQuery.isError && !rows && (
         <Card>
           <QueryErrorState what="el resumen de tus solicitudes" query={rowsQuery} compact />

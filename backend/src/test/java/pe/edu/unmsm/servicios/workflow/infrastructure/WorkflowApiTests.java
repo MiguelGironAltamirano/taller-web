@@ -374,7 +374,8 @@ class WorkflowApiTests {
 
 		assertThat(ApiClient.<List<String>>read(detail(SUPERVISOR, code), "$.allowedTransitions"))
 				.containsExactlyInAnyOrder("EN_EVALUACION", "CERRADA");
-		assertThat(ApiClient.<List<String>>read(detail(STUDENT, code), "$.allowedTransitions")).isEmpty();
+		assertThat(ApiClient.<List<String>>read(detail(STUDENT, code), "$.allowedTransitions"))
+				.containsExactly("CANCELADA");
 		assertThat(ApiClient.<List<String>>read(detail(ADMIN, code), "$.allowedTransitions")).isEmpty();
 
 		force(code, "ASIGNADA", 3L);

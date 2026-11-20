@@ -11,7 +11,8 @@ public final class RequestStates {
 			new RequestState(3, "ASIGNADA", "Técnico asignado"),
 			new RequestState(4, "EN_ATENCION", "El técnico trabaja en la solicitud"),
 			new RequestState(5, "RESUELTA", "Solución propuesta, pendiente de confirmación"),
-			new RequestState(6, "CERRADA", "Solicitud finalizada"));
+			new RequestState(6, "CERRADA", "Solicitud finalizada"),
+			new RequestState(7, "CANCELADA", "El solicitante la canceló antes de asignar un técnico"));
 
 	private RequestStates() {
 	}

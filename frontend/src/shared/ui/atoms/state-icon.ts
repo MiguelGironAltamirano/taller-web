@@ -8,6 +8,7 @@ const STATE_ICON: Record<RequestState, IconName> = {
   'En atención': 'wrench',
   Resuelta: 'checkCircle',
   Cerrada: 'lock',
+  Cancelada: 'ban',
 }
 
 export const stateIcon = (state: RequestState): IconName => STATE_ICON[state]

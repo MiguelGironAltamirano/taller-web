@@ -64,4 +64,16 @@ public record RequestDetailView(long id, RequestSummaryView summary, long reques
 				allowedTransitions, allowedActions, comments, evidences, rating, newAutoCloseAt);
 	}
 
+	/** The last cancellation, from the history (the same rule as the state store); empty if never cancelled. */
+	public java.util.Optional<pe.edu.unmsm.servicios.requests.domain.Cancellation> lastCancellation() {
+		for (int i = history.size() - 1; i >= 0; i--) {
+			HistoryView entry = history.get(i);
+			if (entry.toStatus() == RequestStatus.CANCELADA && entry.fromStatus() != null) {
+				return java.util.Optional.of(
+						new pe.edu.unmsm.servicios.requests.domain.Cancellation(entry.fromStatus(), entry.createdAt()));
+			}
+		}
+		return java.util.Optional.empty();
+	}
+
 }

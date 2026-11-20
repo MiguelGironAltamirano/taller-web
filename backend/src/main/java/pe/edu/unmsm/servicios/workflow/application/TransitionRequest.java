@@ -1,13 +1,16 @@
 package pe.edu.unmsm.servicios.workflow.application;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 
 import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.unmsm.servicios.requests.application.RequestStateStore;
+import pe.edu.unmsm.servicios.requests.domain.Cancellation;
 import pe.edu.unmsm.servicios.requests.domain.RequestHistoryEntry;
 import pe.edu.unmsm.servicios.requests.domain.RequestNotFoundException;
+import pe.edu.unmsm.servicios.requests.domain.RequestStatus;
 import pe.edu.unmsm.servicios.requests.domain.ServiceRequest;
 import pe.edu.unmsm.servicios.shared.domain.AuthenticatedUser;
 import pe.edu.unmsm.servicios.workflow.domain.StateMachine;
@@ -48,13 +51,18 @@ public class TransitionRequest {
 		Technician technician = command.technicianId() == null ? null
 				: technicians.findTechnician(command.technicianId()).orElse(null);
 
+		Instant now = clock.instant();
+		Cancellation cancellation = request.status() == RequestStatus.CANCELADA
+				? requests.lastCancellation(request.id()).orElse(null) : null;
 		WorkflowSubject subject = new WorkflowSubject(request.status(), request.requesterId(), request.areaId(),
-				request.technicianId());
+				request.technicianId(), cancellation, now);
 		TransitionOutcome outcome = StateMachine.transition(actor, subject, command, technician);
 
-		Instant now = clock.instant();
-		ServiceRequest updated = request.transitionedTo(outcome.to(), outcome.technicianId(), outcome.closureReason(),
-				outcome.solution(), now);
+		// Restoring gives back the time the request spent cancelled: its SLA did not run meanwhile.
+		ServiceRequest updated = cancellation != null
+				? request.restoredTo(outcome.to(), Duration.between(cancellation.cancelledAt(), now), now)
+				: request.transitionedTo(outcome.to(), outcome.technicianId(), outcome.closureReason(),
+						outcome.solution(), now);
 		RequestHistoryEntry entry = new RequestHistoryEntry(request.status(), outcome.to(), actor.id(),
 				outcome.historyTechnicianId(), outcome.reason(), now);
 		ServiceRequest result = requests.update(updated, entry);

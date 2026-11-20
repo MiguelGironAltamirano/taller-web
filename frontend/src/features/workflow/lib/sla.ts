@@ -28,7 +28,8 @@ type SlaInput = { state: RequestState; createdAt: number; dueAt: number }
 /** Una solicitud está vencida si no llegó a "Resuelta" antes de su fecha de vencimiento. */
 export function slaStatus({ state, createdAt, dueAt }: SlaInput, now: number): SlaStatus {
   if (isFinalState(state)) {
-    return { overdue: false, pct: 100, label: state === 'Resuelta' ? 'Atendida' : 'Cerrada', tone: 'done' }
+    const label = state === 'Resuelta' ? 'Atendida' : state === 'Cancelada' ? 'Cancelada' : 'Cerrada'
+    return { overdue: false, pct: 100, label, tone: 'done' }
   }
   const pct = Math.min(100, Math.max(0, ((now - createdAt) / (dueAt - createdAt)) * 100))
   if (dueAt < now) {

@@ -3,6 +3,8 @@
  * de otra (p. ej. una transición de estado refresca solicitudes y notificaciones) sin importarla.
  */
 export const requestsKey = ['requests'] as const
+/** Borrador de «Nueva solicitud»: fuera de `requestsKey`, que se invalida tras cada cambio de una solicitud. */
+export const requestDraftKey = ['me', 'request-draft'] as const
 export const requestListKey = ['requests', 'list'] as const
 export const requestDetailKey = (code: string) => ['requests', 'detail', code] as const
 export const notificationsKey = ['notifications'] as const

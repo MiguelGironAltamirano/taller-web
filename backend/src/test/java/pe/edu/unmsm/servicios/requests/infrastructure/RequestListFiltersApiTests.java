@@ -312,7 +312,7 @@ class RequestListFiltersApiTests {
 		assertThat(ApiClient.<Integer>read(supervisor, "$.total")).isEqualTo(3);
 		HttpResponse<String> technician = api.get("/api/v1/requests/counts", token(TECHNICIAN));
 		assertThat(ApiClient.<Integer>read(technician, "$.total")).isZero();
-		assertThat(ApiClient.<Map<String, Integer>>read(technician, "$.byStatus")).hasSize(6);
+		assertThat(ApiClient.<Map<String, Integer>>read(technician, "$.byStatus")).hasSize(7);
 		HttpResponse<String> admin = api.get("/api/v1/requests/counts", token(ADMIN));
 		assertThat(ApiClient.<Integer>read(admin, "$.total")).isEqualTo(4);
 		ApiClient.assertProblem(api.get("/api/v1/requests/counts", null), 401);
