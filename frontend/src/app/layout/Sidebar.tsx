@@ -8,11 +8,10 @@ type SidebarProps = {
   user: SessionUser
   role: Role
   collapsed: boolean
-  counts: { open: number; unread: number }
   onProfile: () => void
 }
 
-export function Sidebar({ user, role, collapsed, counts, onProfile }: SidebarProps) {
+export function Sidebar({ user, role, collapsed, onProfile }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -27,7 +26,7 @@ export function Sidebar({ user, role, collapsed, counts, onProfile }: SidebarPro
         aria-label="Principal"
         className={cn('flex flex-1 flex-col gap-0.5 overflow-auto py-3', collapsed ? 'px-2' : 'px-3')}
       >
-        <NavList role={role} counts={counts} collapsed={collapsed} />
+        <NavList role={role} collapsed={collapsed} />
       </nav>
       <div className={cn('shrink-0 border-t border-line p-3', collapsed && 'px-2')}>
         <button

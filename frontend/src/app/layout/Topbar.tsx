@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { Link, useNavigate } from 'react-router'
 import type { Role, SessionUser } from '../../shared/domain'
 import { cn } from '../../shared/lib/cn'
@@ -9,9 +10,12 @@ type TopbarProps = {
   role: Role
   pathname: string
   unread: number
+  /** El panel rápido de la campana está abierto. */
+  notificationsOpen: boolean
+  /** Para devolver el foco a la campana al cerrar el panel. */
+  bellRef: Ref<HTMLButtonElement>
   onToggleSidebar: () => void
   onOpenPalette: () => void
-  onOpenDrawer: () => void
   onToggleNotifications: () => void
   onProfile: () => void
 }
@@ -21,9 +25,10 @@ export function Topbar({
   role,
   pathname,
   unread,
+  notificationsOpen,
+  bellRef,
   onToggleSidebar,
   onOpenPalette,
-  onOpenDrawer,
   onToggleNotifications,
   onProfile,
 }: TopbarProps) {
@@ -34,10 +39,7 @@ export function Topbar({
   return (
     <header className="flex h-14 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-1 shadow-[0_1px_2px_rgb(0_0_0/0.04)] md:h-[60px] md:px-4">
       {/* Móvil */}
-      <IconButton label="Abrir menú" className="md:hidden" onClick={onOpenDrawer}>
-        <Icon name="menu" size={20} />
-      </IconButton>
-      <div className="flex-1 font-semibold md:hidden">Servicios UNMSM</div>
+      <div className="flex-1 pl-3 font-semibold md:hidden">Servicios UNMSM</div>
       <IconButton label="Buscar" className="md:hidden" onClick={onOpenPalette}>
         <Icon name="search" size={20} />
       </IconButton>
@@ -95,10 +97,15 @@ export function Topbar({
 
       {/* Names come from content (not aria-label) so the visible badge and avatar never contradict them (WCAG 2.5.3). */}
       <button
+        ref={bellRef}
         type="button"
         aria-haspopup="dialog"
+        aria-expanded={notificationsOpen}
         onClick={onToggleNotifications}
-        className="relative grid size-11 place-items-center rounded-lg border-0 bg-transparent text-fg hover:bg-surface2 md:size-9"
+        className={cn(
+          'relative grid size-11 place-items-center rounded-lg border-0 text-fg hover:bg-surface2 md:size-9',
+          notificationsOpen || pathname === '/notificaciones' ? 'bg-primary-soft text-primary-fg' : 'bg-transparent',
+        )}
       >
         <Icon name="bell" size={20} />
         <span className="sr-only">{unread > 0 ? `Notificaciones, ${unread} sin leer` : 'Notificaciones'}</span>

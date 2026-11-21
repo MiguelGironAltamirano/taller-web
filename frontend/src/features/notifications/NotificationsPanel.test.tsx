@@ -71,7 +71,7 @@ describe('NotificationsPanel', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('marks all notifications as read when clicking Marcar todas como leídas', async () => {
+  it('marks all notifications as read when clicking Marcar todo como leído', async () => {
     let markAllCalled = false
     server.use(
       http.post('*/api/v1/notifications/read-all', () => {
@@ -83,9 +83,66 @@ describe('NotificationsPanel', () => {
     const user = userEvent.setup()
     renderComponent()
 
-    const markAllBtn = await screen.findByRole('button', { name: 'Marcar todas como leídas' })
+    const markAllBtn = await screen.findByRole('button', { name: 'Marcar todo como leído' })
     await user.click(markAllBtn)
 
     expect(markAllCalled).toBe(true)
+  })
+
+  it('shows at most five, the unread ones first, and the total in «Ver todas»', async () => {
+    server.use(
+      http.get('*/api/v1/notifications', () =>
+        HttpResponse.json(
+          Array.from({ length: 7 }, (_, i) => ({
+            id: i + 1,
+            text: `Aviso número ${i + 1}.`,
+            createdAt: `2026-10-17T0${i}:00:00Z`,
+            read: i < 4, // the four oldest are read; the three newest are unread
+            requestCode: null,
+          })),
+        ),
+      ),
+    )
+    renderComponent()
+
+    expect(await screen.findByText('Aviso número 7.')).toBeInTheDocument()
+    const shown = screen.getAllByRole('button', { name: /^Aviso número \d\./ }).map((el) => /^Aviso número \d\./.exec(el.textContent ?? '')?.[0])
+    expect(shown).toEqual(['Aviso número 7.', 'Aviso número 6.', 'Aviso número 5.', 'Aviso número 4.', 'Aviso número 3.'])
+    expect(screen.getByRole('button', { name: 'Ver todas (7)' })).toBeInTheDocument()
+  })
+
+  it('goes to the full page from «Ver todas» and closes', async () => {
+    const user = userEvent.setup()
+    const { onClose } = renderComponent()
+    await user.click(await screen.findByRole('button', { name: /^Ver todas \(2\)$/ }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('says there is nothing new when there are no notifications', async () => {
+    server.use(http.get('*/api/v1/notifications', () => HttpResponse.json([])))
+    renderComponent()
+    expect(await screen.findByText('No tienes notificaciones nuevas')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Marcar todo como leído' })).toBeDisabled()
+  })
+
+  it('shows a loading state while the notifications load', () => {
+    server.use(http.get('*/api/v1/notifications', () => new Promise(() => {})))
+    renderComponent()
+    expect(screen.getByRole('status', { name: 'Cargando' })).toBeInTheDocument()
+  })
+
+  it('dismisses when tapping outside', async () => {
+    const user = userEvent.setup()
+    const onDismiss = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <NotificationsPanel onClose={vi.fn()} onDismiss={onDismiss} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    await user.click(container.querySelector('[aria-hidden="true"].fixed') as HTMLElement)
+    expect(onDismiss).toHaveBeenCalled()
   })
 })
