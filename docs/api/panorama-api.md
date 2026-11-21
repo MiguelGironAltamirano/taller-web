@@ -17,15 +17,16 @@
 | Módulo | Recurso | Rutas clave |
 |---|---|---|
 | Auth | Sesión | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /me` |
-| Auth | Registro | `POST /auth/register`, `PUT /auth/password` |
+| Auth | Registro y contraseña | `POST /auth/register`, `PUT /auth/password` |
+| Auth | Passkeys (WebAuthn) | `POST /auth/passkeys/login/options`, `POST /auth/passkeys/login`, `GET/POST /me/passkeys`, `POST /me/passkeys/registration/options`, `PATCH/DELETE /me/passkeys/{id}` |
 | Solicitudes | Solicitudes | `GET /requests`, `POST /requests`, `GET /requests/{code}`, `POST /requests/{code}/transitions`, `PATCH /requests/{code}/priority`, `POST /requests/{code}/rating` |
 | Solicitudes | Contadores | `GET /requests/counts` |
 | Solicitudes | Borrador | `GET /me/request-draft`, `PUT /me/request-draft`, `DELETE /me/request-draft` |
 | Colaboración | Evidencias y comentarios | `GET/POST /requests/{code}/evidences`, `GET /requests/{code}/evidences/{id}` (descarga), `GET/POST /requests/{code}/comments` |
-| Notificaciones | Bandeja del usuario | `GET /notifications` |
+| Notificaciones | Bandeja del usuario | `GET /notifications`, `PATCH /notifications/{id}/read`, `POST /notifications/read-all` |
 | Triage | Sugerencias y reglas | `POST /triage/suggestions`, `GET/POST/PUT/DELETE /admin/triage-rules` |
 | Dashboard | Indicadores y carga | `GET /dashboard/indicators`, `GET /dashboard/team` |
-| Administración | Usuarios, catálogos, auditoría, config | `GET/POST/PUT /admin/users`, `POST/DELETE /admin/areas`, `POST/DELETE /admin/categories`, `PUT /admin/priorities/{id}`, `GET /admin/audit`, `GET/PUT /admin/config` |
+| Administración | Usuarios, catálogos, auditoría, config | `GET/POST /admin/users`, `PUT /admin/users/{id}`, `PATCH /admin/users/{id}/active`, `GET /admin/states`, `POST/DELETE /admin/areas`, `POST/DELETE /admin/categories`, `POST/DELETE /admin/locations`, `PUT /admin/priorities/{id}`, `GET /admin/audit`, `GET/PUT /admin/config` |
 | Catálogos | Datos de referencia | `GET /catalogs`, `GET /users/technicians` |
 | Sistema | Info de salud | `GET /system/info` |
 
@@ -82,9 +83,10 @@ Un valor inválido en cualquier parámetro responde `400` con `errors` para todo
 
 `detail` siempre en español, escrito para la persona. `title` es técnico y el frontend no lo muestra. Los errores de lógica de negocio nunca revelan información interna (p. ej. credenciales inválidas, mismo mensaje si el correo no existe o si la contraseña es incorrecta).
 
-**Documentación interactiva:** Swagger UI disponible con autenticación Bearer JWT (botón _Authorize_):
-- Desarrollo local: `http://localhost:8088/swagger-ui.html`
-- Staging: `https://<dominio>/swagger-ui.html`
+**Documentación interactiva:** Swagger UI, generado por springdoc a partir de los controladores y configurado en `OpenApiConfig` (título, versión, esquema `bearerAuth` y servidor relativo `/`). Para llamar rutas protegidas: `POST /api/v1/auth/login`, copiar el `accessToken`, pegarlo en **Authorize** y usar «Try it out».
+- Desarrollo local: `http://localhost:8088/swagger-ui.html` (verificado el 2026-11-20 con una llamada autenticada a `GET /api/v1/me`)
+- Staging: `https://<dominio>/swagger-ui.html` (tras redesplegar desde `dev`)
+- Producción: desactivado con `APP_API_DOCS_ENABLED=false`; `/v3/api-docs` y `/swagger-ui.html` responden `404`. El contrato sigue publicado en `docs/api/`.
 
 ---
 
