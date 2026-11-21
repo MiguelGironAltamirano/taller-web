@@ -21,6 +21,25 @@
 
 > **Nota de estado (2026-11-20):** el despliegue en Railway está basado en la PR #24. No incluye lo integrado después: prioridad elegida por el solicitante (#25), passkeys (#26), sesión única (#27), mensajes de error claros (#28), cancelar/restaurar y borradores (#29, #30), corrección del deadlock de login (#31), CSP con fuentes propias (#33), panel de notificaciones (#34) ni Swagger UI (esta PR). Comprobado el 2026-11-20: en esa URL `GET /v3/api-docs` devuelve la SPA (`text/html`), no el JSON de OpenAPI. Hay que redesplegar desde `dev` para incluirlo todo. Procedimiento y arquitectura: [despliegue en Railway](../despliegue-railway.md).
 
+### Staging actual en Railway con el código de `dev` (2026-11-21)
+
+Proyecto de Railway configurado por Angela con los servicios conectados a la rama `dev` (procedimiento y despliegue continuo en [despliegue en Railway](../despliegue-railway.md)). Verificado desde fuera, sin acceso al panel:
+
+| Comprobación (2026-11-21 ~05:50 UTC) | Resultado |
+|---|---|
+| URL pública HTTPS | <https://frontend-production-5ede5076.up.railway.app/> |
+| `GET /` y `GET /login` | `200 text/html` (SPA) con CSP `default-src 'self'; …` y `X-Frame-Options: DENY` |
+| `GET /api/v1/system/info` | `200 application/json`, `{"name":"servicios","version":"0.0.1-SNAPSHOT"}` |
+| `GET /v3/api-docs` | `200` JSON con `"title":"API de servicios universitarios"`: es el backend actual de `dev` (con la PR #36) |
+| `GET /swagger-ui.html` | `302` a `/swagger-ui/index.html`, que responde `200` |
+| Login | `admin@unmsm.edu.pe`, `estudiante@unmsm.edu.pe` y `estudiante2@unmsm.edu.pe` con la contraseña demo: `200` (token + cookie). En una primera comprobación `estudiante` respondía `401` porque su contraseña se había cambiado en una prueba anterior; el equipo la restableció |
+| Datos | 24 usuarios y solicitudes de la demo anterior (la base proviene del Railway del 2026-11-14) |
+| `infra/smoke.sh` | `SMOKE_BASE_URL=https://frontend-production-5ede5076.up.railway.app bash infra/smoke.sh`: **`Smoke test passed`** — API, SPA, login, solicitudes demo, notificaciones y `api-docs OK` (2026-11-21) |
+
+Pendiente para cerrar la evidencia: capturas del panel de Railway (*Deployments* con *Waiting for CI* → *Active*) que muestren el despliegue continuo.
+
+La URL anterior (<https://serviciosuniversitarios.up.railway.app/>) quedó con el frontend actualizado pero el backend de la PR #24: su último despliegue del backend falló.
+
 ### Despliegue con Dokploy (pendiente)
 
 El despliegue en Dokploy sobre VPS propia requiere acceso al panel (responsable: Miguel). La configuración esperada está documentada en `docs/fase-1/04-arquitectura.md` §8 y en `pendientes-fase-3.md` §T1.
@@ -51,22 +70,18 @@ Capturas (tomadas con Playwright contra el stack local, 2026-11-20):
 - [Autorización `bearerAuth` aplicada (token oculto)](img/swagger-authorize.png)
 - [«Try it out» en `GET /api/v1/me` con `Authorization: Bearer …` y respuesta `200`](img/swagger-llamada-autenticada.png) (usuario demo local; el token mostrado es de un entorno local y venció a los 15 minutos)
 
-Pendiente: la misma verificación en staging cuando se redespliegue desde `dev`.
+### Verificación en staging (Railway, 2026-11-21)
 
-### Estado en staging
+La misma prueba contra <https://frontend-production-5ede5076.up.railway.app>, con `estudiante2@unmsm.edu.pe`: Swagger carga sin errores en la consola, **Authorize** acepta el token y «Try it out» en `GET /api/v1/me` sale por HTTPS a la URL pública y responde `200`.
 
-Railway no tiene el código de esta rama (ver la nota de la sección 1). Tras redesplegar desde `dev`:
-
-```
-GET https://<dominio>/swagger-ui.html   → Swagger UI con todos los endpoints
-GET https://<dominio>/v3/api-docs       → JSON OpenAPI
-```
-
-Para llamar endpoints protegidos: ejecutar `POST /api/v1/auth/login`, copiar el `accessToken`, pegarlo en **Authorize** y usar «Try it out».
+- [Swagger UI en staging](img/staging-swagger-ui.png)
+- [Autorización `bearerAuth` en staging](img/staging-swagger-authorize.png)
+- [Llamada autenticada en staging, respuesta `200`](img/staging-swagger-llamada-autenticada.png) (el token mostrado venció a los 15 minutos)
 
 **Referencia de URLs:**
 - Desarrollo local (Docker Compose): `http://localhost:8088/swagger-ui.html`
-- Staging: `https://<dominio>/swagger-ui.html`
+- Staging (Railway): <https://frontend-production-5ede5076.up.railway.app/swagger-ui.html>
+- Producción: desactivado con `APP_API_DOCS_ENABLED=false`
 
 ---
 
