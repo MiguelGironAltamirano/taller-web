@@ -76,7 +76,7 @@ Mínimo **4.5:1** para texto normal y **3:1** para texto grande, íconos y borde
 
 | Punto de corte | Ancho | Qué cambia |
 |---|---|---|
-| móvil (por defecto) | < 768 px | Menú lateral oculto: barra superior con menú (cajón) y navegación inferior fija; tarjetas en lugar de tablas en la bandeja; calendario con puntos en lugar de chips. |
+| móvil (por defecto) | < 768 px | Menú lateral oculto: barra superior con título, búsqueda, campana y perfil, y navegación inferior fija cuyo «Menú» abre un cajón solo con las acciones de cuenta (las notificaciones se abren desde la campana); tarjetas en lugar de tablas en la bandeja; calendario con puntos en lugar de chips. |
 | `md` | ≥ 768 px | Menú lateral colapsable, ruta de navegación y buscador en la barra superior, tablas. |
 | `lg` | ≥ 1024 px | Panel institucional en el inicio de sesión; detalle en dos columnas. |
 | `2xl` | ≥ 1536 px | Indicadores del dashboard en una sola fila de seis. |
