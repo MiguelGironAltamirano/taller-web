@@ -45,7 +45,13 @@ El despliegue en Dokploy sobre VPS propia requiere acceso al panel (responsable:
 | `GET /v3/api-docs` | `200` JSON, `"title":"API de servicios universitarios"`, `"servers":[{"url":"/"}]`, `components.securitySchemes.bearerAuth` |
 | Llamada autenticada | Login con `admin@unmsm.edu.pe`, token en **Authorize**, «Try it out» en `GET /api/v1/me`: la petición sale a `http://localhost:8088/api/v1/me` con `Authorization: Bearer …` y responde `200` |
 
-Pendiente: captura de Swagger UI y de la llamada autenticada en `img/` y la misma verificación en staging cuando se redespliegue desde `dev`.
+Capturas (tomadas con Playwright contra el stack local, 2026-11-20):
+
+- [Swagger UI con título, servidor `/` y botón Authorize](img/swagger-ui.png)
+- [Autorización `bearerAuth` aplicada (token oculto)](img/swagger-authorize.png)
+- [«Try it out» en `GET /api/v1/me` con `Authorization: Bearer …` y respuesta `200`](img/swagger-llamada-autenticada.png) (usuario demo local; el token mostrado es de un entorno local y venció a los 15 minutos)
+
+Pendiente: la misma verificación en staging cuando se redespliegue desde `dev`.
 
 ### Estado en staging
 
@@ -159,7 +165,7 @@ Corridas el 2026-11-20 en la rama `feature/fase3-swagger-sast` actualizada con `
 | Suite | Resultado | Comando |
 |---|---|---|
 | Backend (JUnit 5 + Testcontainers, MySQL 8.4 real) | **661 pruebas, 0 fallos, 0 errores** (`BUILD SUCCESS`) | `cd backend && ./mvnw -B verify` |
-| Frontend (Vitest + Testing Library + MSW) | **404 pruebas en 51 archivos, 0 fallos**; lint y typecheck en verde | `pnpm test`, `pnpm lint`, `pnpm typecheck` |
+| Frontend (Vitest + Testing Library + MSW) | **405 pruebas en 51 archivos, 0 fallos** (incluye la nueva prueba del `409` en `ActionModal.test.tsx`); lint y typecheck en verde | `pnpm test`, `pnpm lint`, `pnpm typecheck` |
 | Smoke + E2E (Playwright, Chromium, con axe) | Smoke con `api-docs OK`; **37 E2E pasadas** | `bash infra/e2e.sh` |
 
 Nota honesta: en una primera corrida del frontend, hecha mientras el backend se probaba en paralelo, falló 1 prueba por tiempo (la misma inestabilidad bajo carga ya anotada en `registro-uso-ia.md`); la corrida siguiente pasó completa.
@@ -204,7 +210,7 @@ Estado al 2026-11-20 contra `dev` (hasta la PR #35), comprobado en el código: c
 | HU-26 | Gestionar usuarios y catálogos | ✅ `AdminUsersApiTests`, `AdminCatalogsApiTests`, `AdminSettingsApiTests`, `AdminAuditApiTests` |
 | HU-27 | Gestionar las reglas de triage | ✅ `TriageApiTests` |
 
-**Pendiente (T8):** la columna «Prueba» de `03-epicas-y-historias.md` todavía marca **20 escenarios «Por escribir»**, muchos con la nota «backend pendiente» que ya no es cierta (HU-05, 10, 11, 19, 20, 21, 22, 23, 25 y 27). Falta enlazar cada escenario con la prueba que lo cubre (las clases de esta tabla) o marcarlo como no cubierto con su motivo, según `docs/calidad/plan-de-pruebas.md` §5.
+**T8 hecho:** en `03-epicas-y-historias.md` no queda ningún escenario «Por escribir». De los 19 que quedaban (HU-05, 10, 11, 19, 20, 21, 22, 23, 25 y 27), 18 se enlazaron con el método de prueba del backend que ya los cubría y, para el de la interfaz del `409` (HU-19), se escribió `frontend/src/features/workflow/ActionModal.test.tsx`, comprobando que falla si se quita el manejo del `409`. Resumen de cobertura: 16 de 16 historias M y 11 de 11 historias S con escenarios y pruebas automatizadas.
 
 ---
 
