@@ -13,6 +13,15 @@ Cada historia indica su prioridad (**M** MVP, **S** release candidate), los requ
 | `WfApi` | `workflow/infrastructure/WorkflowApiTests` |
 | `StateMachine` | `workflow/domain/StateMachineTest` |
 | `SlaTest` | `requests/domain/SlaTest` |
+| `Session` | `auth/infrastructure/web/SingleSessionApiTests` |
+| `CollabApi` | `collaboration/infrastructure/CollaborationApiTests` |
+| `EvidenceApi` | `collaboration/infrastructure/EvidenceApiTests` |
+| `ReqExtApi` | `requests/infrastructure/RequestDetailExtensionsApiTests` |
+| `AutoCloseApi` | `workflow/infrastructure/AutoCloseApiTests` |
+| `NotifApi` | `notifications/infrastructure/NotificationsApiTests` |
+| `TriageApi` | `triage/infrastructure/TriageApiTests` |
+| `DashApi` | `dashboard/infrastructure/DashboardApiTests` |
+| `Indicators` | `dashboard/domain/IndicatorsCalculatorTest` |
 | `FE` | pruebas del frontend (`*.test.ts(x)`), con la API simulada |
 
 ## Épicas
@@ -99,8 +108,8 @@ Como usuario, quiero cambiar mi contraseña para mantener mi cuenta segura. *(RF
 
 | Escenario | Prueba |
 |---|---|
-| **Cambio correcto.** Dada la contraseña actual correcta y una nueva válida, cuando la cambio, entonces puedo iniciar sesión con la nueva | **Por escribir** (backend pendiente) |
-| **Contraseña actual errónea.** Dada una contraseña actual incorrecta, cuando intento cambiarla, entonces se rechaza | **Por escribir** |
+| **Cambio correcto.** Dada la contraseña actual correcta y una nueva válida, cuando la cambio, entonces puedo iniciar sesión con la nueva | `AuthApi.changePasswordWithCorrectCurrentPasswordReturns204AndKeepsTheCurrentSession` (la anterior deja de servir), `Session.changingThePasswordKeepsTheCurrentSession` |
+| **Contraseña actual errónea.** Dada una contraseña actual incorrecta, cuando intento cambiarla, entonces se rechaza | `AuthApi.changePasswordWithWrongCurrentPasswordReturns400` |
 | **Validación en el formulario.** Dada una nueva contraseña inválida, entonces el formulario lo indica | `FE schemas/auth.test.ts` |
 
 ---
@@ -174,9 +183,9 @@ Como participante de una solicitud, quiero dejar comentarios para coordinar con 
 
 | Escenario | Prueba |
 |---|---|
-| **Comentario correcto.** Dado un participante de la solicitud, cuando comenta, entonces el comentario aparece con su autor y fecha | **Por escribir** (backend pendiente) |
-| **Sin acceso.** Dado un usuario que no ve la solicitud, cuando intenta comentar, entonces recibe `404` | **Por escribir** |
-| **Comentario vacío.** Dado un texto vacío, entonces se rechaza | **Por escribir** |
+| **Comentario correcto.** Dado un participante de la solicitud, cuando comenta, entonces el comentario aparece con su autor y fecha | `CollabApi.addCommentToVisibleRequestReturns201`, `CollabApi.listCommentsReturnsChronologicalList` |
+| **Sin acceso.** Dado un usuario que no ve la solicitud, cuando intenta comentar, entonces recibe `404` | `CollabApi.addCommentToInvisibleRequestReturns404` |
+| **Comentario vacío.** Dado un texto vacío, entonces se rechaza | `CollabApi.emptyCommentIsRejectedWith400`, `CollabApi.commentOver1000CharsIsRejectedWith400` |
 
 ### HU-11 — Adjuntar evidencias (S)
 
@@ -186,9 +195,9 @@ Como solicitante, quiero adjuntar fotos o un PDF para mostrar el problema. *(RF-
 
 | Escenario | Prueba |
 |---|---|
-| **Adjunto válido.** Dado un archivo JPG, PNG o PDF de hasta 5 MB, cuando lo adjunto, entonces queda asociado a la solicitud | **Por escribir** |
-| **Archivo no permitido o grande.** Dado un archivo de otro tipo o de más de 5 MB, entonces se rechaza | **Por escribir**; en la interfaz, `FE shared/lib/files.test.ts` |
-| **Límite de cinco.** Dada una solicitud con cinco evidencias, cuando adjunto otra, entonces se rechaza | **Por escribir** |
+| **Adjunto válido.** Dado un archivo JPG, PNG o PDF de hasta 5 MB, cuando lo adjunto, entonces queda asociado a la solicitud | `EvidenceApi.uploadJpgReturns201`, `EvidenceApi.uploadPngReturns201`, `EvidenceApi.uploadPdfReturns201` |
+| **Archivo no permitido o grande.** Dado un archivo de otro tipo o de más de 5 MB, entonces se rechaza | `EvidenceApi.uploadNonAllowedTypeReturns400`, `EvidenceApi.uploadExeRenamedToPngReturns400` (*magic bytes*), `EvidenceApi.uploadFileOver5MbReturns400`; en la interfaz, `FE shared/lib/files.test.ts` |
+| **Límite de cinco.** Dada una solicitud con cinco evidencias, cuando adjunto otra, entonces se rechaza | `EvidenceApi.uploadSixthFileReturns400` |
 
 ---
 
@@ -292,7 +301,7 @@ Como institución, quiero que el sistema impida los saltos de estado que no est�
 | **Estado destino inválido.** Dado un estado destino ausente o desconocido, entonces recibo `400` | `WfApi.aMissingOrUnknownTargetStatusIsABadRequest` |
 | **Solicitud inexistente o sin sesión.** Entonces recibo `404` o `401` | `WfApi.anUnknownRequestIsNotFoundAndAMissingTokenIsUnauthorized` |
 | **Simultaneidad.** Dadas dos transiciones idénticas al mismo tiempo, entonces solo una se aplica | `WfApi.twoSimultaneousIdenticalTransitionsOnlyOneWins` |
-| **En la interfaz.** Dado un `409`, entonces se muestra "Transición no permitida" y se refresca el detalle | **Por escribir** (prueba de interfaz pendiente) |
+| **En la interfaz.** Dado un `409`, entonces se avisa «La solicitud cambió» (otra persona la actualizó), se cierra el diálogo y se refresca el detalle | `FE features/workflow/ActionModal.test.tsx` («explains a 409, closes the dialog and refreshes the request») |
 
 ### HU-20 — Conocer el plazo y las solicitudes vencidas (S)
 
@@ -305,7 +314,7 @@ Como supervisor, quiero ver el vencimiento de cada solicitud y cuáles están ve
 | **Vencimiento.** Dada una prioridad, entonces el vencimiento es el registro más sus horas | `ReqApi.dueDateIsRegistrationPlusTheSlaHoursOfThePriority`, `SlaTest` |
 | **Vencida.** Dada una solicitud que no llegó a Resuelta antes del vencimiento, entonces está vencida; una resuelta a tiempo no | `ReqApi.anOpenRequestPastItsDueDateIsOverdueButAResolvedOneIsNot`, `SlaTest` |
 | **Interfaz.** Dado el cálculo de plazos, entonces la interfaz muestra tiempo restante y vencidas | `FE features/workflow/lib/sla.test.ts` |
-| **Cambio de prioridad.** Dado un cambio de prioridad durante la evaluación, entonces el vencimiento se recalcula | **Por escribir** (cambio de prioridad pendiente en el backend) |
+| **Cambio de prioridad.** Dado un cambio de prioridad durante la evaluación, entonces el vencimiento se recalcula | `ReqExtApi.theSupervisorChangesThePriorityAndTheDueDateIsRecalculated` |
 
 ### HU-21 — Cierre automático a las 72 horas (S)
 
@@ -315,8 +324,8 @@ Como institución, quiero que una solicitud Resuelta sin respuesta se cierre sol
 
 | Escenario | Prueba |
 |---|---|
-| **Cierre automático.** Dada una solicitud Resuelta hace más de 72 horas sin respuesta, cuando corre la tarea, entonces queda Cerrada sin calificación | **Por escribir** (tarea programada pendiente) |
-| **No antes de tiempo.** Dada una solicitud Resuelta hace menos de 72 horas, entonces no se cierra | **Por escribir** |
+| **Cierre automático.** Dada una solicitud Resuelta hace más de 72 horas sin respuesta, cuando corre la tarea, entonces queda Cerrada sin calificación | `AutoCloseApi.aSolutionUnconfirmedForSeventyTwoHoursIsClosedBySystemAndEveryoneIsNotified` (motivo `AUTOMATICA`; calificar después responde `409`), `AutoCloseApi.thePeriodIsTheAdministratorSetting` (las 72 h son configurables por el administrador) |
+| **No antes de tiempo.** Dada una solicitud Resuelta hace menos de 72 horas, entonces no se cierra | `AutoCloseApi.aSolutionWithinThePeriodIsKeptAndRunningAgainClosesNothingTwice`, `AutoCloseApi.thePeriodCountsFromTheLatestResolutionNotFromTheCreation` |
 
 ---
 
@@ -330,8 +339,8 @@ Como solicitante, técnico o supervisor, quiero recibir un aviso dentro de la ap
 
 | Escenario | Prueba |
 |---|---|
-| **Aviso por cambio de estado.** Dada una transición, entonces los interesados reciben una notificación con el código de la solicitud | **Por escribir** (backend pendiente) |
-| **Marcar como leída.** Dada una notificación, cuando la marco como leída, entonces deja de contarse como pendiente | **Por escribir** |
+| **Aviso por cambio de estado.** Dada una transición, entonces los interesados reciben una notificación con el código de la solicitud | `NotifApi.transitionNotifiesRequesterAndSkipsActor`, `NotifApi.assignmentNotifiesTechnicianNewestFirst`, `NotifApi.reassignmentNotifiesNewTechnicianWithReassignmentText` |
+| **Marcar como leída.** Dada una notificación, cuando la marco como leída, entonces deja de contarse como pendiente | `NotifApi.markReadOwnAndForeign`, `NotifApi.markAllReadOnlyAffectsOwnNotifications` |
 
 ### HU-23 — Recibir una sugerencia de categoría y prioridad (S)
 
@@ -344,7 +353,7 @@ Como solicitante, quiero que el sistema me sugiera la categoría y la prioridad 
 | **Sugerencia.** Dada una descripción con palabras clave de una regla, entonces el sistema sugiere su categoría y prioridad | `FE features/triage/lib/suggest.test.ts` |
 | **Más coincidencias.** Dadas varias reglas, entonces gana la que tiene más coincidencias | `FE features/triage/lib/suggest.test.ts` |
 | **Sin coincidencias.** Dada una descripción sin palabras clave, entonces no hay sugerencia | `FE features/triage/lib/suggest.test.ts` |
-| **Endpoint del servidor.** Dada la misma descripción, entonces el servidor devuelve la misma sugerencia | **Por escribir** (backend pendiente) |
+| **Endpoint del servidor.** Dada la misma descripción, entonces el servidor devuelve la misma sugerencia | `TriageApi.theSuggestionComesFromTheRuleWithMostMatches`, `TriageApi.aTieIsWonByTheOldestRule`, `TriageApi.withoutMatchesTheSuggestionIsNull` |
 
 ### HU-24 — Calificar la atención (S)
 
@@ -370,9 +379,9 @@ Como supervisor o administrador, quiero un dashboard con los indicadores de aten
 
 | Escenario | Prueba |
 |---|---|
-| **Indicadores.** Dado un rango de fechas, entonces el dashboard muestra registradas, pendientes, atendidas, por categoría, por prioridad, tiempo promedio de atención, porcentaje resueltas, vencidas y por responsable | **Por escribir** (backend pendiente); cálculos de reportes en `FE features/dashboard/lib/reports.test.ts` |
-| **Filtro por área.** Dado un área, entonces los indicadores solo cuentan sus solicitudes | **Por escribir** |
-| **Vista por rol.** Dado un supervisor, entonces solo ve su área | **Por escribir** |
+| **Indicadores.** Dado un rango de fechas, entonces el dashboard muestra registradas, pendientes, atendidas, por categoría, por prioridad, tiempo promedio de atención, porcentaje resueltas, vencidas y por responsable | `Indicators.kpiValuesCountOnlyTheRequestsRegisteredInThePeriod`, `Indicators.distributionsAreSortedAndPrioritiesKeepTheirOrderWithZeros` (categoría, prioridad y responsable), `DashApi.anEmptyDatabaseGivesZerosAndOneValuePerDay`; cálculos de reportes en `FE features/dashboard/lib/reports.test.ts` |
+| **Filtro por área.** Dado un área, entonces los indicadores solo cuentan sus solicitudes | `DashApi.theAdministratorSeesEveryAreaOrTheOneAskedFor` |
+| **Vista por rol.** Dado un supervisor, entonces solo ve su área | `DashApi.theSupervisorSeesTheIndicatorsOfTheirAreaEvenIfAskingForAnother`, `DashApi.onlySupervisorsAndAdministratorsCanSeeTheIndicators` |
 
 ---
 
@@ -403,7 +412,7 @@ Como administrador, quiero crear y activar reglas de palabras clave para ajustar
 
 | Escenario | Prueba |
 |---|---|
-| **Regla válida.** Dado un administrador, cuando crea una regla con palabras clave, categoría y prioridad, entonces queda disponible para las sugerencias | **Por escribir** (backend pendiente) |
+| **Regla válida.** Dado un administrador, cuando crea una regla con palabras clave, categoría y prioridad, entonces queda disponible para las sugerencias | `TriageApi.aRuleIsCreatedListedUpdatedAndDeleted`, `TriageApi.ruleBodiesAreValidated`, `TriageApi.onlyAdministratorsManageRulesAndOnlyRequestersAskForSuggestions` |
 | **Validación del formulario.** Dada una regla sin palabras clave, entonces el formulario no se envía | `FE features/triage/schemas/rule.test.ts` |
 
 ---
@@ -412,7 +421,7 @@ Como administrador, quiero crear y activar reglas de palabras clave para ajustar
 
 | | Historias | Con escenario y prueba automatizada | Con pruebas por escribir |
 |---|---|---|---|
-| Prioridad M | HU-01 a HU-04, HU-06 a HU-09, HU-12 a HU-19 | 16 de 16 | La prueba de interfaz del `409` de HU-19 |
-| Prioridad S | HU-05, HU-10, HU-11, HU-20 a HU-27 | HU-20 (parcial), HU-26 (usuarios, catálogos y estados), HU-23 y HU-24 (en la API simulada), validaciones de formularios | El backend de las demás y la auditoría de HU-26 |
+| Prioridad M | HU-01 a HU-04, HU-06 a HU-09, HU-12 a HU-19 | 16 de 16 | Ninguna |
+| Prioridad S | HU-05, HU-10, HU-11, HU-20 a HU-27 | 11 de 11 | Ninguna |
 
-Las pruebas por escribir son parte de los sprints 2 y 3; Lita las incorpora al informe de pruebas a medida que se construyen.
+Actualizado el 2026-11-20 (Fase III, T8): de los 19 escenarios que quedaban «Por escribir», 18 se enlazaron con las pruebas que ya los cubrían en el backend y, para la interfaz del `409` de HU-19 se escribió `ActionModal.test.tsx`, comprobando que falla si se quita el manejo del `409`. La auditoría de HU-26 la cubre `admin/infrastructure/web/AdminAuditApiTests`.

@@ -132,4 +132,9 @@ code=$(curl -s -o "$WORK_DIR/notifications.json" -w '%{http_code}' -H "Authoriza
 grep -q '"requestCode":"SOL-' "$WORK_DIR/notifications.json" || fail "no demo notifications: $(head -c 300 "$WORK_DIR/notifications.json")"
 echo "    notifications OK"
 
+step "GET /v3/api-docs returns OpenAPI JSON"
+http_get "$BASE_URL/v3/api-docs" "$WORK_DIR/api-docs.json"
+grep -q '"openapi"' "$WORK_DIR/api-docs.json" || fail "unexpected api-docs response: $(head -c 200 "$WORK_DIR/api-docs.json")"
+echo "    api-docs OK"
+
 step "Smoke test passed"
