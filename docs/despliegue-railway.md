@@ -40,9 +40,61 @@ Solo `frontend` tiene dominio público. La SPA llama `/api/` en el mismo origen;
    La ubicación `seed-dev` crea los usuarios de [la guía, §6](guia-levantamiento.md#6-usuarios-de-demostración) y `seed-demo` crea solicitudes de ejemplo. **No usar esos seeds en producción.** La imagen del backend incluye la comprobación de salud `/actuator/health/readiness`.
 6. Esperar a que MySQL, backend y frontend estén activos. Revisar los logs del backend para confirmar que Flyway aplica las migraciones y no hay errores. Si el backend no resuelve MySQL o falla la escritura de evidencias, corregir las referencias o el volumen antes de publicar la URL.
 7. Verificar desde una terminal: `curl -i https://<dominio>/api/v1/system/info`, `curl -i https://<dominio>/` y `SMOKE_BASE_URL=https://<dominio> bash infra/smoke.sh`. La segunda modalidad de `smoke.sh` prueba la URL existente y no crea ni destruye contenedores locales. En el navegador, iniciar sesión como `estudiante@unmsm.edu.pe`, crear una solicitud y subir una evidencia; recargar y comprobar que se conserva la sesión y el archivo.
-8. Registrar URL, resultado de las comprobaciones, captura del navegador, logs y consumo medido en [evidencias de Fase III](fase-3/evidencias.md). La demo de Railway cubre T1 parcialmente y aporta evidencia a T7. El pipeline CI existente cubre integración continua; T2 exige todavía un despliegue automático posterior al CI verde.
+8. Registrar URL, resultado de las comprobaciones, captura del navegador, logs y consumo medido en [evidencias de Fase III](fase-3/evidencias.md). La demo de Railway cubre T1 parcialmente y aporta evidencia a T7. El pipeline CI existente cubre integración continua; T2, el despliegue automático posterior al CI verde, se configura en la sección [Despliegue continuo](#despliegue-continuo-cd-con-railway).
 
-La primera carga temporal puede hacerse con `railway up ./backend --path-as-root --service backend` y su equivalente para frontend desde la rama de despliegue basada en `dev`. Una vez integrada la PR a `dev`, conectar cada servicio a `MiguelGironAltamirano/taller-web`, rama `dev`, con Root Directory `/backend` o `/frontend` según corresponda. Esto fija la fuente para futuros despliegues.
+La primera carga temporal puede hacerse con `railway up ./backend --path-as-root --service backend` y su equivalente para frontend desde la rama de despliegue basada en `dev`. Esa carga **no es despliegue continuo**: sube una copia del código y no sigue a GitHub. Para el CD, véase la sección siguiente.
+
+## Despliegue continuo (CD) con Railway
+
+Sin un VPS, Railway es la plataforma de CD. Los servicios `backend` y `frontend` están conectados al repositorio `MiguelGironAltamirano/taller-web`, rama `dev`. Un push o merge a `dev` ejecuta el CI de `.github/workflows/ci.yml` (backend, frontend, humo y E2E) y, **con Wait for CI activado, Railway solo construye y despliega si el CI queda en verde**. Las pull requests no despliegan.
+
+```text
+push a dev --> GitHub Actions: backend + frontend + smoke/E2E --verde--> Railway construye los Dockerfiles y despliega
+                                                              `--rojo--> el despliegue se omite
+```
+
+La conexión funciona porque la aplicación de GitHub de Railway está instalada en la cuenta dueña del repositorio, con acceso a `taller-web`, y la cuenta de Railway de quien administra el proyecto tiene su GitHub conectado.
+
+### Configuración (una vez, en el panel de Railway)
+
+1. En `backend` y en `frontend`: **Settings → Source**, repositorio `MiguelGironAltamirano/taller-web`, rama **`dev`**, **Root Directory** `/backend` y `/frontend`. MySQL no se conecta a ningún repo.
+2. En **Settings → Build** de ambos servicios, **Builder = Dockerfile**. Con Railpack, Railway ignora el Dockerfile y el build falla.
+3. En ambos servicios activar **Wait for CI** (Settings → Deploy). Railway retiene el despliegue hasta que los workflows de GitHub Actions del commit terminan: si fallan se omite, y si no terminan en dos horas también.
+4. En `backend` añadir las variables de passkeys (login con huella). Van solo en el backend, con el dominio público del `frontend` **sin esquema ni puerto** y el origen exacto con HTTPS. Una passkey solo funciona en el dominio para el que se creó:
+
+   | Variable | Valor |
+   |---|---|
+   | `APP_AUTH_WEBAUTHN_RP_ID` | `serviciosuniversitarios.up.railway.app` |
+   | `APP_AUTH_WEBAUTHN_ALLOWED_ORIGINS` | `https://serviciosuniversitarios.up.railway.app` |
+
+   Si se renombra el dominio, actualizar ambas.
+5. Mantener `APP_FLYWAY_LOCATIONS` con `seed-dev` y `seed-demo` solo en este ambiente de demo. Un ambiente de producción real no debe usar esos seeds.
+
+Los despliegues antiguos hechos con `railway up` conservan su copia de código y su configuración de entonces: no se redespliegan, porque su Root Directory no coincide con la fuente subida.
+
+### Verificación del CD (evidencia)
+
+1. Hacer un cambio trivial y visible (por ejemplo, el texto de un pie de página) en una rama, abrir PR a `dev` y esperar el CI.
+2. Al integrar, en GitHub abrir **Actions**: corre el CI. En Railway, **Deployments** del backend y del frontend pasa por *Waiting* mientras corre el CI y luego por *Building* y *Active*. Capturar ambos estados.
+3. Comprobar el cambio en la URL pública y ejecutar `SMOKE_BASE_URL=https://<dominio> bash infra/smoke.sh`.
+4. Prueba de la puerta: provocar a propósito una falla del CI en un push de prueba y comprobar que Railway **omite** el despliegue. Capturar el resultado.
+5. Anotar en [evidencias de Fase III](fase-3/evidencias.md) la URL, las capturas, los commits y las ejecuciones de Actions.
+
+### Correspondencia con el enunciado de Fase III
+
+| Exige el enunciado | Cómo se cumple |
+|---|---|
+| Selección de plataforma cloud | Railway por no disponer de VPS; justificación y costo arriba. Dokploy en VPS sigue siendo el diseño para ambientes duraderos |
+| Docker | `backend/Dockerfile` y `frontend/Dockerfile` construidos por Railway |
+| Git y ramas | Repositorio con `feature/*` → `dev` → `main` |
+| Integración continua | `.github/workflows/ci.yml` |
+| Despliegue y pipeline CI/CD | Railway conectado a `dev` con Wait for CI; después se ejecuta `infra/smoke.sh` contra la URL |
+| Ambientes de desarrollo, prueba y producción | Por ahora se muestra solo `dev`: local con Docker Compose (desarrollo) y Railway sobre `dev` (prueba). Producción queda diferida: cuando `dev` se integre en `main` se duplica el *environment* de Railway sobre `main`, sujeto al límite de servicios de la cuenta Trial. El diseño duradero (staging y producción en Dokploy) sigue descrito en la arquitectura |
+| Aplicación desplegada y evidencias de automatización | URL pública y la sección anterior de verificación |
+
+### Límites de la cuenta Trial
+
+La cuenta Trial tiene $5 y 30 días, 5 servicios por proyecto, 2 proyectos y 1 GB de RAM por servicio. El ambiente `dev` ocupa 3 servicios (MySQL, backend y frontend), dentro del límite. Un segundo ambiente (producción) no cabría en el mismo proyecto y tendría que ir en un segundo proyecto, a costa de gastar el crédito más rápido. Terminada la prueba, los servicios se detienen salvo que se contrate un plan.
 
 ## Apagar al terminar
 
